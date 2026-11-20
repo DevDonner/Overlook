@@ -39,6 +39,27 @@ The full design, with decisions, risks and the test plan, is in [docs/design.md]
 
 Not ready yet. Once there's a release, copy the `FarZoomMinimap` folder into your Forever client's `Interface/AddOns/` folder.
 
-## Licence
+## Phase 0 spike
+
+The current build is only the go/no-go spike. Put this repo in `Interface/AddOns/FarZoomMinimap`, log in outdoors with Questie and a few quests, then:
+
+| Command | Checks |
+| --- | --- |
+| `/fzm selftest` | The automatic checks: APIs, position, facing, pin registries, tile loading |
+| `/fzm tiles` | Draws the 5 × 5 terrain tiles around you. The terrain should match your minimap and the red dot should be where you are. `/fzm tiles swap` flips the axes if it doesn't |
+| `/fzm dump` | Pin counts by continent, texture and Questie type, plus the hidden flag |
+| `/fzm combat` | Then pull a mob: prints whether position and facing still work in combat |
+| `/fzm tooltip` | Keep the mouse still: a tooltip whose owner is off-screen should stay up 5 s |
+| `/fzm party` | In a group: whether other players' positions are readable |
+| `/fzm pos` | Your position, facing, map position and tile |
+
+## Development
+
+- `lua tests/run.lua` runs the offline tests (plain Lua 5.1, no dependencies).
+- `luacheck .` lints. CI runs both on every push.
+
+## Licence and credits
 
 Not chosen yet. All rights reserved until a licence is added.
+
+`Data/MinimapTiles.lua` is OpenMap's tile table, used under the MIT licence (`LICENSES/OpenMap-LICENSE.txt`).

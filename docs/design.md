@@ -100,7 +100,8 @@ Other touches: `/fzm` opens settings; a one-time hint on first login ("Scroll to
 | --- | --- | --- |
 | Forever is patch 1.60.1, TOC `## Interface: 16001`, project `WOW_PROJECT_CAMELOT` | Our .toc must list 16001; Classic Era code won't load | [Warcraft Wiki](https://warcraft.wiki.gg/wiki/Patch_1.60.1/API_changes), [Warlords Forever](https://www.curseforge.com/wow/addons/warlords-forever) |
 | Forever shares Mainline's UI architecture and most 12.1.5 APIs, including Midnight's secret-value restrictions | We get modern `C_Map`, `C_Minimap`, mask textures, `SetClipsChildren`; some data may be restricted | [API notes](https://warcraft.wiki.gg/wiki/Patch_1.60.1/API_changes/notes) |
-| Questie ships a `Questie_Camelot.toc` | Questie runs on Forever and uses its normal map code | [Questie repo](https://github.com/Questie/Questie) |
+| Questie ships a `Questie_Forever.toc` (`## Interface: 16001`; checked in the installed 12.11.1) | Questie runs on Forever and uses its normal map code | [Questie repo](https://github.com/Questie/Questie) |
+| **Questie 12.x keeps a private, modified copy of HereBeDragons-Pins** as a Questie module (`QuestieLoader:ImportModule("HBDPins")`), not the shared LibStub library. Same tables (`minimapPins`, `minimapPinRegistry`, `worldmapPins`) | `LibStub("HereBeDragons-Pins-2.0")` never sees Questie's icons. The mirror reads two registries: Questie's private one and the shared one (TomTom, RareScanner) (#34) | Installed Questie, `Libs/HereBeDragons/HereBeDragons-Pins-2.0.lua` |
 | Questie makes two frames per spawn, `iconMap` and `iconMinimap`, and registers them via `HBDPins:AddWorldMapIconMap` / `AddMinimapIconMap` with `floatOnEdge = true` | Every Questie pin passes through HereBeDragons, which we can read | [QuestieMap.lua](https://github.com/Questie/Questie/blob/master/Modules/Map/QuestieMap.lua) |
 | Questie fades minimap icons by distance and hides some with `FakeHide()` | A mirror that copies Questie's alpha will show nothing far away | QuestieMap.lua |
 | HBD keeps `pins.minimapPins[icon] = {instanceID, x, y, uiMapID, floatOnEdge, ...}` in world coordinates | The full pin list, independent of any open map | [HereBeDragons-Pins-2.0.lua](https://github.com/Nevcairiel/HereBeDragons/blob/master/HereBeDragons-Pins-2.0.lua) |
@@ -114,7 +115,7 @@ Yes. The idea is right, but the best "big map data" is the registry behind the w
 | Option | How | Pros | Cons | Pick |
 | --- | --- | --- | --- | --- |
 | A. Read world map pins | `WorldMapFrame:EnumeratePinsByTemplate(...)` | Exactly what you see on the big map | Pins exist only while the map is open, and only for the map shown; a pool, so frames get recycled | No |
-| B. Read the HBD registry | `LibStub("HereBeDragons-Pins-2.0").minimapPins` (fall back to `.worldmapPins`) | Always populated, every zone, world coords already computed; works for Questie, TomTom, GatherLite at once | Internal tables, not public API: guard every field read | **Yes** |
+| B. Read the HBD registries | Questie: `QuestieLoader:ImportModule("HBDPins").minimapPins`; others: `LibStub("HereBeDragons-Pins-2.0").minimapPins` (fall back to `.worldmapPins`) | Always populated, every zone, world coords already computed; works for Questie, TomTom, GatherLite at once | Internal tables, not public API: guard every field read | **Yes** |
 | C. Read QuestieDB directly | Re-run Questie's spawn lookups ourselves, like ZMap does | Full control; no dependency on Questie's frames | Re-implements Questie; breaks when Questie changes; large | Fallback only |
 
 Option B is "the big map's data" in practice: Questie registers a world-map twin for every minimap icon, both in the same library, with the same world coordinates.
@@ -165,6 +166,7 @@ We draw our own lightweight **proxy pins** and never move Questie's frames, exce
 
 - After `PLAYER_LOGIN`, `hooksecurefunc` the HBD-Pins table on `AddMinimapIconWorld`, `AddMinimapIconMap`, `RemoveMinimapIcon` and `RemoveAllMinimapIcons`. Verified: `AddMinimapIconMap` calls `self:AddMinimapIconWorld`, so the world hook sees both paths.
 - **Keep our own `ref → icons` index.** `RemoveAllMinimapIcons` removes pins inline and wipes HBD's registry for that `ref`. Our post-hook runs after the wipe, so it can't read which icons went. We record `ref` and `icon` in the Add hooks and drop that set on RemoveAll.
+- Hook both registries the same way (#34): Questie's private module table and the shared LibStub table. The version check below applies to the shared copy only; Questie's copy loads once with Questie.
 - Store the HBD minor version we hooked (currently 17). On every `ADDON_LOADED`, compare it: a newer HBD reuses the same table and reassigns its functions, which silently drops our hooks. If it changed, re-hook and rescan.
 - Each hook marks the icon dirty. A 0.1 s ticker drains the dirty set: read `minimapPins[icon]`, then add, move or drop its proxy in the spatial grid. Draining later also catches the `uiMapID` that `AddMinimapIconMap` writes after the world call returns.
 - On load, do one full scan of `minimapPins` to catch pins added before our hooks.
@@ -205,7 +207,7 @@ Target budget: under 0.1 ms per frame while walking with rotation off; under 0.5
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
 | HBD internals change (`minimapPins` field names) | Mirror shows nothing | Check the HBD minor version on load; validate fields; log once and fall back to native-only far zoom |
-| Tile file IDs: an addon can't list game files, and Forever's world files may not match the retail/classic community listfile | No far-zoom terrain, or wrong terrain | Phase 0 tile spike (I14) proves the pipeline on one area first. Generate the table the way OpenMap does (its tools are MIT); fall back to `C_Map.GetMapArtLayerTextures` art where a tile is missing; regenerate each patch |
+| Tile file IDs: an addon can't list game files, and Forever's world files may not match the retail/classic community listfile | No far-zoom terrain, or wrong terrain | Mostly resolved (#35): we vendor OpenMap's generated table (`Data/Forever/Minimap.lua`, MIT, build 1.60.1.70245). Phase 0 tile spike (I14) confirms it draws correctly. On a new patch, take OpenMap's regenerated copy or run its MIT tools; fall back to `C_Map.GetMapArtLayerTextures` art where a tile is missing; regenerate each patch |
 | Midnight secret-value rules restrict player position or facing | No far zoom, or no rotation mode | Phase 0 spike: confirm `UnitPosition`, `C_Map.GetPlayerMapPosition` and `GetPlayerFacing` outdoors, in and out of combat |
 | Far mode must draw what the native minimap drew: player arrow, party dots, corpse, flight path | Far map feels empty or wrong | Player arrow is ours (easy). Party positions may be restricted for other units, so test in Phase 0 and drop them if they are |
 | Hiding the native `Minimap` in far mode | HBD stops sweeping while it's hidden; other addons anchored to it may break | Keep `Minimap` shown at alpha 0 under our overlay. Everything else is parented to our root container, and addon buttons are moved out of `Minimap`, so they stay visible (#23). Profile the render cost |
@@ -324,6 +326,16 @@ A fresh review against the whole doc. Each row records the finding and the decis
 | 33 | Why not fix Forever Minimap? | Build fresh for direct control; Forever Minimap was too buggy in use |
 
 Smaller fixes in the same pass: the architecture diagram restored as Mermaid, the clipboard limit noted under coordinates, and the offline test harness given a place in Phase 0.
+
+## Findings while building Phase 0 (Nov 20, 2026)
+
+Checked against the addons installed in the Forever client.
+
+| # | Finding | Decision |
+| --- | --- | --- |
+| 34 | Questie 12.11.1 uses a private, modified HereBeDragons-Pins copy (a Questie module), not the shared LibStub library | `Core/PinSources.lua` reads both registries; hooks go on both tables |
+| 35 | OpenMap (MIT) ships a ready tile table for Forever: `[continent][col * 64 + row] = file ID` | Vendored as `Data/MinimapTiles.lua` with its licence; I14 checks it in game |
+| 36 | SquareForeverMinimap (the current far-zoom minimap) draws tiles from file IDs with `SetTexture`, confirming the approach works on this client. Its licence is All Rights Reserved | Read for facts only; none of its code is copied |
 
 ## Test plan (test-driven)
 

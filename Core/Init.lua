@@ -1,0 +1,55 @@
+-- Namespace, chat output and the /fzm command dispatcher.
+local ADDON, ns = ...
+
+ns.name = ADDON
+
+local PREFIX = "|cff4fc3f7FZM|r "
+
+function ns.Print(msg)
+    print(PREFIX .. tostring(msg))
+end
+
+function ns.Printf(fmt, ...)
+    ns.Print(string.format(fmt, ...))
+end
+
+-- issecretvalue exists on Midnight-era clients; doing math on a secret value errors.
+local issecret = issecretvalue or function() return false end
+
+function ns.IsSecret(v)
+    return v ~= nil and issecret(v) and true or false
+end
+
+-- Formats a value for chat without erroring on secrets.
+function ns.Show(v)
+    if v == nil then return "nil" end
+    if ns.IsSecret(v) then return "|cffff5555<secret>|r" end
+    if type(v) == "number" then return string.format("%.2f", v) end
+    return tostring(v)
+end
+
+local commands, order = {}, {}
+
+function ns.RegisterCommand(name, help, fn)
+    commands[name] = { help = help, fn = fn }
+    order[#order + 1] = name
+end
+
+local function ShowHelp()
+    ns.Print("commands:")
+    for _, name in ipairs(order) do
+        ns.Printf("  /fzm %s - %s", name, commands[name].help)
+    end
+end
+
+SLASH_FARZOOMMINIMAP1 = "/fzm"
+SlashCmdList.FARZOOMMINIMAP = function(msg)
+    local name, rest = (msg or ""):match("^%s*(%S*)%s*(.-)%s*$")
+    name = name:lower()
+    local cmd = commands[name]
+    if not cmd then
+        ShowHelp()
+        return
+    end
+    cmd.fn(rest)
+end

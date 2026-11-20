@@ -1,0 +1,27 @@
+std = "lua51"
+max_line_length = false
+
+exclude_files = {
+    "Data/MinimapTiles.lua", -- vendored, generated
+    ".lua/**",               -- CI's Lua install
+    ".luarocks/**",
+}
+
+globals = {
+    "SLASH_FARZOOMMINIMAP1",
+    "SlashCmdList",
+}
+
+read_globals = {
+    -- WoW API
+    "C_AddOns", "C_Map", "C_Minimap", "C_Timer",
+    "CreateFrame", "GameTooltip", "GetNumGroupMembers", "GetPlayerFacing",
+    "InCombatLockdown", "IsInRaid", "Minimap", "UIParent",
+    "UnitName", "UnitPosition", "issecretvalue",
+    -- Other addons
+    "LibStub", "QuestieLoader",
+}
+
+files["tests/"] = {
+    globals = { "LibStub", "QuestieLoader" },
+}
