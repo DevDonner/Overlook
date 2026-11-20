@@ -37,7 +37,7 @@ The full design, with decisions, risks and the test plan, is in [docs/design.md]
 
 ## Installation
 
-Not ready yet. Once there's a release, copy the `FarZoomMinimap` folder into your Forever client's `Interface/AddOns/` folder.
+See [docs/INSTALL.md](docs/INSTALL.md): download a ZIP, clone with Git, or link a working copy into your Forever client's `Interface/AddOns/` folder.
 
 ## Phase 0 spike
 
