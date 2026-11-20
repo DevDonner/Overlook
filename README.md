@@ -8,6 +8,8 @@ A minimap addon for **WoW Forever** (patch 1.60.1, `## Interface: 16001`) that l
 
 Existing far-zoom minimaps draw extra terrain around the native minimap, but Questie icons stay stuck inside the native minimap's range, or pile up on its edge. FarZoomMinimap reads every pin from the shared HereBeDragons registry (where Questie, TomTom and others register their icons) and draws them itself, in the right place, at any zoom out to about one zone.
 
+The full design, with decisions, risks and the test plan, is in [docs/design.md](docs/design.md).
+
 ## Planned features
 
 - Smooth zoom past the native limit, out to about one zone (default 2,000 yards, up to 3,200)
