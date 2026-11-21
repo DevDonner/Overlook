@@ -187,36 +187,92 @@ end)
 ----------------------------------------------------------------------------------------------------
 -- Tooltip with an off-screen owner
 
-ns.RegisterCommand("tooltip", "does a tooltip stay up when its owner is off-screen? (don't move the mouse)", function()
+-- Records what hides GameTooltip while a test case is running.
+local tip = { active = false }
+
+local function FrameLabel(f)
+    if f == nil then return "nil" end
+    local ok, name = pcall(function() return f.GetDebugName and f:GetDebugName() or f:GetName() end)
+    return ok and tostring(name) or "?"
+end
+
+local function EnsureTooltipHook()
+    if tip.hooked then return end
+    tip.hooked = true
+    GameTooltip:HookScript("OnHide", function()
+        if tip.active and not tip.hideStack then
+            tip.hideAt = GetTime() - tip.start
+            tip.hideStack = debugstack(2, 10, 0)
+        end
+    end)
+end
+
+-- Shows a test tooltip owned by `owner`, checks it at 1 and 3 s, then calls done(passed).
+local function RunTooltipCase(label, owner, done)
+    tip.active, tip.hideStack, tip.hideAt, tip.start = true, nil, nil, GetTime()
+
+    GameTooltip:SetOwner(owner, "ANCHOR_NONE")
+    GameTooltip:ClearAllPoints()
+    GameTooltip:SetPoint("CENTER", UIParent, "CENTER", 0, 200)
+    GameTooltip:AddLine("FarZoomMinimap tooltip test: " .. label)
+    GameTooltip:AddLine("Keep the mouse still over an empty part of the screen.", 1, 1, 1, true)
+    GameTooltip:Show()
+    ns.Printf("|cffffd200%s|r: shown right away %s", label, tostring(GameTooltip:IsShown()))
+
+    local survived = true
+    for _, t in ipairs({ 1, 3 }) do
+        C_Timer.After(t, function()
+            local shown = GameTooltip:IsShown()
+            local current = GameTooltip:GetOwner()
+            local up = shown and current == owner
+            survived = survived and up
+            ns.Printf("  after %d s: %s", t, up and "still up"
+                or string.format("|cffff5555gone|r (shown %s, owner %s)", tostring(shown), FrameLabel(current)))
+            if t == 3 then
+                tip.active = false
+                if tip.hideStack then
+                    ns.Printf("  hidden after %.2f s by:", tip.hideAt)
+                    for line in tip.hideStack:gmatch("[^\n]+") do
+                        ns.Print("    " .. line:gsub("Interface/AddOns/", ""):sub(1, 160))
+                    end
+                end
+                if up then GameTooltip:Hide() end
+                ns.Printf("  %s: %s", label, survived and "|cff55ff55PASS|r" or "|cffff5555FAIL|r")
+                done(survived)
+            end
+        end)
+    end
+end
+
+ns.RegisterCommand("tooltip", "tooltip with an on-screen owner, then an off-screen one (keep the mouse still)", function()
+    EnsureTooltipHook()
     local owner = Spike.tooltipOwner
     if not owner then
         owner = CreateFrame("Frame", nil, UIParent)
         owner:SetSize(10, 10)
         Spike.tooltipOwner = owner
     end
-    owner:ClearAllPoints()
-    owner:SetPoint("BOTTOMRIGHT", UIParent, "TOPLEFT", -200, 200) -- well off-screen
     owner:Show()
 
-    GameTooltip:SetOwner(owner, "ANCHOR_NONE")
-    GameTooltip:ClearAllPoints()
-    GameTooltip:SetPoint("CENTER", UIParent, "CENTER", 0, 200)
-    GameTooltip:AddLine("FarZoomMinimap tooltip test")
-    GameTooltip:AddLine("The owner frame is off-screen. This should stay up for 5 seconds.", 1, 1, 1, true)
-    GameTooltip:Show()
-
-    local survived = true
-    for _, t in ipairs({ 1, 3, 5 }) do
-        C_Timer.After(t, function()
-            local up = GameTooltip:IsShown() and GameTooltip:GetOwner() == owner
-            survived = survived and up
-            ns.Printf("  after %d s: tooltip %s", t, up and "still up" or "|cffff5555gone|r")
-            if t == 5 then
-                if up then GameTooltip:Hide() end
-                ns.Printf("tooltip test: %s", survived and "|cff55ff55PASS|r" or "|cffff5555FAIL|r")
+    -- Control: the owner is on-screen, so this should always pass. If it fails, something
+    -- else (mouseover, another addon) is hiding the tooltip and the real case means nothing.
+    owner:ClearAllPoints()
+    owner:SetPoint("CENTER", UIParent, "CENTER", 0, 120)
+    RunTooltipCase("control (owner on-screen)", owner, function(control)
+        owner:ClearAllPoints()
+        owner:SetPoint("BOTTOMRIGHT", UIParent, "TOPLEFT", -200, 200) -- well off-screen
+        RunTooltipCase("owner off-screen", owner, function(offscreen)
+            local verdict
+            if not control then
+                verdict = "|cffffaa00INCONCLUSIVE|r: the control failed too, so something else hides the tooltip"
+            elseif offscreen then
+                verdict = "|cff55ff55PASS|r: an off-screen owner is fine"
+            else
+                verdict = "|cffff5555FAIL|r: the off-screen owner itself kills the tooltip"
             end
+            ns.Print("tooltip test: " .. verdict)
         end)
-    end
+    end)
 end)
 
 ----------------------------------------------------------------------------------------------------

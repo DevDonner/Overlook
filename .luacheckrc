@@ -15,7 +15,7 @@ globals = {
 read_globals = {
     -- WoW API
     "C_AddOns", "C_Map", "C_Minimap", "C_Timer",
-    "CreateFrame", "GameTooltip", "GetNumGroupMembers", "GetPlayerFacing",
+    "CreateFrame", "GameTooltip", "GetNumGroupMembers", "GetPlayerFacing", "GetTime", "debugstack",
     "InCombatLockdown", "IsInRaid", "Minimap", "UIParent",
     "UnitName", "UnitPosition", "issecretvalue",
     -- Other addons
