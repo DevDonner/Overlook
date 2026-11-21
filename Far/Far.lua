@@ -31,8 +31,9 @@ local active, pool = {}, {}      -- active[key] = texture, or false when the til
 local c0, c1, r0, r1             -- the tile range on screen
 local layoutDirty, tilesPending = false, false
 local lastFacing
-local panN, panW = 0, 0          -- yards from the player to the view centre (drag to pan)
-local drag                       -- { x, y, panN, panW, moved } while the left button is down
+local anchorN, anchorW           -- world point the view is pinned to after a pan; nil = follows the player
+local playerN, playerW           -- last known player position
+local drag                       -- { x, y, n, w, moved } while the left button is down
 local nearDrag                   -- cursor at mouse-down on the native minimap, until it moves
 local suppressPing = false       -- the native mouse-up after a drag must not ping
 local recenter                   -- the Recenter button
@@ -44,13 +45,25 @@ local function Cursor()
     return x / s, y / s
 end
 
--- Panned = the view centre is visibly off the player (more than 2 px at the current zoom).
--- Centred views hand back to the native minimap when zoomed to its scale; panned ones don't.
+-- Panned = the view is pinned to a world point visibly off the player (more than 2 px at the
+-- current zoom). A pinned view stays put while the player moves; a centred one follows the
+-- player and hands back to the native minimap when zoomed to its scale.
 local ALIGNED_PX = 2
 local function IsPanned()
-    if panN == 0 and panW == 0 then return false end
+    if not anchorN or not playerN then return false end
     local ppy = ns.db.size / 2 / (radius or nativeMax)
-    return (panN * panN + panW * panW) * ppy * ppy > ALIGNED_PX * ALIGNED_PX
+    local dN, dW = anchorN - playerN, anchorW - playerW
+    return (dN * dN + dW * dW) * ppy * ppy > ALIGNED_PX * ALIGNED_PX
+end
+
+local function ClearAnchor()
+    anchorN, anchorW, drag = nil, nil, nil
+end
+
+-- A drag released back on the player un-pins the view, so it follows the player again.
+local function FinishDrag()
+    drag = nil
+    if anchorN and not IsPanned() then anchorN, anchorW = nil, nil end
 end
 
 local function Usable(v)
@@ -183,7 +196,7 @@ local function OnUpdate()
         end
         ReleaseAll()
         instance, tileSet, originN, originW = inst, set, n, w
-        panN, panW = 0, 0
+        ClearAnchor()
         layoutDirty = true
     end
 
@@ -204,7 +217,7 @@ local function OnUpdate()
 
     if drag then
         if not IsMouseButtonDown("LeftButton") then
-            drag = nil
+            FinishDrag()
         else
             local cx, cy = Cursor()
             local dx, dy = cx - drag.x, cy - drag.y
@@ -214,16 +227,18 @@ local function OnUpdate()
             end
             if drag.moved then
                 -- Dragging right shows more of the west: the centre moves west (west grows).
+                -- Pinned to a world point, kept within reach of the player.
                 local limit = 2 * ns.db.maxFarZoom
-                panW = math.max(-limit, math.min(limit, drag.panW + dx / ppy))
-                panN = math.max(-limit, math.min(limit, drag.panN - dy / ppy))
+                anchorW = w + math.max(-limit, math.min(limit, drag.w + dx / ppy - w))
+                anchorN = n + math.max(-limit, math.min(limit, drag.n - dy / ppy - n))
             end
         end
     end
     if recenter:IsShown() ~= IsPanned() then recenter:SetShown(IsPanned()) end
 
-    -- The view centre: the player, plus the pan.
-    local cN, cW = n + panN, w + panW
+    -- The view centre: the pinned point after a pan, else the player.
+    playerN, playerW = n, w
+    local cN, cW = anchorN or n, anchorW or w
     canvas:SetPoint("CENTER", view, "CENTER", (cW - originW) * ppy, (originN - cN) * ppy)
     arrow:SetPoint("CENTER", view, "CENTER", (cW - w) * ppy, (n - cN) * ppy)
 
@@ -289,7 +304,7 @@ end
 function Far.Leave()
     if mode ~= "far" then return end
     mode = "near"
-    panN, panW, drag = 0, 0, nil
+    ClearAnchor()
     recenter:Hide()
     if ns.Mirror then ns.Mirror.SetLayout(nil) end
     view:Hide()
@@ -298,11 +313,10 @@ function Far.Leave()
     Minimap:SetAlpha(1)
 end
 
--- Back to the player, keeping the zoom. Exactly at the native radius that also hands back to the
--- native minimap; closer in, the view stays far until zoomed out past the native radius.
+-- Back to the player and back to the native minimap at its widest step: the default view.
 function Far.Recenter()
-    panN, panW, drag = 0, 0, nil
-    if mode == "far" and math.abs(target - nativeMax) <= nativeMax * 1e-4 then Far.Leave() end
+    ClearAnchor()
+    Far.Leave()
 end
 
 ----------------------------------------------------------------------------------------------------
@@ -310,8 +324,12 @@ end
 -- than a few px switches to far mode at the same scale (the native map can't pan) and keeps
 -- going; the native mouse-up after it is swallowed so it doesn't ping.
 
+-- Remembers where the drag started: the cursor and the view centre in world yards.
 local function BeginDrag(x, y, moved)
-    drag = { x = x, y = y, panN = panN, panW = panW, moved = moved }
+    local n, w = anchorN or playerN, anchorW or playerW
+    if not n then n, w = PlayerPosition() end
+    if not n then return end
+    drag = { x = x, y = y, n = n, w = w, moved = moved }
 end
 
 local nearWatcher = CreateFrame("Frame")
@@ -426,7 +444,7 @@ function Far.Build(root, level)
     end)
     view:SetScript("OnMouseUp", function(_, button)
         local wasDrag = drag and drag.moved
-        if button == "LeftButton" then drag = nil end
+        if button == "LeftButton" and drag then FinishDrag() end
         if not wasDrag and ns.Mirror then ns.Mirror.Click(button) end
     end)
     view:SetScript("OnLeave", function()

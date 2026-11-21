@@ -99,8 +99,14 @@ Mirror.unresolved = 0
 
 local INT_MAX, UINT_RANGE = 2147483647, 4294967296
 
+-- A file id as text ("4294955030") is not a path: after a client restart GetTextureFilePath
+-- returns exactly that for loose addon files, and SetTexture rejects it.
+local function IsPath(tex)
+    return type(tex) == "string" and tex ~= "" and not tex:match("^%-?%d+$")
+end
+
 local function Usable(tex)
-    return (type(tex) == "string" and tex ~= "") or (type(tex) == "number" and tex > 0 and tex <= INT_MAX)
+    return IsPath(tex) or (type(tex) == "number" and tex > 0 and tex <= INT_MAX)
 end
 
 -- Questie's own path for one of its icon's textures, from its data (the image follows data.Icon:
@@ -136,23 +142,24 @@ local function ResolveTexture(region, icon)
     -- 1. What the owner passed to SetTexture, recorded by our hook (HookFrame).
     if Usable(region.fzmTexture) then return region.fzmTexture end
 
-    -- 2. Read back from the client. A loose addon file has a negative file id, which comes back
-    --    either negative or as its unsigned 32-bit value (2^32 - 13125 = 4294954171).
+    -- 2. The owner's data (Questie, RareScanner): known-good paths, no client readback.
     local id = region:GetTexture()
+    if type(id) == "string" and id:match("^%-?%d+$") then id = tonumber(id) end
+    -- A loose addon file has a negative file id, which can come back as its unsigned 32-bit
+    -- value (2^32 - 13125 = 4294954171).
     if type(id) == "number" and id > INT_MAX then id = id - UINT_RANGE end
-    local path = region.GetTextureFilePath and region:GetTextureFilePath()
-    if type(path) == "string" and path ~= "" then
-        if type(id) == "number" and id < 0 then learnedPaths[id] = path end
-        return path
-    end
-
-    -- 3. The owner's data (Questie, RareScanner).
     local q = OwnerPath(region, icon)
     if Usable(q) then
         if type(id) == "number" and id < 0 then learnedPaths[id] = q end
         return q
     end
 
+    -- 3. Read back from the client: a real path, a listfile id, or a path learned for this id.
+    local path = region.GetTextureFilePath and region:GetTextureFilePath()
+    if IsPath(path) then
+        if type(id) == "number" and id < 0 then learnedPaths[id] = path end
+        return path
+    end
     if Usable(id) then return id end
     if type(id) == "number" and learnedPaths[id] then return learnedPaths[id] end
     return nil, id

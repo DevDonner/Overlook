@@ -305,4 +305,15 @@ H.test("an icon HBD has never shown (out of native range) is still copied", func
     H.eq(p.drawn, true)
 end)
 
+H.test("a file id returned as text is not a path; Questie's data is used", function()
+    _G.Questie = { usedIcons = { [8] = "Interface/AddOns/Questie/Icons/complete.blp" } }
+    local icon = NewIcon("complete", { negativeId = 4294955030, questieIcon = 8 })
+    icon.texture.GetTextureFilePath = function() return "4294955030" end
+    lib:AddMinimapIconWorld("Questie", icon, 0, -132, -8949)
+    Drain()
+    local p = Proxy(icon)
+    H.eq(p.nTex, 1)
+    H.eq(p.tex[1].calls.SetTexture[1], "Interface/AddOns/Questie/Icons/complete.blp")
+end)
+
 for k, v in pairs(saved) do _G[k] = v end
