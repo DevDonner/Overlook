@@ -181,7 +181,7 @@ local function OnUpdate()
     if zoomed then
         layoutDirty = false
         RelayoutTiles(ppy)
-        if ns.Mirror then ns.Mirror.SetLayout(instance, originN, originW, ppy) end
+        if ns.Mirror then ns.Mirror.SetLayout(instance, originN, originW, ppy, Zoom.Shrink(radius, nativeMax)) end
     end
     local a0, a1, b0, b1 = G.VisibleTiles(n, w, radius)
     if zoomed or tilesPending or a0 ~= c0 or a1 ~= c1 or b0 ~= r0 or b1 ~= r1 then

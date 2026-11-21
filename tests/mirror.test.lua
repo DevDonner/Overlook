@@ -96,9 +96,11 @@ local ns = {
     Printf = noop,
     Show = tostring,
     RegisterCommand = noop,
-    PinSources = { List = function() return { { name = "test", lib = lib } } end },
+    PinSources = { List = function() return { { name = "Questie (test)", lib = lib } } end },
 }
+ns.db = { icons = {} }
 H.loadAddonFile("Core/Geometry.lua", ns)
+H.loadAddonFile("Core/IconPrefs.lua", ns)
 H.loadAddonFile("Pins/Mirror.lua", ns)
 local Mirror = ns.Mirror
 
@@ -118,7 +120,34 @@ H.test("a pin added before or after the hooks gets a proxy with the icon's look"
     local t = Proxy(late).tex[1]
     H.eq(t.calls.SetTexture[1], "Interface/AddOns/Questie/Icons/available.png", "texture by path")
     H.eq(t.calls.SetVertexColor[4], 1, "Questie's fade alpha is ignored")
+    Mirror.SetLayout(0, -8949, -132, 0.5)
     H.eq(t.calls.SetSize[1], 24, "size follows the icon's effective scale")
+end)
+
+H.test("icon groups: Questie types are categories; hide and size apply", function()
+    local icon = NewIcon("monster")
+    lib:AddMinimapIconWorld("Questie", icon, 0, -132, -8949)
+    Drain()
+    Mirror.SetLayout(0, -8949, -132, 0.5, 0.5)
+    local p = Proxy(icon)
+    H.eq(p.key, "questie:monster")
+    H.eq(p.tex[1].calls.SetSize[1], 24, "Questie icons don't shrink by default")
+
+    ns.IconPrefs.Apply(ns.db, "monster", {}, "size", "0.5")
+    Mirror.RefreshPrefs()
+    H.eq(p.tex[1].calls.SetSize[1], 12, "size 0.5")
+    H.near(p.hw, 6, 1e-9, "hit box follows size")
+
+    ns.IconPrefs.Apply(ns.db, "monster", {}, "shrink", "on")
+    Mirror.RefreshPrefs()
+    H.eq(p.tex[1].calls.SetSize[1], 6, "size 0.5 x zoom shrink 0.5")
+
+    ns.IconPrefs.Apply(ns.db, "questie", {}, "hide")
+    Mirror.RefreshPrefs()
+    H.eq(p.drawn, false, "hidden by the user")
+    ns.IconPrefs.Apply(ns.db, "all", {}, "reset")
+    Mirror.RefreshPrefs()
+    H.eq(p.drawn, true, "reset shows it again")
 end)
 
 H.test("placement: the pin at the origin sits at 0,0; 100 yd north at ppy 0.5 is 50 px up", function()

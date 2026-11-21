@@ -26,6 +26,15 @@ function Zoom.FarStep(radius, delta, fine, nativeMax, maxFar)
     return r, false
 end
 
+Zoom.SHRINK_MIN = 0.35
+
+-- How much "shrink with zoom" icons are scaled at a far radius: 1 at the native radius, falling
+-- with the square root of the zoom so icons shrink more gently than the terrain.
+function Zoom.Shrink(radius, nativeMax)
+    if not radius or radius <= nativeMax then return 1 end
+    return math.max(Zoom.SHRINK_MIN, math.sqrt(nativeMax / radius))
+end
+
 -- Radius t seconds into a tween from `from` to `to`, even in log space so every step feels the same.
 function Zoom.Tween(from, to, t, duration)
     if duration <= 0 or t >= duration or from == to then return to end

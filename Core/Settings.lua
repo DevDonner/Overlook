@@ -38,6 +38,8 @@ function Settings.Load(saved)
     end
     db.size = Settings.ClampSize(db.size)
     db.maxFarZoom = Settings.ClampMaxFar(db.maxFarZoom)
+    -- Per-category icon preferences (IconPrefs). Not in DEFAULTS: a table default would be shared.
+    if type(db.icons) ~= "table" then db.icons = {} end
     if type(db.x) ~= "number" or type(db.y) ~= "number" then
         db.x, db.y = nil, nil
     end

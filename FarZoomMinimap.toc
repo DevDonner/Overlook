@@ -11,6 +11,7 @@ Core\Init.lua
 Core\Settings.lua
 Core\Geometry.lua
 Core\Zoom.lua
+Core\IconPrefs.lua
 Core\PinSources.lua
 Data\MinimapTiles.lua
 Shell\Shell.lua

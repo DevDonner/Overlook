@@ -15,7 +15,7 @@
 --    icons at alpha 0, and showing those far-away icons is the whole point.
 local _, ns = ...
 
-local G = ns.Geometry
+local G, IconPrefs = ns.Geometry, ns.IconPrefs
 
 local Mirror = {}
 ns.Mirror = Mirror
@@ -32,6 +32,8 @@ local owner               -- the far view: tooltip owner and hit-test frame
 local layout              -- { inst, n, w, ppy } while far mode is drawing; nil otherwise
 local hovered
 local reconcileNow = false
+local refLabels = {}      -- HBD ref -> owning addon's folder name
+local categories = {}     -- category key -> display label
 local reportedErrors = {}
 
 Mirror._proxies = proxies -- read by the offline tests
@@ -103,7 +105,8 @@ local function CopyRegion(dst, src, frameW, frameH, ratio)
         local point, _, relPoint, x, y = src:GetPoint(1)
         if point == "CENTER" and relPoint == "CENTER" then ox, oy = x or 0, y or 0 end
     end
-    dst:SetSize(w * ratio, h * ratio)
+    -- Base size and offset; Place scales them by the category's size and the zoom.
+    dst.bw, dst.bh = w * ratio, h * ratio
     dst.ox, dst.oy = ox * ratio, oy * ratio
 end
 
@@ -133,7 +136,7 @@ local function CopyLook(p)
         p.nTex = p.nTex + 1
         p.tex[p.nTex] = t
     end
-    p.hw, p.hh = fw * ratio / 2, fh * ratio / 2
+    p.bhw, p.bhh = fw * ratio / 2, fh * ratio / 2
 end
 
 ----------------------------------------------------------------------------------------------------
@@ -145,26 +148,29 @@ local function Hide(p)
 end
 
 local function Place(p)
-    if not layout or p.hidden or p.inst ~= layout.inst or p.nTex == 0 then
+    if not layout or p.hidden or p.userHidden or p.inst ~= layout.inst or p.nTex == 0 then
         Hide(p)
         return
     end
     local x, y = G.WorldToPixel(p.n, p.w, layout.n, layout.w, layout.ppy)
-    p.x, p.y = x, y
+    local k = p.scale * (p.shrink and layout.shrink or 1)
+    p.x, p.y, p.hw, p.hh = x, y, p.bhw * k, p.bhh * k
     local frame = p.layer.frame
     for i = 1, p.nTex do
         local t = p.tex[i]
-        t:SetPoint("CENTER", frame, "CENTER", x + t.ox, y + t.oy)
+        t:SetSize(t.bw * k, t.bh * k)
+        t:SetPoint("CENTER", frame, "CENTER", x + t.ox * k, y + t.oy * k)
         t:Show()
     end
     p.drawn = true
 end
 
 -- Far mode calls this when the zoom, origin or continent changes; nil when it leaves.
-function Mirror.SetLayout(inst, n, w, ppy)
+-- shrink is the zoom's scale for "shrink with zoom" icons (Zoom.Shrink).
+function Mirror.SetLayout(inst, n, w, ppy, shrink)
     if inst then
         layout = layout or {}
-        layout.inst, layout.n, layout.w, layout.ppy = inst, n, w, ppy
+        layout.inst, layout.n, layout.w, layout.ppy, layout.shrink = inst, n, w, ppy, shrink or 1
     else
         layout = nil
         Mirror.ClearHover()
@@ -185,6 +191,48 @@ local function HookFrame(icon)
     hookedFrames[icon] = true
     if type(icon.FakeHide) == "function" then hooksecurefunc(icon, "FakeHide", MarkDirtyFrame) end
     if type(icon.FakeShow) == "function" then hooksecurefunc(icon, "FakeShow", MarkDirtyFrame) end
+end
+
+-- The addon that owns a ref: the first AddOns folder on the call stack that isn't ours or an
+-- HBD library. Runs once per ref, from the Add hook, so the stack walk is rare.
+local function LabelFromStack()
+    if not debugstack then return nil end
+    local stack = debugstack(3, 15, 0) or ""
+    for line in stack:gmatch("[^\n]+") do
+        local folder = line:match("AddOns[/\\]([^/\\]+)[/\\]")
+        if folder and folder ~= ns.name and not line:find("HereBeDragons", 1, true) then
+            return folder
+        end
+    end
+end
+
+local function LabelForRef(ref)
+    if type(ref) == "string" then return ref end
+    for _, name in ipairs({ "TomTom", "RareScanner", "HandyNotes", "GatherMate2" }) do
+        if _G[name] ~= nil and _G[name] == ref then return name end
+    end
+    return "Other"
+end
+
+local function RefOf(src, icon)
+    local registry = src.lib.minimapPinRegistry
+    if type(registry) ~= "table" then return nil end
+    for ref, set in pairs(registry) do
+        if type(set) == "table" and set[icon] then return ref end
+    end
+end
+
+local function CategoryOf(p, src)
+    if src.questie then return IconPrefs.QuestieKey(p.icon.data and p.icon.data.Type) end
+    local ref = RefOf(src, p.icon)
+    local label = ref ~= nil and (refLabels[ref] or LabelForRef(ref)) or "Other"
+    local key = IconPrefs.AddonKey(label)
+    categories[key] = categories[key] or label
+    return key
+end
+
+local function ApplyPrefs(p)
+    p.userHidden, p.scale, p.shrink = IconPrefs.Get(ns.db, p.key)
 end
 
 local function Remove(icon)
@@ -211,6 +259,9 @@ local function Update(icon, src)
     -- HBD world coordinates: x is UnitPosition's second value (west), y its first (north).
     p.n, p.w, p.inst = data.y, data.x, data.instanceID
     p.hidden = icon.hidden == true
+    p.key = CategoryOf(p, src)
+    categories[p.key] = categories[p.key] or p.key
+    ApplyPrefs(p)
     CopyLook(p)
     Place(p)
 end
@@ -254,8 +305,11 @@ local function HookSource(src)
     if hookedLibs[lib] == (src.minor or true) then return end
     hookedLibs[lib] = src.minor or true
     -- Hooks may end up doubled after an HBD upgrade; marking dirty twice is harmless.
-    local function OnIcon(_, _, icon)
+    local function OnIcon(_, ref, icon)
         if icon then dirty[icon] = src end
+        if ref ~= nil and refLabels[ref] == nil then
+            refLabels[ref] = LabelFromStack() or LabelForRef(ref)
+        end
     end
     for _, name in ipairs({ "AddMinimapIconWorld", "RemoveMinimapIcon" }) do
         if type(lib[name]) == "function" then hooksecurefunc(lib, name, OnIcon) end
@@ -278,6 +332,7 @@ function Mirror.RefreshSources()
             known.minor = src.minor
             HookSource(known)
         else
+            src.questie = src.name:find("Questie", 1, true) ~= nil
             sources[#sources + 1] = src
             HookSource(src)
         end
@@ -395,6 +450,56 @@ local events = CreateFrame("Frame")
 events:RegisterEvent("ADDON_LOADED")
 events:SetScript("OnEvent", function()
     if layers[1] then Mirror.RefreshSources() end
+end)
+
+-- Re-reads preferences for every proxy and redraws (after /fzm icons changes them).
+function Mirror.RefreshPrefs()
+    for _, p in pairs(proxies) do
+        if p.key then ApplyPrefs(p) end
+        Place(p)
+    end
+    if hovered and not hovered.drawn then Mirror.ClearHover() end
+end
+
+local ICONS_HELP = {
+    "/fzm icons <group> hide | show",
+    "/fzm icons <group> size 0.6   (0.25 - 3)",
+    "/fzm icons <group> shrink on | off   (smaller as you zoom out)",
+    "/fzm icons <group> reset",
+    "<group>: a name from the list, a Questie type (monster, item...), questie, or all",
+}
+
+local function ListIcons()
+    local counts = {}
+    for _, p in pairs(proxies) do
+        if p.key then counts[p.key] = (counts[p.key] or 0) + 1 end
+    end
+    local keys = {}
+    for k in pairs(counts) do keys[#keys + 1] = k end
+    table.sort(keys)
+    ns.Print("icon groups (count, size, shrink with zoom):")
+    for _, k in ipairs(keys) do
+        local hide, scale, shrink = IconPrefs.Get(ns.db, k)
+        ns.Printf("  %s  %d  x%.2f  %s%s", k, counts[k], scale, shrink and "shrink" or "fixed",
+            hide and "  HIDDEN" or "")
+    end
+    for _, line in ipairs(ICONS_HELP) do ns.Print(line) end
+end
+
+ns.RegisterCommand("icons", "show, hide or resize icon groups: /fzm icons", function(arg)
+    local name, action, value = (arg or ""):match("^(%S+)%s+(%S+)%s*(%S*)")
+    if not name then
+        ListIcons()
+        return
+    end
+    local keys, err = IconPrefs.Apply(ns.db, name, categories, action, value)
+    if not keys then
+        ns.Print(err)
+        for _, line in ipairs(ICONS_HELP) do ns.Print(line) end
+        return
+    end
+    Mirror.RefreshPrefs()
+    ns.Printf("%s: %s %s", table.concat(keys, ", "), action, value or "")
 end)
 
 ns.RegisterCommand("pins", "show pin mirror counts", function()
