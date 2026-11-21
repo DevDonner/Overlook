@@ -246,6 +246,7 @@ local function OnUpdate()
         layoutDirty = false
         RelayoutTiles(ppy)
         if ns.Mirror then ns.Mirror.SetLayout(instance, originN, originW, ppy, Zoom.Shrink(radius, nativeMax)) end
+        if ns.Routes then ns.Routes.SetLayout(instance, originN, originW, ppy) end
     end
     local a0, a1, b0, b1 = G.VisibleTiles(cN, cW, radius)
     if zoomed or tilesPending or a0 ~= c0 or a1 ~= c1 or b0 ~= r0 or b1 ~= r1 then
@@ -307,6 +308,7 @@ function Far.Leave()
     ClearAnchor()
     recenter:Hide()
     if ns.Mirror then ns.Mirror.SetLayout(nil) end
+    if ns.Routes then ns.Routes.SetLayout(nil) end
     view:Hide()
     ReleaseAll()
     instance, tileSet = nil, nil
@@ -436,6 +438,8 @@ function Far.Build(root, level)
 
     -- Pins (Phase 2) sit between the terrain and the arrow: two layers at level + 2 and + 3.
     if ns.Mirror then ns.Mirror.Build(canvas, view, level + 2) end
+    -- NPC routes: lines on the canvas itself, above its terrain, below the icon layers.
+    if ns.Routes then ns.Routes.Build(canvas) end
     view:SetScript("OnMouseDown", function(_, button)
         if button == "LeftButton" then
             local x, y = Cursor()

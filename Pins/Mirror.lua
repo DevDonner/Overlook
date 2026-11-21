@@ -511,14 +511,23 @@ local function QuestieTooltip()
     return tooltipModule
 end
 
+-- Questie icons under the cursor, filled by HitTest: they all go into one tooltip.
+local underCursor = {}
+
 local function Enter(p)
     local icon = p.icon
     local mod = QuestieTooltip()
     local ok, err = true, nil
     if mod and icon.data and icon.texture then
-        -- Passing an owner makes Questie skip its "faded to alpha 0, show nothing" check and
-        -- anchor the tooltip to the cursor over our view. The tooltip is Questie's own.
-        ok, err = pcall(mod.ShowOnTooltip, icon, GameTooltip, owner)
+        -- Questie builds a minimap icon's tooltip from HBD's active pins, which only holds pins
+        -- in native range, so a far icon would get an empty one. Its `icons` argument lists icons
+        -- "wherever they are, however faded": the hovered icon and the others under the cursor.
+        -- Passing an owner also skips its "faded to alpha 0, show nothing" check and anchors the
+        -- tooltip to the cursor over our view. The tooltip is Questie's own.
+        local listed = {}
+        for i = 1, #underCursor do listed[i] = underCursor[i] end
+        if #listed == 0 then listed[1] = icon end
+        ok, err = pcall(mod.ShowOnTooltip, icon, GameTooltip, owner, listed)
     else
         local f = icon:GetScript("OnEnter")
         if f then ok, err = pcall(f, icon) end
@@ -549,10 +558,12 @@ local function HitTest()
     if not lx then return nil end
     cx, cy = cx / s - lx, cy / s - ly
     local best, bestLayer, bestDist
+    for i = #underCursor, 1, -1 do underCursor[i] = nil end
     for _, p in pairs(proxies) do
         if p.drawn then
             local dx, dy = cx - p.x, cy - p.y
             if dx <= p.hw and dx >= -p.hw and dy <= p.hh and dy >= -p.hh then
+                if p.icon.data and p.icon.texture then underCursor[#underCursor + 1] = p.icon end
                 local li = p.layer == layers[2] and 2 or 1
                 local d = dx * dx + dy * dy
                 if not best or li > bestLayer or (li == bestLayer and d < bestDist) then

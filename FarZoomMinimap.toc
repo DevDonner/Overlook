@@ -19,4 +19,5 @@ Shell\Shell.lua
 Shell\Grip.lua
 Far\Far.lua
 Pins\Mirror.lua
+Pins\Routes.lua
 Spike\Spike.lua
