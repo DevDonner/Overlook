@@ -35,12 +35,18 @@ local function NewFrame()
 end
 
 -- A Questie-like icon: one texture filling the frame.
-local function NewIcon(type_)
+-- opts.negativeId: the client gives no path, only a negative file id (Questie's sword on 1.60.1).
+local function NewIcon(type_, opts)
+    opts = opts or {}
     local region = Stub({
         IsObjectType = function(_, kind) return kind == "Texture" end,
         IsShown = function() return true end,
         GetAtlas = function() return nil end,
-        GetTextureFilePath = function() return "Interface/AddOns/Questie/Icons/available.png" end,
+        GetTextureFilePath = function()
+            if opts.negativeId then return nil end
+            return "Interface/AddOns/Questie/Icons/available.png"
+        end,
+        GetTexture = function() return opts.negativeId or 123 end,
         GetTexCoord = function() return 0, 0, 0, 1, 1, 0, 1, 1 end,
         GetVertexColor = function() return 1, 1, 1, 0 end,
         GetBlendMode = function() return "BLEND" end,
@@ -49,13 +55,14 @@ local function NewIcon(type_)
         GetNumPoints = function() return 2 end,
     })
     local icon = Stub({
-        data = { Type = type_ },
+        data = { Type = type_, Icon = opts.questieIcon },
         GetRegions = function() return region end,
         GetEffectiveScale = function() return 1.5 end, -- Minimap scaled up 1.5x
         GetSize = function() return 16, 16 end,
         GetAlpha = function() return 1 end,
         GetScript = function() return nil end,
     })
+    icon.texture = region
     icon.FakeHide = function(self) self.hidden = true end
     icon.FakeShow = function(self) self.hidden = false end
     return icon
@@ -64,7 +71,7 @@ end
 -- Globals the mirror touches, with a real hooksecurefunc and captured tickers.
 local tickers = {}
 local saved = {}
-for _, k in ipairs({ "CreateFrame", "C_Timer", "hooksecurefunc", "QuestieLoader", "GameTooltip", "GetCursorPosition" }) do
+for _, k in ipairs({ "CreateFrame", "C_Timer", "hooksecurefunc", "QuestieLoader", "GameTooltip", "GetCursorPosition", "Questie" }) do
     saved[k] = _G[k]
 end
 _G.CreateFrame = function() return NewFrame() end
@@ -204,6 +211,30 @@ H.test("leaving far mode hides everything", function()
     Mirror.SetLayout(0, -8949, -132, 0.5)
     Mirror.SetLayout(nil)
     H.eq(Proxy(icon).drawn, false)
+end)
+
+H.test("a texture known only by a negative file id uses Questie's path for the icon type", function()
+    _G.Questie = { usedIcons = { [7] = "Interface/AddOns/Questie/Icons/slay.png" } }
+    local icon = NewIcon("monster", { negativeId = -12175, questieIcon = 7 })
+    lib:AddMinimapIconWorld("Questie", icon, 0, -132, -8949)
+    Drain()
+    local p = Proxy(icon)
+    H.eq(p.nTex, 1)
+    H.eq(p.tex[1].calls.SetTexture[1], "Interface/AddOns/Questie/Icons/slay.png")
+end)
+
+H.test("an unresolvable texture is skipped, never passed to SetTexture", function()
+    _G.Questie = { usedIcons = {} }
+    local before = Mirror.unresolved
+    local icon = NewIcon("monster", { negativeId = -13125, questieIcon = 99 })
+    lib:AddMinimapIconWorld("Questie", icon, 0, -132, -8949)
+    Drain()
+    Mirror.SetLayout(0, -8949, -132, 0.5)
+    local p = Proxy(icon)
+    H.eq(p.nTex, 0)
+    H.eq(p.drawn, false)
+    H.eq(Mirror.unresolved, before + 1)
+    H.eq(Mirror.lastUnresolved, -13125)
 end)
 
 for k, v in pairs(saved) do _G[k] = v end

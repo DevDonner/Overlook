@@ -26,5 +26,5 @@ read_globals = {
 }
 
 files["tests/"] = {
-    globals = { "LibStub", "QuestieLoader", "CreateFrame", "C_Timer", "hooksecurefunc", "GameTooltip", "GetCursorPosition" },
+    globals = { "LibStub", "QuestieLoader", "CreateFrame", "C_Timer", "hooksecurefunc", "GameTooltip", "GetCursorPosition", "Questie" },
 }

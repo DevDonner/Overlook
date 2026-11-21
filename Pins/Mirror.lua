@@ -80,16 +80,52 @@ local function LayerFor(icon)
     return layers[2]
 end
 
--- Copies one texture region of the source frame onto a proxy texture.
-local function CopyRegion(dst, src, frameW, frameH, ratio)
+-- Something SetTexture accepts for a source texture region, or nil.
+-- Files outside the client's listfile (addons' own icons) get negative file ids, and SetTexture
+-- rejects those ("integer overflow attempting to store 4294954171"). GetTextureFilePath usually
+-- gives the path instead, but not always (seen on 1.60.1 for Questie's sword icon). Then: a path
+-- learned earlier for that id, or Questie's own path for the icon type.
+local learnedPaths = {} -- negative file id -> path
+Mirror.unresolved = 0
+
+local function ResolveTexture(region, icon)
+    local id = region:GetTexture()
+    local path = region.GetTextureFilePath and region:GetTextureFilePath()
+    if type(path) == "string" and path ~= "" then
+        if type(id) == "number" and id < 0 then learnedPaths[id] = path end
+        return path
+    end
+    if type(path) == "number" and path > 0 then return path end
+    if type(id) == "string" and id ~= "" then return id end
+    if type(id) == "number" then
+        if id > 0 then return id end
+        if learnedPaths[id] then return learnedPaths[id] end
+    end
+    local questie = _G.Questie
+    if region == icon.texture and icon.data and type(questie) == "table" and type(questie.usedIcons) == "table" then
+        local q = questie.usedIcons[icon.data.Icon]
+        if type(q) == "string" or (type(q) == "number" and q > 0) then
+            if type(id) == "number" then learnedPaths[id] = q end
+            return q
+        end
+    end
+    return nil, id
+end
+
+-- Copies one texture region of the source frame onto a proxy texture. False if it has no
+-- texture we can draw.
+local function CopyRegion(dst, src, icon, frameW, frameH, ratio)
     local atlas = src.GetAtlas and src:GetAtlas()
     if atlas then
         dst:SetAtlas(atlas)
     else
-        -- GetTexture returns negative ids for files that aren't in the client's listfile (Questie's
-        -- own icons); the path works for both.
-        local path = src.GetTextureFilePath and src:GetTextureFilePath()
-        dst:SetTexture(path or src:GetTexture())
+        local tex, badId = ResolveTexture(src, icon)
+        if not tex then
+            Mirror.unresolved = Mirror.unresolved + 1
+            Mirror.lastUnresolved = badId
+            return false
+        end
+        dst:SetTexture(tex)
         dst:SetTexCoord(src:GetTexCoord())
     end
     local r, g, b = src:GetVertexColor()
@@ -108,6 +144,7 @@ local function CopyRegion(dst, src, frameW, frameH, ratio)
     -- Base size and offset; Place scales them by the category's size and the zoom.
     dst.bw, dst.bh = w * ratio, h * ratio
     dst.ox, dst.oy = ox * ratio, oy * ratio
+    return true
 end
 
 local regionList = {}
@@ -131,10 +168,14 @@ local function CopyLook(p)
     local alpha = icon:GetAlpha() or 1 -- Questie dims party members' objectives with frame alpha
     for i = 1, #regionList do
         local t = Acquire(layer)
-        CopyRegion(t, regionList[i], fw, fh, ratio)
-        t:SetAlpha(alpha)
-        p.nTex = p.nTex + 1
-        p.tex[p.nTex] = t
+        if CopyRegion(t, regionList[i], icon, fw, fh, ratio) then
+            t:SetAlpha(alpha)
+            p.nTex = p.nTex + 1
+            p.tex[p.nTex] = t
+        else
+            t:Hide()
+            layer.pool[#layer.pool + 1] = t
+        end
     end
     p.bhw, p.bhh = fw * ratio / 2, fh * ratio / 2
 end
@@ -512,6 +553,9 @@ ns.RegisterCommand("pins", "show pin mirror counts", function()
     end
     ns.Printf("proxies %d  drawn %d  hidden by Questie %d  other continent %d  sources %d",
         total, drawn, hidden, other, #sources)
+    if Mirror.unresolved > 0 then
+        ns.Printf("  textures that couldn't be copied: %d (last id %s)", Mirror.unresolved, ns.Show(Mirror.lastUnresolved))
+    end
     for _, src in ipairs(sources) do
         local n = 0
         for _ in pairs(src.lib.minimapPins or {}) do n = n + 1 end
