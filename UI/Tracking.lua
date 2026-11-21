@@ -48,10 +48,19 @@ local function Row(i)
     row = W.Check(menu, "", function() return row.entry and row.entry.active end, function(on)
         local e = row.entry
         if not e or not C_Minimap.SetTracking then return end
-        local ok = pcall(C_Minimap.SetTracking, e.index, on)
-        if not ok then ns.Print("the game didn't allow that change") end
-        -- The game may switch others off (one finder at a time): read it all back.
-        C_Timer.After(0, Tracking.Refresh)
+        local ok, err = pcall(C_Minimap.SetTracking, e.index, on)
+        if not ok then ns.Printf("the game refused %s: %s", e.name, tostring(err)) end
+        -- The game may switch others off (one finder at a time), or keep this one as it was:
+        -- read it all back and say so if it didn't change.
+        local name, index = e.name, e.index
+        C_Timer.After(0.3, function()
+            for _, now in ipairs(TrackingList.Read(C_Minimap)) do
+                if now.index == index and now.active ~= on then
+                    ns.Printf("the game kept %s %s (it didn't take the change)", name, now.active and "on" or "off")
+                end
+            end
+            Tracking.Refresh()
+        end)
     end)
     row.icon = row:CreateTexture(nil, "ARTWORK")
     row.icon:SetSize(16, 16)
@@ -147,7 +156,39 @@ function Tracking.Build(parent, level)
     Tracking.Place()
 end
 
-ns.RegisterCommand("tracking", "open the minimap icons menu", function()
+-- Every tracking entry as the game reports it, for finding out why one won't change.
+local function Dump()
+    if not (C_Minimap and C_Minimap.GetNumTrackingTypes) then
+        ns.Print("this client has no C_Minimap tracking list")
+        return
+    end
+    local n = C_Minimap.GetNumTrackingTypes()
+    ns.Printf("tracking entries: %s", ns.Show(n))
+    if ns.IsSecret(n) then return end
+    for i = 1, n do
+        local ok, info = pcall(C_Minimap.GetTrackingInfo, i)
+        local parts = {}
+        if ok and type(info) == "table" then
+            for k, v in pairs(info) do parts[#parts + 1] = k .. "=" .. ns.Show(v) end
+            table.sort(parts)
+        else
+            parts[1] = ok and ns.Show(info) or ("error " .. tostring(info))
+        end
+        if C_Minimap.GetTrackingFilter then
+            local okF, f = pcall(C_Minimap.GetTrackingFilter, i)
+            if okF and type(f) == "table" then
+                for k, v in pairs(f) do parts[#parts + 1] = "filter." .. k .. "=" .. ns.Show(v) end
+            end
+        end
+        ns.Printf("%d: %s", i, table.concat(parts, " "))
+    end
+end
+
+ns.RegisterCommand("tracking", "open the minimap icons menu (/fzm tracking dump: list the raw entries)", function(arg)
+    if arg == "dump" then
+        Dump()
+        return
+    end
     if menu then
         if not button:IsShown() then ns.db.trackingButton = true; Tracking.Place() end
         Tracking.Toggle()
