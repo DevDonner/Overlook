@@ -122,6 +122,14 @@ local function QuestiePath(region, icon)
     end
 end
 
+-- The owner's own record of a texture, for addons we know: Questie's data, RareScanner's POI.
+local function OwnerPath(region, icon)
+    local q = QuestiePath(region, icon)
+    if q then return q end
+    local poi = rawget(icon, "POI")
+    if type(poi) == "table" and region == rawget(icon, "Texture") then return poi.Texture end
+end
+
 local function ResolveTexture(region, icon)
     -- 1. What the owner passed to SetTexture, recorded by our hook (HookFrame).
     if Usable(region.fzmTexture) then return region.fzmTexture end
@@ -136,8 +144,8 @@ local function ResolveTexture(region, icon)
         return path
     end
 
-    -- 3. Questie's data.
-    local q = QuestiePath(region, icon)
+    -- 3. The owner's data (Questie, RareScanner).
+    local q = OwnerPath(region, icon)
     if Usable(q) then
         if type(id) == "number" and id < 0 then learnedPaths[id] = q end
         return q
@@ -153,13 +161,38 @@ local function RecordTexture(region, tex)
     region.fzmTexture = tex
 end
 
+-- Every texture of a pin frame, whatever addon owns it. Pools reuse frames, so from the second
+-- use on we know exactly what was set; the first time the owner's data or the readback has to do.
 local function HookTextures(icon)
-    for _, region in ipairs({ icon.texture, icon.overlayTexture, icon.glowTexture }) do
-        if type(region) == "table" and region.SetTexture and not region.fzmHooked then
+    for _, region in ipairs({ icon:GetRegions() }) do
+        if region:IsObjectType("Texture") and not rawget(region, "fzmHooked") then
             region.fzmHooked = true
             hooksecurefunc(region, "SetTexture", RecordTexture)
         end
     end
+end
+
+-- A region's size and centre offset in its icon's units. Uses the laid-out rectangles when the
+-- client has them (handles own scale, part-size anchors like RareScanner's corner badge); else
+-- the anchors.
+local function RegionGeometry(src, icon, frameW, frameH)
+    local iconScale = icon:GetEffectiveScale()
+    local srcScale = (src.GetEffectiveScale and src:GetEffectiveScale())
+        or iconScale * ((src.GetScale and src:GetScale()) or 1)
+    local rs = srcScale / iconScale
+    local rx, ry = src:GetCenter()
+    local ix, iy = icon:GetCenter()
+    local rw, rh = src:GetSize()
+    if rx and ix and rw and rw > 0 and rh and rh > 0 then
+        return rw * rs, rh * rs, rx * rs - ix, ry * rs - iy
+    end
+    local w, h, ox, oy = frameW, frameH, 0, 0
+    if src:GetNumPoints() < 2 then -- not SetAllPoints: keep its own size and centre offset
+        if rw and rw > 0 and rh and rh > 0 then w, h = rw * rs, rh * rs end
+        local point, _, relPoint, x, y = src:GetPoint(1)
+        if point == "CENTER" and relPoint == "CENTER" then ox, oy = (x or 0) * rs, (y or 0) * rs end
+    end
+    return w, h, ox, oy
 end
 
 -- Copies one texture region of the source frame onto a proxy texture. False if it has no
@@ -188,13 +221,7 @@ local function CopyRegion(dst, src, icon, frameW, frameH, ratio)
     if src.IsDesaturated then dst:SetDesaturated(src:IsDesaturated()) end
     dst:SetDrawLayer(src:GetDrawLayer())
 
-    local w, h, ox, oy = frameW, frameH, 0, 0
-    if src:GetNumPoints() < 2 then -- not SetAllPoints: keep its own size and centre offset
-        local sw, sh = src:GetSize()
-        if sw and sw > 0 and sh and sh > 0 then w, h = sw, sh end
-        local point, _, relPoint, x, y = src:GetPoint(1)
-        if point == "CENTER" and relPoint == "CENTER" then ox, oy = x or 0, y or 0 end
-    end
+    local w, h, ox, oy = RegionGeometry(src, icon, frameW, frameH)
     -- Base size and offset; Place scales them by the category's size and the zoom.
     dst.bw, dst.bh = w * ratio, h * ratio
     dst.ox, dst.oy = ox * ratio, oy * ratio

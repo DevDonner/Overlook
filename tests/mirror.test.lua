@@ -261,4 +261,37 @@ H.test("an unresolvable texture is skipped, never passed to SetTexture", functio
     H.eq(Mirror.lastUnresolved, -13999)
 end)
 
+H.test("RareScanner-style pin: path from POI.Texture, own size and scale kept", function()
+    _G.Questie = nil
+    local tex = Stub({
+        IsObjectType = function(_, kind) return kind == "Texture" end,
+        IsShown = function() return true end,
+        GetTexture = function() return 4294950000 end, -- unsigned negative id, no path
+        GetTexCoord = function() return 0, 0, 0, 1, 1, 0, 1, 1 end,
+        GetVertexColor = function() return 1, 1, 1, 1 end,
+        GetBlendMode = function() return "BLEND" end,
+        GetDrawLayer = function() return "ARTWORK", 0 end,
+        GetNumPoints = function() return 1 end,
+        GetPoint = function() return "CENTER", nil, "CENTER", 0, 0 end,
+        GetSize = function() return 32, 32 end,
+        GetScale = function() return 0.5 end,
+    })
+    local pin = Stub({
+        GetRegions = function() return tex end,
+        GetEffectiveScale = function() return 1.5 end,
+        GetSize = function() return 18, 18 end,
+        GetAlpha = function() return 1 end,
+        GetScript = function() return nil end,
+    })
+    pin.Texture = tex
+    pin.POI = { Texture = "Interface/AddOns/RareScanner/Media/Icons/RareRed.blp" }
+    lib:AddMinimapIconWorld("RareScanner", pin, 0, -132, -8949)
+    Drain()
+    Mirror.SetLayout(0, -8949, -132, 0.5)
+    local p = Proxy(pin)
+    H.eq(p.nTex, 1)
+    H.eq(p.tex[1].calls.SetTexture[1], "Interface/AddOns/RareScanner/Media/Icons/RareRed.blp")
+    H.near(p.tex[1].calls.SetSize[1], 32 * 0.5 * 1.5, 1e-9, "own size x own scale x minimap scale")
+end)
+
 for k, v in pairs(saved) do _G[k] = v end
