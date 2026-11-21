@@ -4,7 +4,7 @@ local _, ns = ...
 local Settings = {}
 ns.Settings = Settings
 
-Settings.VERSION = 1
+Settings.VERSION = 2
 Settings.SIZE_MIN, Settings.SIZE_MAX = 120, 600
 Settings.FAR_MIN, Settings.FAR_MAX = 500, 3200
 
@@ -12,7 +12,7 @@ Settings.FAR_MIN, Settings.FAR_MAX = 500, 3200
 -- frame where the native minimap was.
 Settings.DEFAULTS = {
     size = 200,           -- px, square
-    locked = true,        -- Alt+drag still moves it when locked
+    locked = false,       -- hides the resize grip; Alt+drag still moves it
     maxFarZoom = 2000,    -- yd radius; setting goes up to 3,200
     rotate = false,
     clustering = false,
@@ -33,6 +33,8 @@ end
 -- back the same object.
 function Settings.Load(saved)
     local db = type(saved) == "table" and saved or {}
+    -- v1 saved locked = true as an unused default; v2 makes the lock real, so start unlocked.
+    if (tonumber(db.version) or 0) < 2 and db.locked == true then db.locked = false end
     for k, v in pairs(Settings.DEFAULTS) do
         if db[k] == nil then db[k] = v end
     end

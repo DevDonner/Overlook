@@ -20,7 +20,7 @@ read_globals = {
     "CreateFrame", "GameTooltip", "GetNumGroupMembers", "GetPlayerFacing", "GetTime", "GetCursorPosition", "debugstack",
     "InCombatLockdown", "IsInRaid", "Minimap", "UIParent",
     "UnitName", "UnitPosition", "issecretvalue",
-    "hooksecurefunc", "IsAltKeyDown", "IsControlKeyDown", "MinimapCluster",
+    "hooksecurefunc", "IsAltKeyDown", "IsMouseButtonDown", "IsControlKeyDown", "MinimapCluster",
     -- Other addons
     "LibStub", "QuestieLoader",
 }

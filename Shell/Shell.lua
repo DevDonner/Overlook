@@ -174,6 +174,7 @@ function Shell.Build()
     BuildRoot()
     Shell.root = root
     if ns.Far then ns.Far.Build(root, LEVEL_VIEW) end
+    if ns.Grip then ns.Grip.Build(root, LEVEL_CATCHER + 10) end
     HookBlizzardLayout()
     AdoptButtons()
     C_Timer.NewTicker(2, AdoptButtons) -- addons can create buttons after login

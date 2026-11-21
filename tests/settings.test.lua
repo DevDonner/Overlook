@@ -7,7 +7,7 @@ H.test("U9 defaults: clustering off, rotation off, max far zoom 2,000 yd", funct
     H.eq(db.clustering, false, "clustering")
     H.eq(db.rotate, false, "rotate")
     H.eq(db.maxFarZoom, 2000, "maxFarZoom")
-    H.eq(db.locked, true, "locked")
+    H.eq(db.locked, false, "locked")
     H.eq(db.size, 200, "size")
     H.eq(db.x, nil, "x unset until first login")
 end)
