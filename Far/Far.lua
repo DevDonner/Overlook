@@ -38,6 +38,11 @@ local nearDrag                   -- cursor at mouse-down on the native minimap, 
 local suppressPing = false       -- the native mouse-up after a drag must not ping
 local recenter                   -- the Recenter button
 local DRAG_START_PX = 4
+-- Handing back to the native minimap: it has been at alpha 0 and can take a moment to draw again
+-- (longest in cities and caves), which showed as a black map. The far view stays over it as a
+-- cover, opaque for COVER_HOLD, then fades out over COVER_FADE.
+local COVER_HOLD, COVER_FADE = 0.15, 0.25
+local coverStart                 -- GetTime() when the cover began; nil when there's none
 
 local function Cursor()
     local x, y = GetCursorPosition()
@@ -182,16 +187,27 @@ end
 ----------------------------------------------------------------------------------------------------
 -- Frame loop (runs only while the view is shown, i.e. in far mode)
 
+local EndCover -- (below)
+
 local function OnUpdate()
+    if coverStart then
+        local t = GetTime() - coverStart - COVER_HOLD
+        if t >= COVER_FADE then
+            EndCover()
+        elseif t > 0 then
+            view:SetAlpha(1 - t / COVER_FADE)
+        end
+        return
+    end
     local n, w, inst = PlayerPosition()
     if not n then
-        Far.Leave() -- loading screen, or an instance without a usable position
+        Far.Leave(true) -- loading screen, or an instance without a usable position
         return
     end
     if inst ~= instance then
         local set = TilesFor(inst)
         if not set then
-            Far.Leave()
+            Far.Leave(true)
             return
         end
         ReleaseAll()
@@ -234,7 +250,9 @@ local function OnUpdate()
             end
         end
     end
-    if recenter:IsShown() ~= IsPanned() then recenter:SetShown(IsPanned()) end
+    -- Recenter shows all through far mode (one click back to the native minimap), except while
+    -- already zooming back to it.
+    if recenter:IsShown() == leaving then recenter:SetShown(not leaving) end
 
     -- The view centre: the pinned point after a pan, else the player.
     playerN, playerW = n, w
@@ -292,6 +310,11 @@ function Far.Enter(fine, zoomOut)
     local set = n and TilesFor(inst)
     if not set then return false end
 
+    if coverStart then
+        -- Back out during the hand-back fade: keep the tiles if still on the same continent.
+        local same = inst == instance
+        EndCover(same)
+    end
     nativeMax = NativeRadius()
     mode = "far"
     instance, tileSet, originN, originW = inst, set, n, w
@@ -303,18 +326,50 @@ function Far.Enter(fine, zoomOut)
     return true
 end
 
-function Far.Leave()
+-- Makes the native minimap draw now: a zoom step there and back.
+local function RefreshNative()
+    local ok, z = pcall(Minimap.GetZoom, Minimap)
+    local okL, levels = pcall(Minimap.GetZoomLevels, Minimap)
+    if not (ok and okL and type(z) == "number" and type(levels) == "number") or levels < 2 then return end
+    Minimap:SetZoom(z < levels - 1 and z + 1 or z - 1)
+    Minimap:SetZoom(z)
+end
+
+-- Removes the cover. keepTiles: far mode is starting again on the same continent.
+EndCover = function(keepTiles)
+    coverStart = nil
+    view:SetAlpha(1)
+    view:EnableMouse(true)
+    view:EnableMouseWheel(true)
+    if mode ~= "far" then view:Hide() end
+    if not keepTiles then
+        ReleaseAll()
+        instance, tileSet = nil, nil
+    end
+end
+
+-- Back to the native minimap. immediate: no cover (nothing usable to show, e.g. a loading screen).
+function Far.Leave(immediate)
     if mode ~= "far" then return end
     mode = "near"
     ClearAnchor()
     recenter:Hide()
-    if ns.Mirror then ns.Mirror.SetLayout(nil) end
+    if ns.Mirror then
+        ns.Mirror.ClearHover()
+        ns.Mirror.SetLayout(nil)
+    end
     if ns.Routes then ns.Routes.SetLayout(nil) end
     if ns.Party then ns.Party.SetLayout(nil) end
-    view:Hide()
-    ReleaseAll()
-    instance, tileSet = nil, nil
     Minimap:SetAlpha(1)
+    RefreshNative()
+    if immediate then
+        EndCover()
+    else
+        -- The far view stays on top as a cover, not taking the mouse, while the native map draws.
+        coverStart = GetTime()
+        view:EnableMouse(false)
+        view:EnableMouseWheel(false)
+    end
 end
 
 -- Sets the far-zoom limit, pulling the view in if it's further out.
@@ -325,12 +380,16 @@ function Far.SetMaxZoom(yards)
     end
 end
 
--- Back to the player and back to the native minimap at its widest step: the default view.
+-- Back to the player and back to the native minimap at its widest step: the default view. In far
+-- mode the view jumps back over the player and zooms in to the native scale, then hands back.
 -- (Also from the minimap button, where the native map may be zoomed in.)
 function Far.Recenter()
+    if mode ~= "far" then
+        if Minimap:GetZoom() ~= 0 then Minimap:SetZoom(0) end
+        return
+    end
     ClearAnchor()
-    Far.Leave()
-    if Minimap:GetZoom() ~= 0 then Minimap:SetZoom(0) end
+    tweenFrom, target, tweenStart, leaving = radius, nativeMax, GetTime(), true
 end
 
 -- Below the map's bottom-right corner, or above it when the map sits in the lower half of the
