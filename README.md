@@ -2,6 +2,8 @@
 
 A minimap addon for **WoW Forever** (patch 1.60.1, `## Interface: 16001`) that lets you zoom out past the native minimap's limit and still see your Questie icons, the same ones the big world map shows.
 
+**Requires [Questie](https://www.curseforge.com/wow/addons/questie).** Questie is the source for quest, townsfolk (mailboxes, flight masters, trainers...) and NPC route icons; the game's own tracking icons only exist at native zoom, so FarZoomMinimap doesn't manage them.
+
 > **Status:** pre-alpha. Phase 0 passed; Phase 1 (square shell and far terrain zoom) is in testing. Questie icons on the far map come in Phase 2.
 
 ## Why

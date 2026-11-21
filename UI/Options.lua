@@ -174,13 +174,6 @@ local function Build()
             if ns.Party then ns.Party.Refresh() end
         end, "Class-coloured dots; faded when someone is offline."), 0, y)
     y = y - 26
-    controls.tracking = Place(W.Check(content, "Minimap icons button (bottom-left)",
-        function() return ns.db.trackingButton ~= false end,
-        function(on)
-            ns.db.trackingButton = on
-            if ns.Tracking then ns.Tracking.Place() end
-        end, "Opens a checklist of the game's own minimap icons: town services, herbs, minerals..."), 0, y)
-    y = y - 26
     controls.button = Place(W.Check(content, "Minimap button",
         function() return not ns.db.minimapButton.hide end,
         function(on) Options.SetButtonShown(on) end), 0, y)

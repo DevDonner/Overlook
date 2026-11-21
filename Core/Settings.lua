@@ -19,7 +19,6 @@ Settings.DEFAULTS = {
     smoothZoom = true,    -- tween far-zoom steps
     routes = true,        -- Questie's NPC routes on the far map
     partyDots = true,     -- party and raid members on the far map
-    trackingButton = true, -- the minimap icons (tracking) button under the bottom-left corner
 }
 
 function Settings.ClampSize(n)
