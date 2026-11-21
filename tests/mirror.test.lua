@@ -223,6 +223,29 @@ H.test("a texture known only by a negative file id uses Questie's path for the i
     H.eq(p.tex[1].calls.SetTexture[1], "Interface/AddOns/Questie/Icons/slay.png")
 end)
 
+H.test("an unsigned negative id (4294954171) is never passed on; Questie's path is used", function()
+    _G.Questie = { usedIcons = { [3] = "Interface/AddOns/Questie/Icons/available.png" } }
+    local icon = NewIcon("available", { negativeId = 4294954171, questieIcon = 3 })
+    lib:AddMinimapIconWorld("Questie", icon, 0, -132, -8949)
+    Drain()
+    local p = Proxy(icon)
+    H.eq(p.nTex, 1)
+    H.eq(p.tex[1].calls.SetTexture[1], "Interface/AddOns/Questie/Icons/available.png")
+end)
+
+H.test("the texture Questie sets is recorded and wins over reading it back", function()
+    _G.Questie = { usedIcons = {} }
+    local icon = NewIcon("available", { negativeId = 4294954171 })
+    lib:AddMinimapIconWorld("Questie", icon, 0, -132, -8949)
+    Drain() -- first sight: hooks installed, nothing resolvable yet
+    icon.texture:SetTexture("Interface/AddOns/Questie/Icons/complete.png") -- frame recycled
+    lib:AddMinimapIconWorld("Questie", icon, 0, -132, -8949)
+    Drain()
+    local p = Proxy(icon)
+    H.eq(p.nTex, 1)
+    H.eq(p.tex[1].calls.SetTexture[1], "Interface/AddOns/Questie/Icons/complete.png")
+end)
+
 H.test("an unresolvable texture is skipped, never passed to SetTexture", function()
     _G.Questie = { usedIcons = {} }
     local before = Mirror.unresolved

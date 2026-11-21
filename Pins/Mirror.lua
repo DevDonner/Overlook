@@ -38,11 +38,20 @@ local reportedErrors = {}
 
 Mirror._proxies = proxies -- read by the offline tests
 
+-- One chat line per kind of error (numbers ignored), with where it happened.
 local function Report(err)
     err = tostring(err)
-    if reportedErrors[err] then return end
-    reportedErrors[err] = true
+    local kind = err:gsub("%-?%d+", "#")
+    if reportedErrors[kind] then return end
+    reportedErrors[kind] = true
     ns.Print("pin mirror error (reported once): " .. err)
+end
+
+-- xpcall handler: adds the first file:line of the stack (error handlers return one value).
+local function WithWhere(err)
+    local stack = debugstack and debugstack(2, 3, 0) or ""
+    local where = stack:match("([%w_]+%.lua[^:]*:%d+)")
+    return tostring(err) .. (where and ("  at " .. where) or "")
 end
 
 ----------------------------------------------------------------------------------------------------
@@ -88,28 +97,69 @@ end
 local learnedPaths = {} -- negative file id -> path
 Mirror.unresolved = 0
 
+local INT_MAX, UINT_RANGE = 2147483647, 4294967296
+
+local function Usable(tex)
+    return (type(tex) == "string" and tex ~= "") or (type(tex) == "number" and tex > 0 and tex <= INT_MAX)
+end
+
+-- Questie's own path for one of its icon's textures, from its data (the image follows data.Icon:
+-- Questie updates both together).
+local function QuestiePath(region, icon)
+    local questie = _G.Questie
+    local data = icon.data
+    if type(questie) ~= "table" or type(data) ~= "table" then return nil end
+    if region == icon.texture and type(questie.usedIcons) == "table" then
+        return questie.usedIcons[data.Icon]
+    elseif region == icon.overlayTexture then
+        if data.StarterType == "itemFromMonster" or data.StarterType == "itemFromObject" then
+            return "Interface/AddOns/Questie/Icons/loot_overlay.png"
+        elseif data.StarterType == "Object" then
+            return "Interface/AddOns/Questie/Icons/object_overlay.png"
+        end
+    elseif region == icon.glowTexture and type(questie.icons) == "table" then
+        return questie.icons.glow
+    end
+end
+
 local function ResolveTexture(region, icon)
+    -- 1. What the owner passed to SetTexture, recorded by our hook (HookFrame).
+    if Usable(region.fzmTexture) then return region.fzmTexture end
+
+    -- 2. Read back from the client. A loose addon file has a negative file id, which comes back
+    --    either negative or as its unsigned 32-bit value (2^32 - 13125 = 4294954171).
     local id = region:GetTexture()
+    if type(id) == "number" and id > INT_MAX then id = id - UINT_RANGE end
     local path = region.GetTextureFilePath and region:GetTextureFilePath()
     if type(path) == "string" and path ~= "" then
         if type(id) == "number" and id < 0 then learnedPaths[id] = path end
         return path
     end
-    if type(path) == "number" and path > 0 then return path end
-    if type(id) == "string" and id ~= "" then return id end
-    if type(id) == "number" then
-        if id > 0 then return id end
-        if learnedPaths[id] then return learnedPaths[id] end
+
+    -- 3. Questie's data.
+    local q = QuestiePath(region, icon)
+    if Usable(q) then
+        if type(id) == "number" and id < 0 then learnedPaths[id] = q end
+        return q
     end
-    local questie = _G.Questie
-    if region == icon.texture and icon.data and type(questie) == "table" and type(questie.usedIcons) == "table" then
-        local q = questie.usedIcons[icon.data.Icon]
-        if type(q) == "string" or (type(q) == "number" and q > 0) then
-            if type(id) == "number" then learnedPaths[id] = q end
-            return q
+
+    if Usable(id) then return id end
+    if type(id) == "number" and learnedPaths[id] then return learnedPaths[id] end
+    return nil, id
+end
+
+-- Records what an icon's textures are set to, so we never have to read a loose file back.
+local function RecordTexture(region, tex)
+    region.fzmTexture = tex
+end
+
+local function HookTextures(icon)
+    for _, region in ipairs({ icon.texture, icon.overlayTexture, icon.glowTexture }) do
+        if type(region) == "table" and region.SetTexture and not region.fzmHooked then
+            region.fzmHooked = true
+            hooksecurefunc(region, "SetTexture", RecordTexture)
         end
     end
-    return nil, id
 end
 
 -- Copies one texture region of the source frame onto a proxy texture. False if it has no
@@ -125,7 +175,11 @@ local function CopyRegion(dst, src, icon, frameW, frameH, ratio)
             Mirror.lastUnresolved = badId
             return false
         end
-        dst:SetTexture(tex)
+        if not pcall(dst.SetTexture, dst, tex) then
+            Mirror.unresolved = Mirror.unresolved + 1
+            Mirror.lastUnresolved = tex
+            return false
+        end
         dst:SetTexCoord(src:GetTexCoord())
     end
     local r, g, b = src:GetVertexColor()
@@ -230,6 +284,7 @@ end
 local function HookFrame(icon)
     if hookedFrames[icon] then return end
     hookedFrames[icon] = true
+    HookTextures(icon)
     if type(icon.FakeHide) == "function" then hooksecurefunc(icon, "FakeHide", MarkDirtyFrame) end
     if type(icon.FakeShow) == "function" then hooksecurefunc(icon, "FakeShow", MarkDirtyFrame) end
 end
@@ -311,7 +366,7 @@ local function Drain()
     if reconcileNow then Mirror.Reconcile() end
     for icon, src in pairs(dirty) do
         dirty[icon] = nil
-        local ok, err = pcall(Update, icon, src)
+        local ok, err = xpcall(function() Update(icon, src) end, WithWhere)
         if not ok then Report(err) end
     end
 end
