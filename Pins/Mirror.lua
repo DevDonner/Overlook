@@ -109,7 +109,9 @@ local function QuestiePath(region, icon)
     local questie = _G.Questie
     local data = icon.data
     if type(questie) ~= "table" or type(data) ~= "table" then return nil end
-    if region == icon.texture and type(questie.usedIcons) == "table" then
+    if region == icon.texture and type(data.Icon) == "string" then
+        return data.Icon -- manual (townsfolk) icons keep their path here
+    elseif region == icon.texture and type(questie.usedIcons) == "table" then
         return questie.usedIcons[data.Icon]
     elseif region == icon.overlayTexture then
         if data.StarterType == "itemFromMonster" or data.StarterType == "itemFromObject" then
@@ -228,6 +230,26 @@ local function CopyRegion(dst, src, icon, frameW, frameH, ratio)
     return true
 end
 
+-- Which of an icon's textures to copy. Never trust the client's shown state on its own: HBD hides
+-- every pin outside the native minimap's range (Questie's copy ignores pins over 500 yd away), and
+-- a texture in a frame that has never been shown reports IsShown() false on 1.60.1. That left the
+-- far map with only the icons that had once been in native range.
+local function RegionWanted(region, icon)
+    if icon.texture and type(icon.data) == "table" then
+        -- Questie, by its own rules (_QuestieFrame.UpdateTexture): the main picture always; the
+        -- overlay for item- and object-started quests; the glow only while hovered, so never.
+        if region == icon.texture then return true end
+        if region == icon.overlayTexture then
+            local st = icon.data.StarterType
+            return st == "itemFromMonster" or st == "itemFromObject" or st == "Object"
+        end
+        if region == icon.glowTexture then return false end
+    end
+    if icon:IsShown() then return region:IsShown() end
+    -- Frame hidden: the region's own state can't be read; take any texture with a picture set.
+    return region:GetTexture() ~= nil or (region.GetAtlas ~= nil and region:GetAtlas() ~= nil)
+end
+
 local regionList = {}
 local function CopyLook(p)
     local icon = p.icon
@@ -241,7 +263,7 @@ local function CopyLook(p)
 
     for i = #regionList, 1, -1 do regionList[i] = nil end
     for _, region in ipairs({ icon:GetRegions() }) do
-        if region:IsObjectType("Texture") and region:IsShown() then
+        if region:IsObjectType("Texture") and RegionWanted(region, icon) then
             regionList[#regionList + 1] = region
         end
     end
@@ -416,6 +438,8 @@ function Mirror.Reconcile()
     for icon, p in pairs(proxies) do
         local reg = p.source.lib.minimapPins
         if not (reg and reg[icon]) then dirty[icon] = p.source end
+        -- An icon copied without a picture gets another try (its owner may have set it since).
+        if p.nTex == 0 and not p.hidden then dirty[icon] = p.source end
     end
 end
 
@@ -635,6 +659,11 @@ ns.RegisterCommand("pins", "show pin mirror counts", function()
     end
     ns.Printf("proxies %d  drawn %d  hidden by Questie %d  other continent %d  sources %d",
         total, drawn, hidden, other, #sources)
+    local blank = 0
+    for _, p in pairs(proxies) do
+        if p.nTex == 0 and not p.hidden then blank = blank + 1 end
+    end
+    if blank > 0 then ns.Printf("  icons with no picture copied (retried every 2 s): %d", blank) end
     if Mirror.unresolved > 0 then
         ns.Printf("  textures that couldn't be copied: %d (last id %s)", Mirror.unresolved, ns.Show(Mirror.lastUnresolved))
     end

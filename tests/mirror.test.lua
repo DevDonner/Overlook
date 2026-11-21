@@ -41,7 +41,7 @@ local function NewIcon(type_, opts)
     opts = opts or {}
     local region = Stub({
         IsObjectType = function(_, kind) return kind == "Texture" end,
-        IsShown = function() return true end,
+        IsShown = function() return not opts.neverShown end,
         GetAtlas = function() return nil end,
         GetTextureFilePath = function()
             if opts.negativeId then return nil end
@@ -292,6 +292,17 @@ H.test("RareScanner-style pin: path from POI.Texture, own size and scale kept", 
     H.eq(p.nTex, 1)
     H.eq(p.tex[1].calls.SetTexture[1], "Interface/AddOns/RareScanner/Media/Icons/RareRed.blp")
     H.near(p.tex[1].calls.SetSize[1], 32 * 0.5 * 1.5, 1e-9, "own size x own scale x minimap scale")
+end)
+
+H.test("an icon HBD has never shown (out of native range) is still copied", function()
+    -- Its texture reports IsShown() false because the frame has never been shown.
+    local icon = NewIcon("complete", { neverShown = true })
+    lib:AddMinimapIconWorld("Questie", icon, 0, -132, -8000)
+    Drain()
+    Mirror.SetLayout(0, -8949, -132, 0.5)
+    local p = Proxy(icon)
+    H.eq(p.nTex, 1)
+    H.eq(p.drawn, true)
 end)
 
 for k, v in pairs(saved) do _G[k] = v end
