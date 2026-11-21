@@ -167,6 +167,13 @@ local function Build()
             if ns.Routes then ns.Routes.Refresh() end
         end, "Follows Questie's own route settings too."), 0, y)
     y = y - 26
+    controls.party = Place(W.Check(content, "Show party and raid members on the far map",
+        function() return ns.db.partyDots ~= false end,
+        function(on)
+            ns.db.partyDots = on
+            if ns.Party then ns.Party.Refresh() end
+        end, "Class-coloured dots; faded when someone is offline."), 0, y)
+    y = y - 26
     controls.tracking = Place(W.Check(content, "Minimap icons button (bottom-left)",
         function() return ns.db.trackingButton ~= false end,
         function(on)

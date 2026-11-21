@@ -47,6 +47,7 @@ H.test("max far zoom is clamped to 500-3,200 yd; smooth zoom on by default", fun
     H.eq(Settings.Load(nil).smoothZoom, true)
     H.eq(Settings.Load(nil).routes, true)
     H.eq(Settings.Load(nil).trackingButton, true)
+    H.eq(Settings.Load(nil).partyDots, true)
     H.eq(type(Settings.Load(nil).minimapButton), "table")
     H.truthy(Settings.Load(nil).minimapButton ~= Settings.Load(nil).minimapButton, "not a shared table")
 end)
