@@ -13,7 +13,7 @@ end
 H.test("tracking: table signature, game order, active flags", function()
     local list = T.Read(Api({
         { name = "Find Herbs", texture = 133939, active = true, type = "spell" },
-        { name = "Repair", texture = "Interface\Minimap\Tracking\Repair", active = false, type = "other" },
+        { name = "Repair", texture = "Interface/Minimap/Tracking/Repair", active = false, type = "other" },
     }))
     H.eq(#list, 2)
     H.eq(list[1].name, "Find Herbs"); H.eq(list[1].active, true); H.eq(list[1].spell, true)
