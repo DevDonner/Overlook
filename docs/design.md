@@ -335,7 +335,23 @@ Checked against the addons installed in the Forever client.
 | --- | --- | --- |
 | 34 | Questie 12.11.1 uses a private, modified HereBeDragons-Pins copy (a Questie module), not the shared LibStub library | `Core/PinSources.lua` reads both registries; hooks go on both tables |
 | 35 | OpenMap (MIT) ships a ready tile table for Forever: `[continent][col * 64 + row] = file ID` | Vendored as `Data/MinimapTiles.lua` with its licence; I14 checks it in game |
+| 37 | Questie's icon textures report negative IDs from `GetTexture` (`-12175` for swords): addon-shipped files have no game file ID | Proxies copy the look with `GetTextureFilePath()`, falling back to `GetTexture()`. First test of Phase 2 (C7/V3) |
+| 38 | Questie also registers pins on instance 2991 (13 pins), not just continents 0 and 1 | Already handled: the grid filters by the player's `instanceID` |
 | 36 | SquareForeverMinimap (the current far-zoom minimap) draws tiles from file IDs with `SetTexture`, confirming the approach works on this client. Its licence is All Rights Reserved | Read for facts only; none of its code is copied |
+
+## Phase 0 results (Nov 20, 2026): GO
+
+Run in game on the Forever client, outdoors in the Eastern Kingdoms with a full Questie quest log.
+
+| Test | Result |
+| --- | --- |
+| I1 position and facing, out of combat and in combat | **Pass**: real numbers, not secret, in both |
+| `C_Minimap.GetViewRadius` | **Pass**: 150 yd at one zoom, 233 yd at zoom 0 |
+| Pin registries | **Pass**: Questie's private copy (449–478 pins, all with `FakeHide` and `data.Type`) and the shared copy (17 pins, minor 17) |
+| Kill-objective swords in the registry | **Pass**: 27 `monster` pins, one texture. A mirror can draw them |
+| I3 tooltip with an off-screen owner | **Pass**, with an on-screen control. A first run failed from mouseover noise, which is why the test now has a control |
+| I14 tile table and position → tile math | **Pass**: the tile loads, and the 5 × 5 view matches the minimap with the dot in the right place |
+| I2 party-member positions | Not run yet (needs a group). Not blocking: party dots are dropped if unavailable |
 
 ## Test plan (test-driven)
 
