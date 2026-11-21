@@ -326,9 +326,23 @@ function Far.SetMaxZoom(yards)
 end
 
 -- Back to the player and back to the native minimap at its widest step: the default view.
+-- (Also from the minimap button, where the native map may be zoomed in.)
 function Far.Recenter()
     ClearAnchor()
     Far.Leave()
+    if Minimap:GetZoom() ~= 0 then Minimap:SetZoom(0) end
+end
+
+-- Below the map's bottom-right corner, or above it when the map sits in the lower half of the
+-- screen (so it stays on screen).
+local function PlaceRecenter()
+    local root = recenter:GetParent()
+    recenter:ClearAllPoints()
+    if (ns.db.y or 0) >= 0 then
+        recenter:SetPoint("TOPRIGHT", root, "BOTTOMRIGHT", 0, -4)
+    else
+        recenter:SetPoint("BOTTOMRIGHT", root, "TOPRIGHT", 0, 4)
+    end
 end
 
 ----------------------------------------------------------------------------------------------------
@@ -423,6 +437,7 @@ function Far.OnShellApplied()
     layoutDirty = true
     -- Proxy sizes follow the native icons, which scale with the Minimap.
     if ns.Mirror then ns.Mirror.MarkAllDirty() end
+    PlaceRecenter() -- the map may have moved
 end
 
 function Far.Build(root, level)
@@ -476,21 +491,13 @@ function Far.Build(root, level)
         arrow:SetColorTexture(1, 0.82, 0, 1) -- fallback so the player is still marked
     end
 
-    -- Shown while panned: below the map's bottom-right corner, or above it when the map sits
-    -- in the lower half of the screen (so it stays on screen).
+    -- Shown while panned.
     recenter = CreateFrame("Button", nil, root, "UIPanelButtonTemplate")
     recenter:SetSize(76, 20)
     recenter:SetText("Recenter")
     recenter:SetFrameLevel(level + 30)
     recenter:SetScript("OnClick", Far.Recenter)
-    recenter:SetScript("OnShow", function(self)
-        self:ClearAllPoints()
-        if (ns.db.y or 0) >= 0 then
-            self:SetPoint("TOPRIGHT", root, "BOTTOMRIGHT", 0, -4)
-        else
-            self:SetPoint("BOTTOMRIGHT", root, "TOPRIGHT", 0, 4)
-        end
-    end)
+    recenter:SetScript("OnShow", PlaceRecenter)
     recenter:Hide()
 
     Minimap:EnableMouseWheel(true)

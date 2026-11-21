@@ -4,7 +4,7 @@ A minimap addon for **WoW Forever** (patch 1.60.1, `## Interface: 16001`) that l
 
 **Requires [Questie](https://www.curseforge.com/wow/addons/questie).** Questie is the source for quest, townsfolk (mailboxes, flight masters, trainers...) and NPC route icons; the game's own tracking icons only exist at native zoom, so FarZoomMinimap doesn't manage them.
 
-> **Status:** pre-alpha. Phase 0 passed; Phase 1 (square shell and far terrain zoom) is in testing. Questie icons on the far map come in Phase 2.
+> **Status:** alpha. The square shell, far terrain zoom, Questie icon mirror, NPC routes, party dots, pan and recenter, and the settings window all work in game; rotation, profiles and the button tray are still to come.
 
 ## Why
 
@@ -12,14 +12,18 @@ Existing far-zoom minimaps draw extra terrain around the native minimap, but Que
 
 The full design, with decisions, risks and the test plan, is in [docs/design.md](docs/design.md).
 
-## Planned features
+## Features
 
-- Smooth zoom past the native limit, out to about one zone (default 2,000 yards, up to 3,200)
-- Questie icons drawn one by one at every zoom, kill-objective swords included, with Questie's own tooltips and clicks
-- Detailed minimap terrain at every zoom, with a seamless handoff from the native minimap
-- Optional rotation (off by default)
-- Square, draggable and resizable, with lock, Edit Mode support and a settings page with profiles
-- Button tray, coordinates, zone text, clock and auto-zoom when mounted
+- Zoom past the native limit, out to about one zone (default 2,000 yards, up to 3,200), smoothly or in steps
+- Questie icons at every zoom (kill swords, turn-ins, available quests, townsfolk...) with Questie's own tooltips and clicks
+- Questie's NPC patrol routes on the far map
+- Other addons' map icons too (RareScanner, TomTom): per-group show, size and shrink-with-zoom
+- Party and raid members as class-coloured dots on the far map
+- Drag to pan, with a Recenter button; a panned map stays put while you move
+- Square, movable (Alt + drag) and resizable from its corner, with a lock
+- Settings window, minimap button and addon compartment entry
+
+Planned: optional rotation, profiles, Edit Mode support, button tray, coordinates and zone text.
 
 ## Roadmap
 
@@ -35,7 +39,7 @@ The full design, with decisions, risks and the test plan, is in [docs/design.md]
 ## Requirements
 
 - WoW Forever client (1.60.1)
-- [Questie](https://github.com/Questie/Questie) for quest icons (optional, but it's the main reason this exists)
+- [Questie](https://github.com/Questie/Questie) (required)
 
 ## Installation
 
@@ -43,30 +47,21 @@ See [docs/INSTALL.md](docs/INSTALL.md): download a ZIP, clone with Git, or link 
 
 ## Using it
 
-- **Mouse wheel** on the map zooms. Past the native minimap's widest step it keeps zooming out over minimap terrain (up to 2,000 yards by default). **Ctrl + wheel** takes half steps.
-- **Alt + drag** moves the map.
+- **Mouse wheel** on the map zooms. Past the native minimap's widest step it keeps zooming out over minimap terrain. **Ctrl + wheel** takes half steps.
+- **Drag** the map to pan; **Recenter** (under the map) goes back to you. Zooming back in while centred hands over to the native minimap.
+- **Alt + drag** moves the map; the **corner grip** resizes it.
+- **`/fzm`** opens the settings, as do the minimap button (right-click: recenter) and the addon compartment.
 
 | Command | Does |
 | --- | --- |
+| `/fzm` | Open the settings |
 | `/fzm size 250` | Map size in px (120-600) |
 | `/fzm maxzoom 3200` | Far-zoom limit in yards (500-3,200) |
 | `/fzm smooth` | Toggle smooth zooming |
+| `/fzm lock` | Lock or unlock the size |
+| `/fzm icons` | List icon groups; e.g. `/fzm icons rarescanner size 0.6` |
 | `/fzm reset` | Move the map back to a visible spot at the default size |
-| `/fzm far` | Far-zoom state, for bug reports |
-
-## Phase 0 spike commands
-
-Kept for diagnostics until the spike is removed:
-
-| Command | Checks |
-| --- | --- |
-| `/fzm selftest` | The automatic checks: APIs, position, facing, pin registries, tile loading |
-| `/fzm tiles` | Draws the 5 × 5 terrain tiles around you. The terrain should match your minimap and the red dot should be where you are. `/fzm tiles swap` flips the axes if it doesn't |
-| `/fzm dump` | Pin counts by continent, texture and Questie type, plus the hidden flag |
-| `/fzm combat` | Then pull a mob: prints whether position and facing still work in combat |
-| `/fzm tooltip` | Keep the mouse still: a tooltip whose owner is off-screen should stay up 5 s |
-| `/fzm party` | In a group: whether other players' positions are readable |
-| `/fzm pos` | Your position, facing, map position and tile |
+| `/fzm far`, `/fzm pins`, `/fzm routes` | State, for bug reports |
 
 ## Development
 

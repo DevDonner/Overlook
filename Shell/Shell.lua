@@ -111,7 +111,7 @@ local function BuildCatcher()
         root.moving = false
         root:StopMovingOrSizing()
         SavePosition()
-        PlaceRoot()
+        ApplyNow() -- (not only the root: the Recenter button picks its side from the position)
         catcher:EnableMouse(IsAltKeyDown())
     end
     catcher:SetScript("OnDragStop", Stop)
