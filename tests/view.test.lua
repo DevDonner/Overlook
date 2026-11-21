@@ -78,6 +78,24 @@ H.test("U3 zooming back in lands exactly on the native radius and leaves far mod
     H.near(r, 800, 1e-9); H.eq(leave, false)
 end)
 
+H.test("U3 panned: zooming in goes through the native radius and never hands back", function()
+    local r, leave = Zoom.FarStep(NATIVE * 1.25, 1, false, NATIVE, 2000, true)
+    H.near(r, NATIVE, 1e-9); H.eq(leave, false)
+    r, leave = Zoom.FarStep(r, 1, false, NATIVE, 2000, true)
+    H.near(r, NATIVE * 0.8, 1e-9); H.eq(leave, false)
+    for _ = 1, 20 do r, leave = Zoom.FarStep(r, 1, false, NATIVE, 2000, true) end
+    H.near(r, NATIVE * Zoom.CLOSEST, 1e-9, "stops at the closest zoom"); H.eq(leave, false)
+end)
+
+H.test("U3 centred below the native radius: zooming in stays far, zooming out hands back", function()
+    local r, leave = Zoom.FarStep(NATIVE * 0.64, 1, false, NATIVE, 2000)
+    H.near(r, NATIVE * 0.512, 1e-9); H.eq(leave, false)
+    r, leave = Zoom.FarStep(NATIVE * 0.9, -1, false, NATIVE, 2000)
+    H.eq(r, NATIVE); H.eq(leave, true, "crossing the native radius outward hands back")
+    r, leave = Zoom.FarStep(NATIVE * 0.9, -1, false, NATIVE, 2000, true)
+    H.near(r, NATIVE * 1.125, 1e-9); H.eq(leave, false, "not while panned")
+end)
+
 H.test("U3 ten notches reach 2,000 yd from the native 233 yd", function()
     local r = NATIVE
     for _ = 1, 10 do r = Zoom.FarStep(r, -1, false, NATIVE, 2000) end

@@ -44,8 +44,13 @@ local function Cursor()
     return x / s, y / s
 end
 
+-- Panned = the view centre is visibly off the player (more than 2 px at the current zoom).
+-- Centred views hand back to the native minimap when zoomed to its scale; panned ones don't.
+local ALIGNED_PX = 2
 local function IsPanned()
-    return panN ~= 0 or panW ~= 0
+    if panN == 0 and panW == 0 then return false end
+    local ppy = ns.db.size / 2 / (radius or nativeMax)
+    return (panN * panN + panW * panW) * ppy * ppy > ALIGNED_PX * ALIGNED_PX
 end
 
 local function Usable(v)
@@ -187,6 +192,9 @@ local function OnUpdate()
         radius = Zoom.Tween(tweenFrom, target, GetTime() - tweenStart, ns.db.smoothZoom and Zoom.TWEEN or 0)
         zoomed = true
     end
+    if leaving and IsPanned() then
+        leaving = false -- panned during a zoom that was handing back: stay on the far view
+    end
     if leaving and radius == target then
         Far.Leave()
         return
@@ -253,7 +261,7 @@ end
 
 -- Starts a new zoom step from wherever the view is now. delta follows the wheel: > 0 is in.
 function Far.Step(delta, fine)
-    local r, leave = Zoom.FarStep(target, delta, fine, nativeMax, ns.db.maxFarZoom)
+    local r, leave = Zoom.FarStep(target, delta, fine, nativeMax, ns.db.maxFarZoom, IsPanned())
     tweenFrom, target, tweenStart, leaving = radius, r, GetTime(), leave
 end
 
@@ -290,10 +298,11 @@ function Far.Leave()
     Minimap:SetAlpha(1)
 end
 
--- Back to the player. At the native radius that also hands back to the native minimap.
+-- Back to the player, keeping the zoom. Exactly at the native radius that also hands back to the
+-- native minimap; closer in, the view stays far until zoomed out past the native radius.
 function Far.Recenter()
     panN, panW, drag = 0, 0, nil
-    if mode == "far" and target <= nativeMax * 1.0001 then Far.Leave() end
+    if mode == "far" and math.abs(target - nativeMax) <= nativeMax * 1e-4 then Far.Leave() end
 end
 
 ----------------------------------------------------------------------------------------------------

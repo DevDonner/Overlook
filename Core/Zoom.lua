@@ -12,18 +12,32 @@ ns.Zoom = Zoom
 Zoom.STEP = 1.25
 Zoom.TWEEN = 0.15 -- seconds per smooth step
 
+-- Closest far zoom, as a fraction of the native widest radius: the native closest step outdoors
+-- (66.7 of 233.3 yd). Reached only while panned, or after recentring below the native radius.
+Zoom.CLOSEST = 2 / 7
+
+local EPS = 1.0001
+
 -- delta > 0 zooms in, delta < 0 zooms out (the wheel's sign).
--- Returns the new target radius and whether that target leaves far mode.
-function Zoom.FarStep(radius, delta, fine, nativeMax, maxFar)
+-- Returns the new target radius and whether that target hands back to the native minimap.
+--
+-- Handing back only happens while the view is centred on the player (not panned): a step that
+-- crosses the native radius, from either side, lands exactly on it and hands back. While panned
+-- the far view keeps zooming through the native radius, down to CLOSEST, and never hands back.
+function Zoom.FarStep(radius, delta, fine, nativeMax, maxFar, panned)
     local f = fine and math.sqrt(Zoom.STEP) or Zoom.STEP
     if delta < 0 then
-        return math.min(radius * f, math.max(maxFar, nativeMax)), false
+        local r = math.min(radius * f, math.max(maxFar, nativeMax))
+        if not panned and radius < nativeMax / EPS and r >= nativeMax / EPS then
+            return nativeMax, true
+        end
+        return r, false
     end
     local r = radius / f
-    if r <= nativeMax * 1.0001 then
+    if not panned and radius >= nativeMax / EPS and r <= nativeMax * EPS then
         return nativeMax, true
     end
-    return r, false
+    return math.max(r, nativeMax * Zoom.CLOSEST), false
 end
 
 Zoom.SHRINK_MIN = 0.35
