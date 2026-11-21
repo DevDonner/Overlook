@@ -315,6 +315,14 @@ function Far.Leave()
     Minimap:SetAlpha(1)
 end
 
+-- Sets the far-zoom limit, pulling the view in if it's further out.
+function Far.SetMaxZoom(yards)
+    ns.db.maxFarZoom = ns.Settings.ClampMaxFar(yards)
+    if mode == "far" and target > ns.db.maxFarZoom then
+        tweenFrom, target, tweenStart = radius, ns.db.maxFarZoom, GetTime()
+    end
+end
+
 -- Back to the player and back to the native minimap at its widest step: the default view.
 function Far.Recenter()
     ClearAnchor()
@@ -510,10 +518,7 @@ ns.RegisterCommand("maxzoom", "set the far-zoom limit in yards (500-3200), e.g. 
         ns.Printf("max far zoom is %d yd; usage: /fzm maxzoom 3200", ns.db.maxFarZoom)
         return
     end
-    ns.db.maxFarZoom = ns.Settings.ClampMaxFar(arg)
-    if mode == "far" and target > ns.db.maxFarZoom then
-        tweenFrom, target, tweenStart = radius, ns.db.maxFarZoom, GetTime()
-    end
+    Far.SetMaxZoom(arg)
     ns.Printf("max far zoom %d yd", ns.db.maxFarZoom)
 end)
 

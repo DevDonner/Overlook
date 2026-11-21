@@ -17,6 +17,7 @@ Settings.DEFAULTS = {
     rotate = false,
     clustering = false,
     smoothZoom = true,    -- tween far-zoom steps
+    routes = true,        -- Questie's NPC routes on the far map
 }
 
 function Settings.ClampSize(n)
@@ -42,6 +43,8 @@ function Settings.Load(saved)
     db.maxFarZoom = Settings.ClampMaxFar(db.maxFarZoom)
     -- Per-category icon preferences (IconPrefs). Not in DEFAULTS: a table default would be shared.
     if type(db.icons) ~= "table" then db.icons = {} end
+    -- LibDBIcon's saved state for the minimap button ({ hide, minimapPos }); same reason.
+    if type(db.minimapButton) ~= "table" then db.minimapButton = {} end
     if type(db.x) ~= "number" or type(db.y) ~= "number" then
         db.x, db.y = nil, nil
     end

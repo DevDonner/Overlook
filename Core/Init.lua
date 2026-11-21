@@ -36,6 +36,7 @@ function ns.RegisterCommand(name, help, fn)
 end
 
 local function ShowHelp()
+    if ns.Options then ns.Print("/fzm on its own opens the settings") end
     ns.Print("commands:")
     for _, name in ipairs(order) do
         ns.Printf("  /fzm %s - %s", name, commands[name].help)
@@ -46,6 +47,10 @@ SLASH_FARZOOMMINIMAP1 = "/fzm"
 SlashCmdList.FARZOOMMINIMAP = function(msg)
     local name, rest = (msg or ""):match("^%s*(%S*)%s*(.-)%s*$")
     name = name:lower()
+    if name == "" and ns.Options then
+        ns.Options.Toggle()
+        return
+    end
     local cmd = commands[name]
     if not cmd then
         ShowHelp()

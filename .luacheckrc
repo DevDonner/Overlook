@@ -12,6 +12,7 @@ globals = {
     "SlashCmdList",
     "FarZoomMinimapDB",
     "GetMinimapShape",
+    "FarZoomMinimap_OnAddonCompartmentClick",
 }
 
 read_globals = {
@@ -21,6 +22,7 @@ read_globals = {
     "InCombatLockdown", "IsInRaid", "Minimap", "UIParent",
     "UnitName", "UnitPosition", "issecretvalue",
     "hooksecurefunc", "IsAltKeyDown", "IsMouseButtonDown", "IsControlKeyDown", "MinimapCluster",
+    "UISpecialFrames", "HideUIPanel",
     -- Other addons
     "LibStub", "QuestieLoader",
 }

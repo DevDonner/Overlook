@@ -618,6 +618,30 @@ events:SetScript("OnEvent", function()
 end)
 
 -- Re-reads preferences for every proxy and redraws (after /fzm icons changes them).
+-- Icon groups for the settings window: every Questie type plus every addon seen so far, with
+-- how many icons each has now. Sorted: Questie first, then addons by name.
+function Mirror.Groups()
+    local counts = {}
+    for _, p in pairs(proxies) do
+        if p.key then counts[p.key] = (counts[p.key] or 0) + 1 end
+    end
+    local seen, list = {}, {}
+    local function add(key, label)
+        if seen[key] then return end
+        seen[key] = true
+        list[#list + 1] = { key = key, label = label, count = counts[key] or 0 }
+    end
+    for _, t in ipairs(IconPrefs.QUESTIE_TYPES) do add(IconPrefs.QuestieKey(t), nil) end
+    local others = {}
+    for key, label in pairs(categories) do
+        if not IconPrefs.IsQuestie(key) then others[#others + 1] = { key = key, label = label } end
+    end
+    table.sort(others, function(a, b) return a.key < b.key end)
+    for _, o in ipairs(others) do add(o.key, o.label) end
+    for key in pairs(counts) do add(key, categories[key]) end -- e.g. questie:other
+    return list
+end
+
 function Mirror.RefreshPrefs()
     for _, p in pairs(proxies) do
         if p.key then ApplyPrefs(p) end

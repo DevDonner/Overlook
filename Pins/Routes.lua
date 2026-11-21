@@ -86,7 +86,7 @@ end
 
 local function Draw()
     local n = 0
-    if layout then
+    if layout and ns.db.routes ~= false then
         local thick = Thickness()
         local minSq = MIN_SEGMENT_PX * MIN_SEGMENT_PX
         for _, route in ipairs(routes) do
@@ -131,6 +131,11 @@ function Routes.SetLayout(inst, n, w, ppy)
         layout = nil
     end
     Draw()
+end
+
+-- Redraws now (after the routes setting changes).
+function Routes.Refresh()
+    if canvas then Draw() end
 end
 
 function Routes.Build(parent)
