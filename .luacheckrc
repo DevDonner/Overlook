@@ -17,14 +17,14 @@ globals = {
 read_globals = {
     -- WoW API
     "C_AddOns", "C_Map", "C_Minimap", "C_Timer",
-    "CreateFrame", "GameTooltip", "GetNumGroupMembers", "GetPlayerFacing", "GetTime", "debugstack",
+    "CreateFrame", "GameTooltip", "GetNumGroupMembers", "GetPlayerFacing", "GetTime", "GetCursorPosition", "debugstack",
     "InCombatLockdown", "IsInRaid", "Minimap", "UIParent",
     "UnitName", "UnitPosition", "issecretvalue",
-    "hooksecurefunc", "IsAltKeyDown", "IsControlKeyDown","MinimapCluster",
+    "hooksecurefunc", "IsAltKeyDown", "IsControlKeyDown", "MinimapCluster",
     -- Other addons
     "LibStub", "QuestieLoader",
 }
 
 files["tests/"] = {
-    globals = { "LibStub", "QuestieLoader" },
+    globals = { "LibStub", "QuestieLoader", "CreateFrame", "C_Timer", "hooksecurefunc", "GameTooltip", "GetCursorPosition" },
 }

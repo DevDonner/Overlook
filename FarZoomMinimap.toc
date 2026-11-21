@@ -15,4 +15,5 @@ Core\PinSources.lua
 Data\MinimapTiles.lua
 Shell\Shell.lua
 Far\Far.lua
+Pins\Mirror.lua
 Spike\Spike.lua

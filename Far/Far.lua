@@ -181,10 +181,19 @@ local function OnUpdate()
     if zoomed then
         layoutDirty = false
         RelayoutTiles(ppy)
+        if ns.Mirror then ns.Mirror.SetLayout(instance, originN, originW, ppy) end
     end
     local a0, a1, b0, b1 = G.VisibleTiles(n, w, radius)
     if zoomed or tilesPending or a0 ~= c0 or a1 ~= c1 or b0 ~= r0 or b1 ~= r1 then
         UpdateTiles(a0, a1, b0, b1, n, w, ppy)
+    end
+
+    if ns.Mirror then
+        if view:IsMouseOver() then
+            ns.Mirror.UpdateHover()
+        else
+            ns.Mirror.ClearHover()
+        end
     end
 
     local facing = GetPlayerFacing()
@@ -230,6 +239,7 @@ end
 function Far.Leave()
     if mode ~= "far" then return end
     mode = "near"
+    if ns.Mirror then ns.Mirror.SetLayout(nil) end
     view:Hide()
     ReleaseAll()
     instance, tileSet = nil, nil
@@ -273,6 +283,8 @@ function Far.OnShellApplied()
     local s = ARROW_SIZE * ns.db.size / max(ns.Shell.nativeSize or 1, 1)
     arrow:SetSize(s, s)
     layoutDirty = true
+    -- Proxy sizes follow the native icons, which scale with the Minimap.
+    if ns.Mirror then ns.Mirror.MarkAllDirty() end
 end
 
 function Far.Build(root, level)
@@ -296,9 +308,18 @@ function Far.Build(root, level)
     canvas:SetPoint("CENTER", view, "CENTER")
     canvas:SetFrameLevel(level + 1)
 
+    -- Pins (Phase 2) sit between the terrain and the arrow: two layers at level + 2 and + 3.
+    if ns.Mirror then ns.Mirror.Build(canvas, view, level + 2) end
+    view:SetScript("OnMouseUp", function(_, button)
+        if ns.Mirror then ns.Mirror.Click(button) end
+    end)
+    view:SetScript("OnLeave", function()
+        if ns.Mirror then ns.Mirror.ClearHover() end
+    end)
+
     arrowFrame = CreateFrame("Frame", nil, view)
     arrowFrame:SetAllPoints(view)
-    arrowFrame:SetFrameLevel(level + 3)
+    arrowFrame:SetFrameLevel(level + 5)
     arrow = arrowFrame:CreateTexture(nil, "OVERLAY")
     arrow:SetPoint("CENTER", view, "CENTER")
     if arrow:SetTexture(ARROW_TEXTURE) == false then

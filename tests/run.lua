@@ -9,6 +9,7 @@ local FILES = {
     "tests/pinsources.test.lua",
     "tests/settings.test.lua",
     "tests/view.test.lua",
+    "tests/mirror.test.lua",
 }
 
 for _, file in ipairs(FILES) do
