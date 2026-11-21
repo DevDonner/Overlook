@@ -9,6 +9,7 @@ local function Stub(fields)
     o.calls = o.calls or {}
     return setmetatable(o, {
         __index = function(t, k)
+            if not k:match("^%u") then return nil end -- only methods (Capitalised); fields stay nil
             local f = function(self, ...)
                 self.calls[k] = { ... }
             end
@@ -249,7 +250,7 @@ end)
 H.test("an unresolvable texture is skipped, never passed to SetTexture", function()
     _G.Questie = { usedIcons = {} }
     local before = Mirror.unresolved
-    local icon = NewIcon("monster", { negativeId = -13125, questieIcon = 99 })
+    local icon = NewIcon("monster", { negativeId = -13999, questieIcon = 99 })
     lib:AddMinimapIconWorld("Questie", icon, 0, -132, -8949)
     Drain()
     Mirror.SetLayout(0, -8949, -132, 0.5)
@@ -257,7 +258,7 @@ H.test("an unresolvable texture is skipped, never passed to SetTexture", functio
     H.eq(p.nTex, 0)
     H.eq(p.drawn, false)
     H.eq(Mirror.unresolved, before + 1)
-    H.eq(Mirror.lastUnresolved, -13125)
+    H.eq(Mirror.lastUnresolved, -13999)
 end)
 
 for k, v in pairs(saved) do _G[k] = v end
