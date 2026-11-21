@@ -2,7 +2,7 @@
 
 A minimap addon for **WoW Forever** (patch 1.60.1, `## Interface: 16001`) that lets you zoom out past the native minimap's limit and still see your Questie icons, the same ones the big world map shows.
 
-> **Status:** pre-alpha. Phase 0 (the go/no-go spike) hasn't started yet. Nothing here is playable.
+> **Status:** pre-alpha. Phase 0 passed; Phase 1 (square shell and far terrain zoom) is in testing. Questie icons on the far map come in Phase 2.
 
 ## Why
 
@@ -39,9 +39,22 @@ The full design, with decisions, risks and the test plan, is in [docs/design.md]
 
 See [docs/INSTALL.md](docs/INSTALL.md): download a ZIP, clone with Git, or link a working copy into your Forever client's `Interface/AddOns/` folder.
 
-## Phase 0 spike
+## Using it
 
-The current build is only the go/no-go spike. Put this repo in `Interface/AddOns/FarZoomMinimap`, log in outdoors with Questie and a few quests, then:
+- **Mouse wheel** on the map zooms. Past the native minimap's widest step it keeps zooming out over minimap terrain (up to 2,000 yards by default). **Ctrl + wheel** takes half steps.
+- **Alt + drag** moves the map.
+
+| Command | Does |
+| --- | --- |
+| `/fzm size 250` | Map size in px (120-600) |
+| `/fzm maxzoom 3200` | Far-zoom limit in yards (500-3,200) |
+| `/fzm smooth` | Toggle smooth zooming |
+| `/fzm reset` | Move the map back to a visible spot at the default size |
+| `/fzm far` | Far-zoom state, for bug reports |
+
+## Phase 0 spike commands
+
+Kept for diagnostics until the spike is removed:
 
 | Command | Checks |
 | --- | --- |

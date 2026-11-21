@@ -1,8 +1,8 @@
 ## Interface: 16001
 ## Title: FarZoomMinimap
-## Notes: Zoom the minimap out past its limit and keep Questie icons on it. Phase 0 spike: /fzm
+## Notes: Zoom the minimap out past its limit and keep Questie icons on it. Commands: /fzm
 ## Author: DevDonner
-## Version: 0.0.1
+## Version: 0.0.2
 ## OptionalDeps: Questie, TomTom
 ## X-License: All rights reserved
 ## SavedVariables: FarZoomMinimapDB
@@ -10,7 +10,9 @@
 Core\Init.lua
 Core\Settings.lua
 Core\Geometry.lua
+Core\Zoom.lua
 Core\PinSources.lua
 Data\MinimapTiles.lua
 Shell\Shell.lua
+Far\Far.lua
 Spike\Spike.lua

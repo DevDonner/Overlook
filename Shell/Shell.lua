@@ -17,6 +17,10 @@ ns.Shell = Shell
 
 local SQUARE_MASK = "Interface\\BUTTONS\\WHITE8X8"
 
+-- Fixed frame levels. Questie pins its minimap icons at level 2016 and up (fixed), so the far view
+-- must sit above them to take the mouse; the border and Alt+drag catcher go above that.
+local LEVEL_VIEW, LEVEL_BORDER, LEVEL_CATCHER = 3000, 3010, 3020
+
 local root, catcher, border
 local nativeSize
 local applyQueued = false
@@ -66,8 +70,10 @@ local function ApplyNow()
     HideArt(Minimap.ZoomOut)
     HideArt(Minimap.ZoomHitArea)
 
-    catcher:SetFrameLevel(Minimap:GetFrameLevel() + 10)
-    border:SetFrameLevel(Minimap:GetFrameLevel() + 9)
+    border:SetFrameLevel(LEVEL_BORDER)
+    catcher:SetFrameLevel(LEVEL_CATCHER)
+
+    if ns.Far then ns.Far.OnShellApplied() end
 end
 
 -- Re-applies the layout, waiting for combat to end if needed (safety default until we know
@@ -145,12 +151,32 @@ local function HookBlizzardLayout()
     end
 end
 
+-- LibDBIcon parents addon buttons to the Minimap, which goes to alpha 0 in far mode. Move any
+-- still sitting there into our root (their anchors to the Minimap still hold). Buttons another
+-- addon has already collected (e.g. MinimapButtonButton) aren't on the Minimap, so they're left alone.
+local function AdoptButtons()
+    local ok, lib = pcall(LibStub, "LibDBIcon-1.0", true)
+    if not (ok and lib and type(lib.objects) == "table") then return end
+    for _, button in pairs(lib.objects) do
+        if button.GetParent and button:GetParent() == Minimap then
+            local strata = button:GetFrameStrata()
+            button:SetParent(root)
+            button:SetFrameStrata(strata)
+        end
+    end
+end
+
 function Shell.Build()
     if root then return end
     nativeSize = math.max(Minimap:GetWidth(), 1)
+    Shell.nativeSize = nativeSize
     SeedPosition()
     BuildRoot()
+    Shell.root = root
+    if ns.Far then ns.Far.Build(root, LEVEL_VIEW) end
     HookBlizzardLayout()
+    AdoptButtons()
+    C_Timer.NewTicker(2, AdoptButtons) -- addons can create buttons after login
 
     -- The cluster's now-empty area would otherwise still swallow clicks meant for the world.
     if MinimapCluster then MinimapCluster:EnableMouse(false) end

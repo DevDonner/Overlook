@@ -37,3 +37,28 @@ end
 function Geometry.TileKey(col, row)
     return col * Geometry.GRID + row
 end
+
+function Geometry.KeyToTile(key)
+    return floor(key / Geometry.GRID), key % Geometry.GRID
+end
+
+-- Screen offset in px of a world point from the origin: x runs east, y runs north.
+-- Tiles and pins both go through this, so they always agree (U2).
+function Geometry.WorldToPixel(north, west, originNorth, originWest, ppy)
+    return (originWest - west) * ppy, (north - originNorth) * ppy
+end
+
+local function Clamp(v)
+    if v < 0 then return 0 end
+    if v > Geometry.GRID - 1 then return Geometry.GRID - 1 end
+    return v
+end
+
+-- Column and row range of the tiles a square view of half-width `radius` yards around
+-- (north, west) touches, clamped to the grid: colMin, colMax, rowMin, rowMax.
+function Geometry.VisibleTiles(north, west, radius)
+    return Clamp(floor((HALF - (west + radius)) / TILE)),
+        Clamp(floor((HALF - (west - radius)) / TILE)),
+        Clamp(floor((HALF - (north + radius)) / TILE)),
+        Clamp(floor((HALF - (north - radius)) / TILE))
+end
