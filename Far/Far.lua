@@ -31,6 +31,22 @@ local active, pool = {}, {}      -- active[key] = texture, or false when the til
 local c0, c1, r0, r1             -- the tile range on screen
 local layoutDirty, tilesPending = false, false
 local lastFacing
+local panN, panW = 0, 0          -- yards from the player to the view centre (drag to pan)
+local drag                       -- { x, y, panN, panW, moved } while the left button is down
+local nearDrag                   -- cursor at mouse-down on the native minimap, until it moves
+local suppressPing = false       -- the native mouse-up after a drag must not ping
+local recenter                   -- the Recenter button
+local DRAG_START_PX = 4
+
+local function Cursor()
+    local x, y = GetCursorPosition()
+    local s = view:GetEffectiveScale()
+    return x / s, y / s
+end
+
+local function IsPanned()
+    return panN ~= 0 or panW ~= 0
+end
 
 local function Usable(v)
     return v ~= nil and not ns.IsSecret(v)
@@ -162,6 +178,7 @@ local function OnUpdate()
         end
         ReleaseAll()
         instance, tileSet, originN, originW = inst, set, n, w
+        panN, panW = 0, 0
         layoutDirty = true
     end
 
@@ -176,20 +193,44 @@ local function OnUpdate()
     end
 
     local ppy = ns.db.size / 2 / radius
-    canvas:SetPoint("CENTER", view, "CENTER", (w - originW) * ppy, (originN - n) * ppy)
+
+    if drag then
+        if not IsMouseButtonDown("LeftButton") then
+            drag = nil
+        else
+            local cx, cy = Cursor()
+            local dx, dy = cx - drag.x, cy - drag.y
+            if not drag.moved and dx * dx + dy * dy >= DRAG_START_PX * DRAG_START_PX then
+                drag.moved = true
+                if ns.Mirror then ns.Mirror.ClearHover() end
+            end
+            if drag.moved then
+                -- Dragging right shows more of the west: the centre moves west (west grows).
+                local limit = 2 * ns.db.maxFarZoom
+                panW = math.max(-limit, math.min(limit, drag.panW + dx / ppy))
+                panN = math.max(-limit, math.min(limit, drag.panN - dy / ppy))
+            end
+        end
+    end
+    if recenter:IsShown() ~= IsPanned() then recenter:SetShown(IsPanned()) end
+
+    -- The view centre: the player, plus the pan.
+    local cN, cW = n + panN, w + panW
+    canvas:SetPoint("CENTER", view, "CENTER", (cW - originW) * ppy, (originN - cN) * ppy)
+    arrow:SetPoint("CENTER", view, "CENTER", (cW - w) * ppy, (n - cN) * ppy)
 
     if zoomed then
         layoutDirty = false
         RelayoutTiles(ppy)
         if ns.Mirror then ns.Mirror.SetLayout(instance, originN, originW, ppy, Zoom.Shrink(radius, nativeMax)) end
     end
-    local a0, a1, b0, b1 = G.VisibleTiles(n, w, radius)
+    local a0, a1, b0, b1 = G.VisibleTiles(cN, cW, radius)
     if zoomed or tilesPending or a0 ~= c0 or a1 ~= c1 or b0 ~= r0 or b1 ~= r1 then
-        UpdateTiles(a0, a1, b0, b1, n, w, ppy)
+        UpdateTiles(a0, a1, b0, b1, cN, cW, ppy)
     end
 
     if ns.Mirror then
-        if view:IsMouseOver() then
+        if view:IsMouseOver() and not (drag and drag.moved) then
             ns.Mirror.UpdateHover()
         else
             ns.Mirror.ClearHover()
@@ -218,7 +259,8 @@ end
 
 -- Hands over from the native minimap at its widest step. Returns false where there's no far
 -- map (no usable position, or no tiles for this continent).
-function Far.Enter(fine)
+-- zoomOut false: enter at the native radius without a zoom step (a drag on the native map).
+function Far.Enter(fine, zoomOut)
     if mode == "far" then return true end
     if not view then return false end
     local n, w, inst = PlayerPosition()
@@ -232,18 +274,75 @@ function Far.Enter(fine)
     layoutDirty, lastFacing = true, nil
     Minimap:SetAlpha(0)
     view:Show()
-    Far.Step(-1, fine)
+    if zoomOut ~= false then Far.Step(-1, fine) end
     return true
 end
 
 function Far.Leave()
     if mode ~= "far" then return end
     mode = "near"
+    panN, panW, drag = 0, 0, nil
+    recenter:Hide()
     if ns.Mirror then ns.Mirror.SetLayout(nil) end
     view:Hide()
     ReleaseAll()
     instance, tileSet = nil, nil
     Minimap:SetAlpha(1)
+end
+
+-- Back to the player. At the native radius that also hands back to the native minimap.
+function Far.Recenter()
+    panN, panW, drag = 0, 0, nil
+    if mode == "far" and target <= nativeMax * 1.0001 then Far.Leave() end
+end
+
+----------------------------------------------------------------------------------------------------
+-- Dragging. In far mode the view takes the mouse. On the native minimap a drag that moves more
+-- than a few px switches to far mode at the same scale (the native map can't pan) and keeps
+-- going; the native mouse-up after it is swallowed so it doesn't ping.
+
+local function BeginDrag(x, y, moved)
+    drag = { x = x, y = y, panN = panN, panW = panW, moved = moved }
+end
+
+local nearWatcher = CreateFrame("Frame")
+nearWatcher:Hide()
+nearWatcher:SetScript("OnUpdate", function(self)
+    if not nearDrag or not IsMouseButtonDown("LeftButton") or mode == "far" then
+        nearDrag = nil
+        self:Hide()
+        return
+    end
+    local cx, cy = Cursor()
+    local dx, dy = cx - nearDrag.x, cy - nearDrag.y
+    if dx * dx + dy * dy >= DRAG_START_PX * DRAG_START_PX then
+        local x, y = nearDrag.x, nearDrag.y
+        nearDrag = nil
+        self:Hide()
+        suppressPing = true
+        if Far.Enter(false, false) then BeginDrag(x, y, true) end
+    end
+end)
+
+local function HookNativeMouse()
+    Minimap:HookScript("OnMouseDown", function(_, button)
+        if button == "LeftButton" and mode == "near" and view then
+            local x, y = Cursor()
+            nearDrag = { x = x, y = y }
+            suppressPing = false
+            nearWatcher:Show()
+        end
+    end)
+    -- MinimapMixin pings on every mouse-up. Wrap it so the mouse-up that ends a drag doesn't.
+    local original = Minimap:GetScript("OnMouseUp")
+    Minimap:SetScript("OnMouseUp", function(self, ...)
+        nearDrag = nil
+        if suppressPing then
+            suppressPing = false
+            return
+        end
+        if original then return original(self, ...) end
+    end)
 end
 
 ----------------------------------------------------------------------------------------------------
@@ -310,8 +409,16 @@ function Far.Build(root, level)
 
     -- Pins (Phase 2) sit between the terrain and the arrow: two layers at level + 2 and + 3.
     if ns.Mirror then ns.Mirror.Build(canvas, view, level + 2) end
+    view:SetScript("OnMouseDown", function(_, button)
+        if button == "LeftButton" then
+            local x, y = Cursor()
+            BeginDrag(x, y, false)
+        end
+    end)
     view:SetScript("OnMouseUp", function(_, button)
-        if ns.Mirror then ns.Mirror.Click(button) end
+        local wasDrag = drag and drag.moved
+        if button == "LeftButton" then drag = nil end
+        if not wasDrag and ns.Mirror then ns.Mirror.Click(button) end
     end)
     view:SetScript("OnLeave", function()
         if ns.Mirror then ns.Mirror.ClearHover() end
@@ -326,8 +433,26 @@ function Far.Build(root, level)
         arrow:SetColorTexture(1, 0.82, 0, 1) -- fallback so the player is still marked
     end
 
+    -- Shown while panned: below the map's bottom-right corner, or above it when the map sits
+    -- in the lower half of the screen (so it stays on screen).
+    recenter = CreateFrame("Button", nil, root, "UIPanelButtonTemplate")
+    recenter:SetSize(76, 20)
+    recenter:SetText("Recenter")
+    recenter:SetFrameLevel(level + 30)
+    recenter:SetScript("OnClick", Far.Recenter)
+    recenter:SetScript("OnShow", function(self)
+        self:ClearAllPoints()
+        if (ns.db.y or 0) >= 0 then
+            self:SetPoint("TOPRIGHT", root, "BOTTOMRIGHT", 0, -4)
+        else
+            self:SetPoint("BOTTOMRIGHT", root, "TOPRIGHT", 0, 4)
+        end
+    end)
+    recenter:Hide()
+
     Minimap:EnableMouseWheel(true)
     Minimap:SetScript("OnMouseWheel", OnWheel)
+    HookNativeMouse()
 end
 
 local events = CreateFrame("Frame")

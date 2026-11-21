@@ -81,6 +81,7 @@ local function OnUpdate()
         return
     end
 
+    ns.Shell.SyncCatcher()
     local want = not ns.db.locked and root:IsMouseOver() and not InCombatLockdown()
     if want and not grip:IsShown() then
         PlaceGrip() -- the map may have moved since last time

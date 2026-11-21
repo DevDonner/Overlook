@@ -93,6 +93,12 @@ local function BuildCatcher()
     catcher:EnableMouse(false)
     catcher:RegisterForDrag("LeftButton")
     catcher:SetScript("OnDragStart", function()
+        -- The catcher can be left mouse-enabled if Alt was released while the game didn't have
+        -- focus (Alt+Tab). Never move without Alt actually held.
+        if not IsAltKeyDown() then
+            catcher:EnableMouse(false)
+            return
+        end
         if InCombatLockdown() then
             ns.Print("can't move the minimap in combat")
             return
@@ -166,6 +172,14 @@ local function AdoptButtons()
     end
 end
 
+-- The Alt+drag catcher takes the mouse only while Alt is really held. Events can be missed (a key
+-- released while the game is unfocused), so the grip's driver also calls this every frame.
+function Shell.SyncCatcher()
+    if not catcher or root.moving then return end
+    local want = IsAltKeyDown()
+    if catcher:IsMouseEnabled() ~= want then catcher:EnableMouse(want) end
+end
+
 function Shell.Build()
     if root then return end
     nativeSize = math.max(Minimap:GetWidth(), 1)
@@ -219,7 +233,7 @@ events:SetScript("OnEvent", function(_, event, arg1)
     elseif not root then
         return
     elseif event == "MODIFIER_STATE_CHANGED" then
-        if not root.moving then catcher:EnableMouse(IsAltKeyDown()) end
+        Shell.SyncCatcher()
     elseif event == "PLAYER_REGEN_ENABLED" then
         if applyQueued then ApplyNow() end
     else -- CVAR_UPDATE (rotateMinimap resets the mask), EDIT_MODE_LAYOUTS_UPDATED
