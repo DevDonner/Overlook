@@ -16,6 +16,7 @@ Core\Zoom.lua
 Core\IconPrefs.lua
 Core\Layout.lua
 Core\PinSources.lua
+Core\TrackingList.lua
 Data\MinimapTiles.lua
 Shell\Shell.lua
 Shell\Grip.lua
@@ -24,4 +25,5 @@ Pins\Mirror.lua
 Pins\Routes.lua
 UI\Widgets.lua
 UI\Options.lua
+UI\Tracking.lua
 Spike\Spike.lua

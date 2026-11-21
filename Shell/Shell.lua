@@ -74,6 +74,7 @@ local function ApplyNow()
     catcher:SetFrameLevel(LEVEL_CATCHER)
 
     if ns.Far then ns.Far.OnShellApplied() end
+    if ns.Tracking then ns.Tracking.Place() end
 end
 
 -- Re-applies the layout, waiting for combat to end if needed (safety default until we know
@@ -189,6 +190,7 @@ function Shell.Build()
     Shell.root = root
     if ns.Far then ns.Far.Build(root, LEVEL_VIEW) end
     if ns.Grip then ns.Grip.Build(root, LEVEL_CATCHER + 10) end
+    if ns.Tracking then ns.Tracking.Build(root, LEVEL_CATCHER + 20) end
     HookBlizzardLayout()
     AdoptButtons()
     C_Timer.NewTicker(2, AdoptButtons) -- addons can create buttons after login
