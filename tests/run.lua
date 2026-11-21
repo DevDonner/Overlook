@@ -7,6 +7,7 @@ local FILES = {
     "tests/geometry.test.lua",
     "tests/tiles.test.lua",
     "tests/pinsources.test.lua",
+    "tests/settings.test.lua",
 }
 
 for _, file in ipairs(FILES) do

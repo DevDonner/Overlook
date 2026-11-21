@@ -1,0 +1,38 @@
+-- Saved settings: defaults, loading and clamping. Pure Lua, so the offline tests cover it.
+local _, ns = ...
+
+local Settings = {}
+ns.Settings = Settings
+
+Settings.VERSION = 1
+Settings.SIZE_MIN, Settings.SIZE_MAX = 120, 600
+
+-- x/y (the frame's centre offset from the screen centre) start unset: the first login places the
+-- frame where the native minimap was.
+Settings.DEFAULTS = {
+    size = 200,           -- px, square
+    locked = true,        -- Alt+drag still moves it when locked
+    maxFarZoom = 2000,    -- yd radius; setting goes up to 3,200
+    rotate = false,
+    clustering = false,
+}
+
+function Settings.ClampSize(n)
+    n = tonumber(n) or Settings.DEFAULTS.size
+    return math.max(Settings.SIZE_MIN, math.min(Settings.SIZE_MAX, math.floor(n + 0.5)))
+end
+
+-- Fills missing keys with defaults and clamps values. Reuses the saved table so the game writes
+-- back the same object.
+function Settings.Load(saved)
+    local db = type(saved) == "table" and saved or {}
+    for k, v in pairs(Settings.DEFAULTS) do
+        if db[k] == nil then db[k] = v end
+    end
+    db.size = Settings.ClampSize(db.size)
+    if type(db.x) ~= "number" or type(db.y) ~= "number" then
+        db.x, db.y = nil, nil
+    end
+    db.version = Settings.VERSION
+    return db
+end

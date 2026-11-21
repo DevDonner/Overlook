@@ -5,9 +5,12 @@
 ## Version: 0.0.1
 ## OptionalDeps: Questie, TomTom
 ## X-License: All rights reserved
+## SavedVariables: FarZoomMinimapDB
 
 Core\Init.lua
+Core\Settings.lua
 Core\Geometry.lua
 Core\PinSources.lua
 Data\MinimapTiles.lua
+Shell\Shell.lua
 Spike\Spike.lua

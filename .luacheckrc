@@ -10,6 +10,8 @@ exclude_files = {
 globals = {
     "SLASH_FARZOOMMINIMAP1",
     "SlashCmdList",
+    "FarZoomMinimapDB",
+    "GetMinimapShape",
 }
 
 read_globals = {
@@ -18,6 +20,7 @@ read_globals = {
     "CreateFrame", "GameTooltip", "GetNumGroupMembers", "GetPlayerFacing", "GetTime", "debugstack",
     "InCombatLockdown", "IsInRaid", "Minimap", "UIParent",
     "UnitName", "UnitPosition", "issecretvalue",
+    "hooksecurefunc", "IsAltKeyDown", "MinimapCluster",
     -- Other addons
     "LibStub", "QuestieLoader",
 }
