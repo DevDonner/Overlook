@@ -78,10 +78,16 @@ end
 local function PlayerPosition()
     local n, w, _, inst = UnitPosition("player")
     if Usable(n) and Usable(w) and Usable(inst) then return n, w, inst end
+    -- Instances hide UnitPosition; the player's spot on the dungeon's map still says where they are.
+    if ns.FarArt then return ns.FarArt.PlayerFromMap() end
 end
 
+local NO_TERRAIN = {} -- an instance with no terrain tiles but a map of its own (a dungeon)
+
 local function TilesFor(inst)
-    return ns.MapMinimap and ns.MapMinimap[inst]
+    local set = ns.MapMinimap and ns.MapMinimap[inst]
+    if set then return set end
+    if ns.FarArt and ns.FarArt.HasMapFor(inst) then return NO_TERRAIN end
 end
 
 local function NativeRadius()
@@ -216,6 +222,8 @@ local function OnUpdate()
         layoutDirty = true
     end
 
+    if ns.FarArt then ns.FarArt.Update(GetTime(), tileSet ~= NO_TERRAIN) end
+
     local zoomed = layoutDirty
     if radius ~= target then
         radius = Zoom.Tween(tweenFrom, target, GetTime() - tweenStart, ns.db.smoothZoom and Zoom.TWEEN or 0)
@@ -268,6 +276,7 @@ local function OnUpdate()
         if ns.Mirror then ns.Mirror.SetLayout(instance, originN, originW, ppy, Zoom.Shrink(radius, nativeMax)) end
         if ns.Routes then ns.Routes.SetLayout(instance, originN, originW, ppy) end
         if ns.Party then ns.Party.SetLayout(instance, originN, originW, ppy) end
+        if ns.FarArt then ns.FarArt.SetLayout(instance, originN, originW, ppy) end
     end
     local a0, a1, b0, b1 = G.VisibleTiles(cN, cW, radius)
     if zoomed or tilesPending or a0 ~= c0 or a1 ~= c1 or b0 ~= r0 or b1 ~= r1 then
@@ -369,6 +378,7 @@ function Far.Leave(immediate)
     end
     if ns.Routes then ns.Routes.SetLayout(nil) end
     if ns.Party then ns.Party.SetLayout(nil) end
+    if ns.FarArt then ns.FarArt.SetLayout(nil) end
     Minimap:SetAlpha(1)
     RefreshNative()
     if immediate then
@@ -485,6 +495,8 @@ end
 
 local function OnWheel(_, delta)
     local fine = IsControlKeyDown()
+    -- Shift+wheel changes floor on a multi-level map (and does nothing else there).
+    if mode == "far" and IsShiftKeyDown() and ns.FarArt and ns.FarArt.StepFloor(delta) then return end
     if mode == "far" then
         Far.Step(delta, fine)
     elseif delta < 0 and Minimap:GetZoom() == 0 then
@@ -535,6 +547,7 @@ function Far.Build(root, level)
     if ns.Routes then ns.Routes.Build(canvas) end
     -- Party and raid dots: above the icons, below the player arrow (level + 5).
     if ns.Party then ns.Party.Build(canvas, view, level + 4) end
+    if ns.FarArt then ns.FarArt.Build(canvas, view, level + 6) end
     view:SetScript("OnMouseDown", function(_, button)
         if button == "LeftButton" then
             local x, y = Cursor()

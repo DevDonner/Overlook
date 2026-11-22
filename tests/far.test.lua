@@ -19,6 +19,8 @@ local function NewObj()
     o.GetScript = function(self, k) return self.scripts[k] end
     o.HookScript = noop
     o.CreateTexture = function() return NewObj() end
+    o.CreateFontString = function() return NewObj() end
+    o.SetTexture = function(self, f) self.file = f end
     o.GetEffectiveScale = function() return 1 end
     o.GetCenter = function() return 0, 0 end
     o.IsMouseOver = function() return false end
@@ -30,8 +32,40 @@ local function NewObj()
     })
 end
 
-local clock, pos, zoom
+local clock, pos, zoom, indoors, shift, best
+
+local function V(x, y) return { x = x, y = y, GetXY = function(self) return self.x, self.y end } end
+
+-- A fake C_Map. 100 and 101: two floors of a dungeon on instance 33 (no terrain), 1,000 yd square.
+-- 1458: Undercity on instance 0, under the terrain.
+local MAPS = {
+    [100] = { inst = 33, top = 500, left = 300, mapType = 4, name = "Upper", group = 7, h = 1 },
+    [101] = { inst = 33, top = 500, left = 300, mapType = 4, name = "Lower", group = 7, h = 2 },
+    [1458] = { inst = 0, top = -8000, left = 200, mapType = 3, name = "Undercity" },
+}
+local CMap = {
+    GetBestMapForUnit = function() return best end,
+    GetMapInfo = function(id) local m = MAPS[id]; return m and { mapID = id, name = m.name, mapType = m.mapType } end,
+    GetMapArtLayers = function(id)
+        if MAPS[id] then return { { layerWidth = 400, layerHeight = 400, tileWidth = 256, tileHeight = 256 } } end
+    end,
+    GetMapArtLayerTextures = function(id) if MAPS[id] then return { id * 10 + 1, id * 10 + 2, id * 10 + 3, id * 10 + 4 } end end,
+    GetWorldPosFromMapPos = function(id, p)
+        local m = MAPS[id]
+        if m then return m.inst, V(m.top - p.y * 1000, m.left - p.x * 1000) end
+    end,
+    GetPlayerMapPosition = function(id) if MAPS[id] then return V(0.5, 0.5) end end,
+    GetMapGroupID = function(id) return MAPS[id] and MAPS[id].group end,
+    GetMapGroupMembersInfo = function()
+        return { { mapID = 101, name = "Lower", relativeHeightIndex = 2 }, { mapID = 100, name = "Upper", relativeHeightIndex = 1 } }
+    end,
+}
+
 local GLOBALS = {
+    C_Map = CMap,
+    CreateVector2D = V,
+    IsIndoors = function() return indoors end,
+    IsShiftKeyDown = function() return shift end,
     GetTime = function() return clock end,
     UnitPosition = function() if pos then return pos[1], pos[2], 0, pos[3] end end,
     GetCursorPosition = function() return 0, 0 end,
@@ -46,7 +80,7 @@ saved.Minimap, saved.CreateFrame = _G.Minimap, _G.CreateFrame
 local ns, Far, view, OnUpdate
 
 local function Fresh()
-    clock, pos, zoom = 100, { -8949, -132, 0 }, 0
+    clock, pos, zoom, indoors, shift, best = 100, { -8949, -132, 0 }, 0, false, nil, nil
     for k, v in pairs(GLOBALS) do _G[k] = v end
     local minimap = NewObj()
     minimap.GetZoom = function() return zoom end
@@ -65,7 +99,9 @@ local function Fresh()
     H.loadAddonFile("Core/Geometry.lua", ns)
     H.loadAddonFile("Core/Settings.lua", ns)
     H.loadAddonFile("Core/Zoom.lua", ns)
+    H.loadAddonFile("Core/MapArt.lua", ns)
     H.loadAddonFile("Far/Far.lua", ns)
+    H.loadAddonFile("Far/Art.lua", ns)
     Far = ns.Far
     Far.Build(NewObj(), 10)
     view = nil -- the far view: the frame with both OnUpdate and OnMouseWheel
@@ -166,6 +202,46 @@ H.test("no tiles for this continent: far mode never starts", function()
     H.eq(Far.Enter(), false)
     H.eq(Far.IsActive(), false)
     H.eq(Minimap.alpha, 1)
+end)
+
+H.test("in a dungeon, with no UnitPosition, far mode starts from the map and draws the dungeon", function()
+    pos, best = nil, 100
+    H.truthy(Far.Enter(), "entered without UnitPosition")
+    Frame()
+    H.truthy(Far.IsActive(), "stays in far mode with no terrain tiles")
+    H.eq(ns.FarArt.DrawnMap(), 100)
+    H.eq(ns.FarArt.ShownTiles(), 4)
+end)
+
+H.test("indoors in Undercity the city's map is drawn; outdoors only the terrain", function()
+    best, indoors = 1458, true
+    GoFar()
+    Frame(0.6)
+    H.eq(ns.FarArt.DrawnMap(), 1458)
+    H.eq(ns.FarArt.ShownTiles(), 4)
+    indoors = false
+    Frame(0.6)
+    H.eq(ns.FarArt.DrawnMap(), nil)
+    H.eq(ns.FarArt.ShownTiles(), 0)
+end)
+
+H.test("Shift+wheel changes floor in a multi-level dungeon; the plain wheel still zooms", function()
+    pos, best = nil, 100
+    GoFar()
+    shift = true
+    view.scripts.OnMouseWheel(view, -1) -- down a level
+    H.eq(ns.FarArt.DrawnMap(), 101)
+    H.eq(ns.FarArt.ShownTiles(), 4)
+    view.scripts.OnMouseWheel(view, 1)
+    H.eq(ns.FarArt.DrawnMap(), 100)
+    H.truthy(Far.IsActive(), "a floor change never zooms back in")
+end)
+
+H.test("leaving far mode hides the map art", function()
+    pos, best = nil, 100
+    GoFar()
+    Far.Leave(true)
+    H.eq(ns.FarArt.ShownTiles(), 0)
 end)
 
 for k in pairs(GLOBALS) do _G[k] = saved[k] end
