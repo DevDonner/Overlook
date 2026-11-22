@@ -3,12 +3,23 @@ local H = { passed = 0, failed = 0, failures = {} }
 
 local currentFile = "?"
 
+local beforeEach
+
 function H.setFile(name)
     currentFile = name
+    beforeEach = nil
+end
+
+-- Runs fn before every following test in the current file, so no test sees another's state.
+function H.beforeEach(fn)
+    beforeEach = fn
 end
 
 function H.test(name, fn)
-    local ok, err = pcall(fn)
+    local ok, err = pcall(function()
+        if beforeEach then beforeEach() end
+        fn()
+    end)
     if ok then
         H.passed = H.passed + 1
     else

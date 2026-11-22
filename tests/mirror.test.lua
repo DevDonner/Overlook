@@ -87,32 +87,40 @@ _G.hooksecurefunc = function(t, name, post)
 end
 _G.QuestieLoader = nil
 
-local minimapPins = {}
-local lib = { minimapPins = minimapPins }
-function lib:AddMinimapIconWorld(_, icon, instanceID, x, y)
-    self.minimapPins[icon] = { instanceID = instanceID, x = x, y = y }
-end
-function lib:RemoveMinimapIcon(_, icon)
-    self.minimapPins[icon] = nil
-end
-function lib:RemoveAllMinimapIcons()
-    for k in pairs(self.minimapPins) do self.minimapPins[k] = nil end
-end
+-- Each test gets a fresh registry and a freshly loaded mirror: nothing it caches (learned
+-- texture paths, proxies, hooks) carries over from the test before.
+local minimapPins, lib, ns, Mirror
 
-local ns = {
-    Print = noop,
-    Printf = noop,
-    Show = tostring,
-    RegisterCommand = noop,
-    PinSources = { List = function() return { { name = "Questie (test)", lib = lib } } end },
-}
-ns.db = { icons = {} }
-H.loadAddonFile("Core/Geometry.lua", ns)
-H.loadAddonFile("Core/IconPrefs.lua", ns)
-H.loadAddonFile("Pins/Mirror.lua", ns)
-local Mirror = ns.Mirror
+local function Fresh()
+    for i = #tickers, 1, -1 do tickers[i] = nil end
+    minimapPins = {}
+    lib = { minimapPins = minimapPins }
+    function lib:AddMinimapIconWorld(_, icon, instanceID, x, y)
+        self.minimapPins[icon] = { instanceID = instanceID, x = x, y = y }
+    end
+    function lib:RemoveMinimapIcon(_, icon)
+        self.minimapPins[icon] = nil
+    end
+    function lib:RemoveAllMinimapIcons()
+        for k in pairs(self.minimapPins) do self.minimapPins[k] = nil end
+    end
+    local src = lib
+    ns = {
+        Print = noop,
+        Printf = noop,
+        Show = tostring,
+        RegisterCommand = noop,
+        PinSources = { List = function() return { { name = "Questie (test)", lib = src } } end },
+    }
+    ns.db = { icons = {} }
+    H.loadAddonFile("Core/Geometry.lua", ns)
+    H.loadAddonFile("Core/IconPrefs.lua", ns)
+    H.loadAddonFile("Pins/Mirror.lua", ns)
+    Mirror = ns.Mirror
+    Mirror.Build(NewFrame(), NewFrame(), 10)
+end
+H.beforeEach(Fresh)
 
-Mirror.Build(NewFrame(), NewFrame(), 10)
 local function Drain() tickers[1]() end
 
 local function Proxy(icon) return Mirror._proxies[icon] end
