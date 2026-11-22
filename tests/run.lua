@@ -14,6 +14,7 @@ local FILES = {
     "tests/layout.test.lua",
     "tests/party.test.lua",
     "tests/far.test.lua",
+    "tests/questiecheck.test.lua",
 }
 
 for _, file in ipairs(FILES) do

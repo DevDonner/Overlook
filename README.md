@@ -61,6 +61,7 @@ See [docs/INSTALL.md](docs/INSTALL.md): download a ZIP, clone with Git, or link 
 | `/fzm lock` | Lock or unlock the size |
 | `/fzm icons` | List icon groups; e.g. `/fzm icons rarescanner size 0.6` |
 | `/fzm reset` | Move the map back to a visible spot at the default size |
+| `/fzm questie` | Check the Questie parts the far map uses (also run once after login; quiet when all is well) |
 | `/fzm far`, `/fzm pins`, `/fzm routes` | State, for bug reports |
 
 ## Development
