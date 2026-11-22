@@ -260,6 +260,8 @@ local function OnUpdate()
     canvas:SetPoint("CENTER", view, "CENTER", (cW - originW) * ppy, (originN - cN) * ppy)
     arrow:SetPoint("CENTER", view, "CENTER", (cW - w) * ppy, (n - cN) * ppy)
 
+    -- Before SetLayout, so a zoom (or the first frame in far mode) places icons for this view.
+    if ns.Mirror then ns.Mirror.SetView(cN, cW, ns.db.size / 2, zoomed) end
     if zoomed then
         layoutDirty = false
         RelayoutTiles(ppy)

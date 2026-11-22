@@ -179,6 +179,47 @@ H.test("placement: the pin at the origin sits at 0,0; 100 yd north at ppy 0.5 is
     H.eq(pb.tex[1].shown, true)
 end)
 
+H.test("zoom places only icons near the view; the rest come in as the view nears them", function()
+    local near, far = NewIcon("available"), NewIcon("available")
+    lib:AddMinimapIconWorld("Questie", near, 0, -132, -8949)
+    lib:AddMinimapIconWorld("Questie", far, 0, -132, -3949) -- 5,000 yd north: 2,500 px at ppy 0.5
+    Drain()
+    Mirror.SetView(-8949, -132, 100) -- a 200 px view centred on the first icon
+    Mirror.SetLayout(0, -8949, -132, 0.5)
+    H.eq(Proxy(near).drawn, true, "icon in view drawn")
+    H.truthy(not Proxy(far).drawn, "icon far outside the view not placed")
+    H.eq(Proxy(far).tex[1].shown, false, "and not shown")
+    Mirror.SetView(-3949, -132, 100) -- panned over to the far icon
+    H.eq(Proxy(far).drawn, true, "drawn once the view is over it")
+    H.near(Proxy(far).y, 2500, 1e-9)
+    H.truthy(not Proxy(near).drawn, "the one left behind is hidden")
+end)
+
+H.test("small moves of the view don't re-place icons", function()
+    local icon = NewIcon("available")
+    lib:AddMinimapIconWorld("Questie", icon, 0, -132, -8949)
+    Drain()
+    Mirror.SetView(-8949, -132, 100)
+    Mirror.SetLayout(0, -8949, -132, 0.5)
+    local t = Proxy(icon).tex[1]
+    local placed = 0
+    t.SetPoint = function() placed = placed + 1 end
+    Mirror.SetView(-8949 + 40, -132 + 40, 100) -- 20 px each way at ppy 0.5
+    H.eq(placed, 0)
+end)
+
+H.test("a hidden icon stays hidden when the view comes over it", function()
+    local icon = NewIcon("available")
+    lib:AddMinimapIconWorld("Questie", icon, 0, -132, -3949)
+    Drain()
+    Mirror.SetView(-8949, -132, 100)
+    Mirror.SetLayout(0, -8949, -132, 0.5)
+    icon:FakeHide()
+    Drain()
+    Mirror.SetView(-3949, -132, 100)
+    H.truthy(not Proxy(icon).drawn)
+end)
+
 H.test("pins on another continent are not drawn", function()
     local icon = NewIcon("available")
     lib:AddMinimapIconWorld("Questie", icon, 1, 0, 0)
