@@ -272,12 +272,19 @@ local function OnUpdate()
         UpdateTiles(a0, a1, b0, b1, cN, cW, ppy)
     end
 
-    if ns.Mirror then
-        if view:IsMouseOver() and not (drag and drag.moved) then
-            ns.Mirror.UpdateHover()
+    -- Hover: party dots sit above the icons, so a dot under the cursor wins.
+    if view:IsMouseOver() and not (drag and drag.moved) then
+        local unit = ns.Party and ns.Party.UnitUnderCursor()
+        if unit then
+            if ns.Mirror then ns.Mirror.ClearHover() end
+            ns.Party.SetHover(unit)
         else
-            ns.Mirror.ClearHover()
+            if ns.Party then ns.Party.SetHover(nil) end
+            if ns.Mirror then ns.Mirror.UpdateHover() end
         end
+    else
+        if ns.Party then ns.Party.SetHover(nil) end
+        if ns.Mirror then ns.Mirror.ClearHover() end
     end
 
     local facing = GetPlayerFacing()
@@ -525,7 +532,7 @@ function Far.Build(root, level)
     -- NPC routes: lines on the canvas itself, above its terrain, below the icon layers.
     if ns.Routes then ns.Routes.Build(canvas) end
     -- Party and raid dots: above the icons, below the player arrow (level + 5).
-    if ns.Party then ns.Party.Build(canvas, level + 4) end
+    if ns.Party then ns.Party.Build(canvas, view, level + 4) end
     view:SetScript("OnMouseDown", function(_, button)
         if button == "LeftButton" then
             local x, y = Cursor()
@@ -539,6 +546,7 @@ function Far.Build(root, level)
     end)
     view:SetScript("OnLeave", function()
         if ns.Mirror then ns.Mirror.ClearHover() end
+        if ns.Party then ns.Party.SetHover(nil) end
     end)
 
     arrowFrame = CreateFrame("Frame", nil, view)
