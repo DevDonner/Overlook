@@ -82,6 +82,14 @@ H.test("the player's world position from the map when UnitPosition gives none", 
     H.eq(A.PlayerFromMap(Api({ GetPlayerMapPosition = function() return nil end }), 100), nil)
 end)
 
+H.test("a party member's world position from the map, by unit", function()
+    local asked
+    local api = Api({ GetPlayerMapPosition = function(_, unit) asked = unit; return V(0.5, 0.5) end })
+    local n, w, inst = A.PlayerFromMap(api, 100, "party2")
+    H.eq(asked, "party2")
+    H.near(n, 0, 1e-9); H.near(w, -200, 1e-9); H.eq(inst, 33)
+end)
+
 H.test("floors: a map group's members in height order, else none", function()
     H.eq(A.Floors(Api(), 100), nil)
     local api = Api({

@@ -22,7 +22,7 @@ read_globals = {
     "InCombatLockdown", "IsInRaid", "Minimap", "UIParent",
     "UnitName", "UnitPosition", "issecretvalue", "UnitClass", "UnitIsUnit", "UnitIsConnected",
     "hooksecurefunc", "IsAltKeyDown", "IsMouseButtonDown", "IsControlKeyDown", "MinimapCluster",
-    "UISpecialFrames", "HideUIPanel", "IsIndoors", "IsShiftKeyDown", "CreateVector2D",
+    "UISpecialFrames", "HideUIPanel", "IsIndoors", "IsShiftKeyDown", "CreateVector2D", "UnitExists",
     -- Other addons
     "LibStub", "QuestieLoader",
 }

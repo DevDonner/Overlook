@@ -75,6 +75,17 @@ H.test("a member on another continent has no dot to hover", function()
     Party.Refresh()
 end)
 
+H.test("inside instances, a member with no UnitPosition is placed from the dungeon map", function()
+    positions.party2 = nil -- the game hides positions in instances
+    ns.FarArt = { UnitFromMap = function(unit) if unit == "party2" then return 30, -40, 0 end end }
+    Party.Refresh()
+    cursorX, cursorY = 40, 30
+    H.eq(Party.UnitUnderCursor(), "party2")
+    ns.FarArt = nil
+    positions.party2 = { 10, -20, 0, 1 }
+    Party.Refresh()
+end)
+
 H.test("hovering shows the game's own unit tooltip, owned by the far view", function()
     Party.SetHover("party1")
     H.eq(tooltip.owner, view)

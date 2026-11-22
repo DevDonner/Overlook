@@ -72,6 +72,9 @@ local function Draw()
     if layout and ns.db.partyDots ~= false then
         for _, unit in ipairs(Units(units)) do
             local north, west, _, inst = UnitPosition(unit)
+            if north == nil and ns.FarArt then -- instances hide positions; the dungeon map doesn't
+                north, west, inst = ns.FarArt.UnitFromMap(unit)
+            end
             if north and not (Secret(north) or Secret(west) or Secret(inst)) and inst == layout.inst then
                 local x, y = G.WorldToPixel(north, west, layout.n, layout.w, layout.ppy)
                 n = n + 1

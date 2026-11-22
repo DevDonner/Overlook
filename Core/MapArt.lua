@@ -65,10 +65,10 @@ function MapArt.Choose(s)
     return nil
 end
 
--- The player's world position (north, west, instance) from their map position, for instances
--- where UnitPosition gives nothing.
-function MapArt.PlayerFromMap(api, mapID)
-    local pos = api.GetPlayerMapPosition(mapID, "player")
+-- A unit's world position (north, west, instance) from its map position, for instances where
+-- UnitPosition gives nothing. unit defaults to the player.
+function MapArt.PlayerFromMap(api, mapID, unit)
+    local pos = api.GetPlayerMapPosition(mapID, unit or "player")
     if not pos then return nil end
     local inst, world = api.GetWorldPosFromMapPos(mapID, pos)
     if not (inst and world) then return nil end

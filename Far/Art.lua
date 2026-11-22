@@ -102,8 +102,13 @@ end
 
 -- The player's world position from their map, where UnitPosition gives none (instances).
 function FarArt.PlayerFromMap()
+    return FarArt.UnitFromMap("player")
+end
+
+-- The same for a group member, on the player's map (nil when they're on another floor or map).
+function FarArt.UnitFromMap(unit)
     local best = BestMap()
-    if best then return A.PlayerFromMap(Api(), best) end
+    if best then return A.PlayerFromMap(Api(), best, unit) end
 end
 
 -- Far mode calls this every frame; it looks at the player's map every CHECK_EVERY seconds.
@@ -172,5 +177,14 @@ if ns.RegisterCommand then
         ns.Printf("map art %s  terrain tiles here %s  would draw %s  floors %d",
             layers and #layers > 0 and "yes" or "no", tostring(terrain), ns.Show(ChooseNow(terrain and true or false)),
             best and #(A.Floors(api, best) or {}) or 0)
+        local units, onMap = 0, 0
+        for i = 1, 4 do
+            local u = "party" .. i
+            if UnitExists and UnitExists(u) then
+                units = units + 1
+                if UnitPosition(u) or FarArt.UnitFromMap(u) then onMap = onMap + 1 end
+            end
+        end
+        if units > 0 then ns.Printf("party members placed on the far map: %d of %d", onMap, units) end
     end)
 end
