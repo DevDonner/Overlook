@@ -244,5 +244,53 @@ H.test("leaving far mode hides the map art", function()
     H.eq(ns.FarArt.ShownTiles(), 0)
 end)
 
+-- Stub icon and party layers that record what far mode asks of them.
+local function StubLayers(unitUnderCursor)
+    local log = {}
+    local function rec(name) return function(...) log[#log + 1] = { name, ... } end end
+    ns.Mirror = { SetView = rec("SetView"), SetLayout = noop, ClearHover = rec("Mirror.Clear"),
+        UpdateHover = rec("Mirror.Hover"), MarkAllDirty = noop }
+    ns.Party = { SetLayout = noop, UnitUnderCursor = function() return unitUnderCursor end,
+        SetHover = rec("Party.Hover") }
+    return log
+end
+
+local function Has(log, name, arg)
+    for _, e in ipairs(log) do
+        if e[1] == name and (arg == nil or e[2] == arg) then return true end
+    end
+    return false
+end
+
+H.test("a party dot under the cursor wins over the icons under it", function()
+    local log = StubLayers("party1")
+    view.IsMouseOver = function() return true end
+    GoFar()
+    H.truthy(Has(log, "Party.Hover", "party1"), "party tooltip shown")
+    H.truthy(Has(log, "Mirror.Clear"), "icon hover cleared")
+    H.truthy(not Has(log, "Mirror.Hover"), "icons never hovered under a dot")
+end)
+
+H.test("with no dot under the cursor, icons get the hover and the party tooltip is cleared", function()
+    local log = StubLayers(nil)
+    view.IsMouseOver = function() return true end
+    GoFar()
+    H.truthy(Has(log, "Mirror.Hover"))
+    H.truthy(Has(log, "Party.Hover"), "SetHover(nil) clears any party tooltip")
+end)
+
+H.test("far mode tells the icon layer where the view is every frame", function()
+    local log = StubLayers(nil)
+    GoFar()
+    local n = 0
+    for _, e in ipairs(log) do
+        if e[1] == "SetView" then
+            n = n + 1
+            H.eq(e[2], -8949); H.eq(e[3], -132); H.eq(e[4], 100, "half the 200 px map")
+        end
+    end
+    H.truthy(n >= 1)
+end)
+
 for k in pairs(GLOBALS) do _G[k] = saved[k] end
 _G.Minimap, _G.CreateFrame = saved.Minimap, saved.CreateFrame
