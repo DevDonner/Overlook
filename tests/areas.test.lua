@@ -214,7 +214,13 @@ H.test("round map: each zone drawn once per strip, hidden while a zoom moves", f
     Areas.Update(1.01, -1000, -1000, 300, true)
     H.eq(Areas.ShownFrames(), 0, "zooming: hidden")
     Areas.Update(1.02, -1000, -1000, 300, false)
-    H.eq(Areas.ShownFrames(), 9, "settled: back")
+    H.eq(Areas.ShownFrames(), 0, "settled: drawn on the next frame, once sizes apply")
+    local before = #calls
+    Areas.Update(1.03, -1000, -1000, 300, false)
+    H.eq(Areas.ShownFrames(), 9, "back")
+    local drew = 0
+    for i = before + 1, #calls do if calls[i][1] == "DrawBlob" then drew = drew + 1 end end
+    H.truthy(drew > 0, "and painted afresh")
     ns.db.round = false
     Areas.Refresh()
     H.eq(Areas.ShownFrames(), 1, "square again: one frame")

@@ -279,6 +279,7 @@ local function Draw()
                     local f = set.frames[z.mapID] or Frame(set, z.mapID)
                     if f then
                         Place(f, z)
+                        f:Show() -- before painting: a hidden widget may not take the drawing
                         if painted[f] ~= generation then
                             if not ids then
                                 UpdateOwners()
@@ -287,7 +288,6 @@ local function Draw()
                             Paint(f, z.mapID, ids)
                             painted[f] = generation
                         end
-                        f:Show()
                         keep[f] = true
                     end
                 end
@@ -302,7 +302,8 @@ local function Draw()
     end
 end
 
-local resized = false -- the frames changed size: redraw them next frame, once the size has applied
+local resized = false
+local settled = false -- a round-map zoom just ended: redraw next frame -- the frames changed size: redraw them next frame, once the size has applied
 
 -- Far mode calls this every frame with the view's centre and radius (yards), and whether a zoom
 -- is moving.
@@ -311,13 +312,19 @@ function Areas.Update(now, north, west, radius, isZooming)
     if isZooming ~= zooming then
         zooming = isZooming
         if IsRound() then
-            -- Hidden while the zoom moves; drawn fresh for the new size once it settles.
-            if not zooming then
-                generation = generation + 1
-                resized = false
+            -- Hidden while the zoom moves. Once it settles they're drawn fresh, a frame later, when
+            -- the last zoom step's sizes have applied (as after any resize).
+            if zooming then
+                Draw()
+            else
+                settled = true
             end
-            Draw()
+            return
         end
+    end
+    if settled then
+        settled = false
+        resized = true
     end
     if resized and layout and Showing() then
         -- Like the world map's quest areas: drawn for the frame's size, so redrawn after a zoom.
@@ -397,4 +404,13 @@ ns.RegisterCommand("areas", "show the quest areas the far view draws", function(
         layout and #ZonesOf(layout.inst) or 0, Areas.ShownFrames())
     ns.Printf("quests: %d in all (Questie's list %s), %d tracked; drawing %s", #AllQuests(tracked),
         QuestieQuests() and "found" or "missing", #tracked, ns.db.questAreaTracked and "tracked only" or "all")
+    local strips, painted0 = 0, 0
+    for i, set in pairs(sets) do
+        if i > 0 and set.clip and set.clip:IsShown() then strips = strips + 1 end
+        for _, f in pairs(set.frames) do
+            if painted[f] == generation then painted0 = painted0 + 1 end
+        end
+    end
+    ns.Printf("map %s  strips shown %d  frames painted this round %d  zooming %s  showing %s",
+        IsRound() and "round" or "square", strips, painted0, tostring(zooming), tostring(Showing()))
 end)
