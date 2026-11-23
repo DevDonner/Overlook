@@ -70,14 +70,14 @@ H.test("panel: our own button per LibDBIcon addon; clicks reach the addon, origi
         GetButtonList = function() return { "A", "B" } end,
         GetMinimapButton = function(_, n) return n == "A" and origA or origB end,
     }
-    local saved, made = {}, {}
+    local kept, made = {}, {}
     local G = {
         CreateFrame = function() local f = Obj(); made[#made + 1] = f; return f end,
         LibStub = function() return lib end,
         C_Timer = { NewTicker = function() end }, UISpecialFrames = {}, UIParent = Obj(),
         Minimap = Obj(), GameTooltip = Obj(),
     }
-    for k, v in pairs(G) do saved[k], _G[k] = _G[k], v end
+    for k, v in pairs(G) do kept[k], _G[k] = _G[k], v end
     local ns = { RegisterCommand = function() end, db = { bottomBar = true, buttonsPerRow = 6 },
         Shell = {} }
     local M = H.loadAddonFile("Shell/Buttons.lua", ns).Buttons
@@ -96,5 +96,5 @@ H.test("panel: our own button per LibDBIcon addon; clicks reach the addon, origi
     ours.scripts.OnClick(ours, "RightButton")
     H.eq(clicked, "RightButton", "the click went to the addon")
     M.Toggle()
-    for k in pairs(G) do _G[k] = saved[k] end
+    for k in pairs(G) do _G[k] = kept[k] end
 end)
