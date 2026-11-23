@@ -4,7 +4,7 @@ A minimap addon for **WoW Forever** (patch 1.60.1, `## Interface: 16001`) that l
 
 **Requires [Questie](https://www.curseforge.com/wow/addons/questie).** Questie is the source for quest, townsfolk (mailboxes, flight masters, trainers...) and NPC route icons; the game's own tracking icons only exist at native zoom, so FarZoomMinimap doesn't manage them.
 
-> **Status:** alpha. The square shell, far terrain zoom, Questie icon mirror, NPC routes, party dots, pan and recenter, and the settings window all work in game; rotation, profiles and the button tray are still to come.
+> **Status:** alpha. Everything listed below is built; most of it has been checked in game, and the newest parts (pings, the button panel, cave stacking, mount zoom) are waiting on in-game checks.
 
 ## Why
 
