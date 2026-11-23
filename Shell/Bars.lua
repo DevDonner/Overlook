@@ -15,7 +15,7 @@ local TICK = 0.2 -- seconds between coordinate / clock updates
 
 local root, top, bottom
 local zoneText, coordText, zoomText, clockText
-local calendarButton, addonsButton
+local calendarButton, addonsButton, minimapButtons
 local ICON = 12        -- px, the top bar's buttons
 local GREY, GOLD, INVITE = { 0.75, 0.77, 0.8 }, { 1, 0.82, 0 }, { 1, 0.5, 0.15 }
 local headerHidden = false
@@ -232,13 +232,27 @@ local function BuildButtons()
     Part(addonsButton, q, q, "BOTTOMLEFT", 2, 2)
     Part(addonsButton, q, q, "BOTTOMRIGHT", -2, 2)
     Paint(addonsButton, GREY)
+
+    -- Other addons' minimap buttons (Shell/Buttons.lua): three dots.
+    minimapButtons = SmallButton(top, function()
+        local n = ns.Buttons and ns.Buttons.Count() or 0
+        return string.format("Minimap buttons (%d)", n)
+    end, function() if ns.Buttons then ns.Buttons.Toggle() end end)
+    minimapButtons:SetPoint("RIGHT", addonsButton, "LEFT", -2, 0)
+    for i = -1, 1 do Part(minimapButtons, 2, 2, "CENTER", i * 4, 0) end
+    Paint(minimapButtons, GREY)
+    minimapButtons:Hide()
+    if ns.Buttons then ns.Buttons.Build(minimapButtons) end
 end
 
 local function SyncBarButtons()
     local show = ns.db.barButtons ~= false
     calendarButton:SetShown(show and (_G.GameTimeFrame ~= nil or _G.ToggleCalendar ~= nil))
     addonsButton:SetShown(show and _G.AddonCompartmentFrame ~= nil)
+    if ns.Buttons then ns.Buttons.Apply() end
+    -- The zone name stays centred: the same room on both sides, for the widest side.
     local inset = show and (ICON + 8) or 0
+    if minimapButtons:IsShown() then inset = inset + ICON + 6 end
     zoneText:ClearAllPoints()
     zoneText:SetPoint("LEFT", top, "LEFT", PAD + inset, 0)
     zoneText:SetPoint("RIGHT", top, "RIGHT", -(PAD + inset), 0)

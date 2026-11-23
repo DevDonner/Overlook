@@ -24,6 +24,7 @@ local FILES = {
     "tests/mouse.test.lua",
     "tests/profiles.test.lua",
     "tests/overrides.test.lua",
+    "tests/buttons.test.lua",
     "tests/options.test.lua",
 }
 

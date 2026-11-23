@@ -46,6 +46,8 @@ Settings.DEFAULTS = {
     hideZoneHeader = true, -- the game's zone name above the minimap, while the top bar shows
     hideGameButtons = true, -- the game's calendar, tracking and addon-compartment buttons above it
     barButtons = true,    -- our calendar and addon buttons on the top bar
+    collectButtons = true, -- other addons' minimap buttons gathered into a panel (Shell/Buttons.lua)
+    buttonsPerRow = 6,
     -- Mouse and mounting.
     recenterMiddle = true, -- middle-click recenters
     recenterDouble = true, -- double-click on the far map recenters
@@ -68,6 +70,7 @@ Settings.RANGES = {
     barFont = { 8, 18, true },
     barAlpha = { 0, 1 },
     mountRadius = { 300, Settings.FAR_MAX, true },
+    buttonsPerRow = { 2, 12, true },
 }
 
 -- Clamps a value for a numeric setting; anything that isn't a number gets the default.
