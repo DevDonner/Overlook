@@ -354,10 +354,10 @@ BUILDERS[6] = { "Profiles", function(p)
 
     p:Header("Profiles")
     p:Note("A profile holds every setting and icon group. The map's position stays as it is.")
-    local current = W.Note(p.content, "")
-    p:Place(current, 4, 20)
+    local currentName = W.Note(p.content, "")
+    p:Place(currentName, 4, 20)
     p.onRefresh[#p.onRefresh + 1] = function()
-        current:SetText("Current profile: |cffffffff" .. ns.db.profile .. "|r")
+        currentName:SetText("Current profile: |cffffffff" .. ns.db.profile .. "|r")
     end
 
     local name = W.Input(p.content, 200, nil, "A name for a new or imported profile.")
