@@ -14,6 +14,7 @@ local function Widget(kind, _, parent)
     f.SetPoint = function(self, ...) self.points = { ... } end
     f.SetSize = function(self, w, h) self.w, self.h = w, h end
     f.RegisterEvent = noop
+    f.SetAlpha = function(self, a) self.alpha = a end
     f.GetParent = function(self) return self.parent end
     f.SetParent = function(self, p) self.parent = p end
     f.SetScript = function(self, k, fn) self.scripts[k] = fn end
@@ -194,16 +195,36 @@ end)
 
 H.test("round map strips: fill the circle top to bottom, none past its edge", function()
     local r = 100
-    local rows = Areas.Strips(r, 6)
-    H.eq(#rows, 9)
-    for _, row in ipairs(rows) do
-        H.truthy(row.top > row.bottom)
-        local far = math.max(math.abs(row.top), math.abs(row.bottom))
-        H.truthy(row.half * row.half + far * far <= r * r + 1e-9, "a corner is inside the circle")
+    local e = 5
+    local rows = Areas.Strips(r, e)
+    H.truthy(#rows > 9 and #rows < 60, "a sensible number of strips: " .. #rows)
+    for _, q in ipairs(rows) do
+        H.truthy(q.top > q.bottom and q.right > q.left)
+        for _, x in ipairs({ q.left, q.right }) do
+            for _, y in ipairs({ q.top, q.bottom }) do
+                H.truthy(x * x + y * y <= r * r + 1e-6, "every corner inside the circle")
+            end
+        end
     end
-    table.sort(rows, function(a, b) return a.top > b.top end)
-    for i = 2, #rows do H.near(rows[i].top, rows[i - 1].bottom, 1e-9, "no gaps between rows") end
-    H.truthy(rows[1].top > 0.95 * r, "reaches near the top")
+    -- Every point at least e (plus a pixel) inside the rim is in exactly one strip.
+    for x = -r, r, 3 do
+        for y = -r, r, 3 do
+            local d = math.sqrt(x * x + y * y)
+            local n = 0
+            for _, q in ipairs(rows) do
+                if x > q.left and x < q.right and y > q.bottom and y < q.top then n = n + 1 end
+            end
+            if d < r - e - 1 then
+                local onEdge = false
+                for _, q in ipairs(rows) do
+                    if math.abs(x - q.left) < 1e-6 or math.abs(x - q.right) < 1e-6
+                        or math.abs(y - q.top) < 1e-6 or math.abs(y - q.bottom) < 1e-6 then onEdge = true end
+                end
+                if not onEdge then H.eq(n, 1, string.format("covered once at %d,%d", x, y)) end
+            end
+            H.truthy(n <= 1, "never twice")
+        end
+    end
 end)
 
 H.test("round map: each zone drawn once per strip, hidden while a zoom moves", function()
@@ -214,7 +235,8 @@ H.test("round map: each zone drawn once per strip, hidden while a zoom moves", f
     Areas.Build(canvas, 5)
     Areas.SetLayout(1, 0, -1000, 0.1)
     Areas.Update(1, -1000, -1000, 300, false)
-    H.eq(Areas.ShownFrames(), 9, "one zone in view, nine strips")
+    local strips = #Areas.Strips(ns.db.size / 2, math.max(4, ns.db.size / 2 / 24))
+    H.eq(Areas.ShownFrames(), strips, "one zone in view, one frame per strip")
     for _, f in ipairs(POIs()) do
         local parent = f.parent
         H.truthy(parent and parent.parent, "the widget sits in a plain frame inside the strip")
@@ -226,7 +248,7 @@ H.test("round map: each zone drawn once per strip, hidden while a zoom moves", f
     H.eq(Areas.ShownFrames(), 0, "settled: drawn on the next frame, once sizes apply")
     local before = #calls
     Areas.Update(1.03, -1000, -1000, 300, false)
-    H.eq(Areas.ShownFrames(), 9, "back")
+    H.eq(Areas.ShownFrames(), strips, "back")
     local drew = 0
     for i = before + 1, #calls do if calls[i][1] == "DrawBlob" then drew = drew + 1 end end
     H.truthy(drew > 0, "and painted afresh")

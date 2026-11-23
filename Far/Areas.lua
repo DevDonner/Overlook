@@ -24,7 +24,6 @@ local ZONE = 3
 local FILL = "Interface\\WorldMap\\UI-QuestBlob-Inside"
 local BORDER = "Interface\\WorldMap\\UI-QuestBlob-Outside"
 
-local ROUND_STEPS = 6      -- strips on the round map: 2 * (ROUND_STEPS - 2) + 1
 
 local canvas, view, level
 -- Sets of zone frames: [0] for the square map (on the canvas, clipped by the view), [1..] the round
@@ -76,20 +75,61 @@ local function ZonesOf(inst)
     return list
 end
 
--- The round map's strips, as rows from the centre: { top, bottom, half } in px (y up, from the
--- centre; half = half the width). Equal angle steps; each row as wide as the circle at its outer
--- edge, so nothing in it is past the circle. The thin cap past the last row is left out. Pure.
-function Areas.Strips(r, steps)
-    local step = math.pi / 2 / steps
-    local function Y(k) return r * math.sin(k * step) end
-    local function Half(k) return r * math.cos(k * step) end
-    local out = { { top = Y(1), bottom = -Y(1), half = Half(1) } }
-    for k = 1, steps - 2 do
-        out[#out + 1] = { top = Y(k + 1), bottom = Y(k), half = Half(k + 1) }
-        out[#out + 1] = { top = -Y(k), bottom = -Y(k + 1), half = Half(k + 1) }
+-- The round map's strips: rectangles { left, right, top, bottom } in px from the centre (y up)
+-- that together fill a circle of radius r, none reaching past it, and none falling more than e px
+-- short of it. Rows across the middle band (where the edge is steep), columns across the top and
+-- bottom caps (where it's flat): one direction alone steps badly where the edge runs along it.
+-- Each step is sized so the edge moves by e across it. Pure.
+function Areas.Strips(r, e)
+    local out = {}
+    local inner = r / math.sqrt(2) -- the bands meet here, where the edge runs at 45 degrees
+    -- Along one axis from 0 to inner: the step ends where the edge has moved in by e.
+    local function Steps()
+        local cuts, a = { 0 }, 0
+        while a < inner do
+            local edge = math.sqrt(r * r - a * a) - e
+            local nextA = edge > inner and math.sqrt(r * r - edge * edge) or inner
+            if nextA <= a + 0.5 then nextA = math.min(inner, a + 0.5) end
+            a = math.min(nextA, inner)
+            cuts[#cuts + 1] = a
+        end
+        return cuts
+    end
+    local cuts = Steps()
+    local function Reach(a) return math.sqrt(math.max(0, r * r - a * a)) end
+    -- Middle band: rows, mirrored above and below; the first row spans the centre.
+    for i = 2, #cuts do
+        local y0, y1 = cuts[i - 1], cuts[i]
+        local half = Reach(y1)
+        if i == 2 then
+            out[#out + 1] = { left = -half, right = half, top = y1, bottom = -y1 }
+        else
+            out[#out + 1] = { left = -half, right = half, top = y1, bottom = y0 }
+            out[#out + 1] = { left = -half, right = half, top = -y0, bottom = -y1 }
+        end
+    end
+    -- Caps: columns, mirrored left and right; the first column spans the centre.
+    for i = 2, #cuts do
+        local x0, x1 = cuts[i - 1], cuts[i]
+        local height = Reach(x1)
+        if height > inner then
+            if i == 2 then
+                out[#out + 1] = { left = -x1, right = x1, top = height, bottom = inner }
+                out[#out + 1] = { left = -x1, right = x1, top = -inner, bottom = -height }
+            else
+                for _, side in ipairs({ 1, -1 }) do
+                    local l, rr = side > 0 and x0 or -x1, side > 0 and x1 or -x0
+                    out[#out + 1] = { left = l, right = rr, top = height, bottom = inner }
+                    out[#out + 1] = { left = l, right = rr, top = -inner, bottom = -height }
+                end
+            end
+        end
     end
     return out
 end
+
+-- How far short of the rim the round map's areas may stop: finer on a bigger map.
+local function RimError() return math.max(4, ns.db.size / 2 / 24) end
 
 local function IsRound() return ns.db.round == true end
 
@@ -100,7 +140,7 @@ local function ActiveSets()
         return { sets[0] }
     end
     local out = {}
-    for i, row in ipairs(Areas.Strips(ns.db.size / 2, ROUND_STEPS)) do
+    for i, row in ipairs(Areas.Strips(ns.db.size / 2, RimError())) do
         local set = sets[i]
         if not set then
             local clip = CreateFrame("Frame", nil, root)
@@ -118,8 +158,8 @@ local function ActiveSets()
         set.holder:SetFrameLevel(level + 1)
         if set.clip.SetClipsChildren then set.clip:SetClipsChildren(experiment ~= "noclip") end
         set.clip:ClearAllPoints()
-        set.clip:SetPoint("TOPLEFT", view, "CENTER", -row.half, row.top)
-        set.clip:SetSize(2 * row.half, row.top - row.bottom)
+        set.clip:SetPoint("TOPLEFT", view, "CENTER", row.left, row.top)
+        set.clip:SetSize(row.right - row.left, row.top - row.bottom)
         set.clip:Show()
         out[#out + 1] = set
     end
@@ -253,10 +293,19 @@ local function QuestsToDraw()
     return ns.db.questAreaTracked and tracked or AllQuests(tracked)
 end
 
-local function Paint(f, mapID, ids)
+local function Paint(f, mapID, ids, inStrip)
     pcall(f.DrawNone, f)
-    pcall(f.SetFillAlpha, f, math.floor((ns.db.questAreaFill or 0.25) * 255 + 0.5))
-    pcall(f.SetBorderAlpha, f, math.floor((ns.db.questAreaBorder or 0.5) * 255 + 0.5))
+    local fill, border = ns.db.questAreaFill or 0.25, ns.db.questAreaBorder or 0.5
+    if inStrip then
+        -- In a clipping strip the widget's own fill opacity comes out near solid, so the frame
+        -- itself is faded to the fill setting (the border follows it, a little fainter).
+        f:SetAlpha(fill)
+        fill, border = 1, math.min(1, border / math.max(fill, 0.01))
+    else
+        f:SetAlpha(1)
+    end
+    pcall(f.SetFillAlpha, f, math.floor(fill * 255 + 0.5))
+    pcall(f.SetBorderAlpha, f, math.floor(border * 255 + 0.5))
     for _, id in ipairs(ids) do
         -- A quest no zone in view lists has no marker: left to every frame, as before.
         local owner = owners[id]
@@ -299,7 +348,7 @@ local function Draw()
                                 UpdateOwners()
                                 ids = QuestsToDraw()
                             end
-                            Paint(f, z.mapID, ids)
+                            Paint(f, z.mapID, ids, set.holder ~= nil)
                             painted[f] = generation
                         end
                         keep[f] = true
