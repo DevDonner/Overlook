@@ -43,6 +43,7 @@ local function Fresh()
     ns = { RegisterCommand = noop, name = "FarZoomMinimap" }
     H.loadAddonFile("Core/Settings.lua", ns)
     H.loadAddonFile("Core/IconPrefs.lua", ns)
+    H.loadAddonFile("Core/QuestieToggles.lua", ns)
     ns.db = ns.Settings.Load(nil)
     ns.Shell = { Apply = noop, ResetPosition = noop, nativeSize = 140 }
     ns.Far = { SetMaxZoom = noop, ApplyArrowSize = noop, Recenter = noop }

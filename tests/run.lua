@@ -18,6 +18,7 @@ local FILES = {
     "tests/questiecheck.test.lua",
     "tests/mapart.test.lua",
     "tests/caves.test.lua",
+    "tests/questietoggles.test.lua",
     "tests/options.test.lua",
 }
 

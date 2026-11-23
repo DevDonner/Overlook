@@ -107,6 +107,45 @@ end
 
 local function Percent(v) return string.format("%d%%", v * 100 + 0.5) end
 
+-- A list of checkboxes rebuilt on every refresh from entries() -> { { label, icon, checked(),
+-- toggle() } }, starting at the page's current position. Rows are pooled.
+function Page:DynamicList(entries, empty)
+    local top, pool = self.y, {}
+    local note = W.Note(self.content, empty or "")
+    local function Layout()
+        local list = entries()
+        local y = top
+        note:ClearAllPoints()
+        note:SetPoint("TOPLEFT", self.content, "TOPLEFT", 4, y)
+        note:SetShown(#list == 0)
+        if #list == 0 then y = y - 18 end
+        for i, e in ipairs(list) do
+            local row = pool[i]
+            if not row then
+                row = W.Check(self.content, "", function() return row.entry.checked() end,
+                    function() row.entry.toggle(); row.Refresh() end)
+                row.icon = row:CreateTexture(nil, "ARTWORK")
+                row.icon:SetSize(16, 16)
+                row.icon:SetPoint("LEFT", row, "RIGHT", 2, 0)
+                row.label:ClearAllPoints()
+                row.label:SetPoint("LEFT", row.icon, "RIGHT", 4, 0)
+                pool[i] = row
+            end
+            row.entry = e
+            row.label:SetText(e.label)
+            row.icon:SetTexture(e.icon)
+            row:ClearAllPoints()
+            row:SetPoint("TOPLEFT", self.content, "TOPLEFT", 0, y)
+            row.Refresh()
+            row:Show()
+            y = y - 26
+        end
+        for i = #list + 1, #pool do pool[i]:Hide() end
+        self.content:SetHeight(-y + 20)
+    end
+    self.onRefresh[#self.onRefresh + 1] = Layout
+end
+
 ----------------------------------------------------------------------------------------------------
 -- Icons tab: far-map icon groups (show, size, shrink with zoom), one row per group seen
 
@@ -229,6 +268,20 @@ BUILDERS[2] = { "Icons", function(p)
     p.y = p.y - 16
     rowsPage, rowsTop = p, p.y
     p.onRefresh[#p.onRefresh + 1] = LayoutRows
+end }
+
+BUILDERS[3] = { "Questie", function(p)
+    local Q = ns.QuestieToggles
+    p:Header("Questie icons")
+    p:Note("These are Questie's own settings: they apply on the normal minimap and the world map too.")
+    for _, t in ipairs(Q.QUEST) do
+        local key = t[1]
+        p:Check(t[2], { function() return Q.Get(key) end, function(on) Q.Set(key, on) end })
+        if key == "enabled" then p.y = p.y - 4 end
+    end
+    p:Header("Town icons")
+    p:Note("Questie's town services for this character, as in its tracking menu.")
+    p:DynamicList(Q.Townsfolk, "Questie's town list isn't available (is Questie loaded?).")
 end }
 
 local function ShowPage(i)

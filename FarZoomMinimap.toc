@@ -21,6 +21,7 @@ Core\CaveMath.lua
 Core\PinSources.lua
 Core\NativeIcons.lua
 Core\QuestieCheck.lua
+Core\QuestieToggles.lua
 Data\MinimapTiles.lua
 Data\Caves.lua
 Shell\Shell.lua
