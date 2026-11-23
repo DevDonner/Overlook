@@ -3,6 +3,7 @@ max_line_length = false
 
 exclude_files = {
     "Data/MinimapTiles.lua", -- vendored, generated
+    "Data/Caves.lua",        -- generated (tools/map-data/caves.py)
     ".lua/**",               -- CI's Lua install
     ".luarocks/**",
 }
@@ -22,7 +23,7 @@ read_globals = {
     "InCombatLockdown", "IsInRaid", "Minimap", "UIParent",
     "UnitName", "UnitPosition", "issecretvalue", "UnitClass", "UnitIsUnit", "UnitIsConnected",
     "hooksecurefunc", "IsAltKeyDown", "IsMouseButtonDown", "IsControlKeyDown", "MinimapCluster",
-    "UISpecialFrames", "HideUIPanel",
+    "UISpecialFrames", "HideUIPanel", "IsIndoors", "IsShiftKeyDown", "CreateVector2D", "UnitExists",
     "GetCVar", "SetCVar", "GetNumTrackingTypes", "GetTrackingInfo", "SetTracking",
     -- Other addons
     "LibStub", "QuestieLoader",

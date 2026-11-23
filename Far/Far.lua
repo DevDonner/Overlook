@@ -78,10 +78,16 @@ end
 local function PlayerPosition()
     local n, w, _, inst = UnitPosition("player")
     if Usable(n) and Usable(w) and Usable(inst) then return n, w, inst end
+    -- Instances hide UnitPosition; the player's spot on the dungeon's map still says where they are.
+    if ns.FarArt then return ns.FarArt.PlayerFromMap() end
 end
 
+local NO_TERRAIN = {} -- an instance with no terrain tiles but a map of its own (a dungeon)
+
 local function TilesFor(inst)
-    return ns.MapMinimap and ns.MapMinimap[inst]
+    local set = ns.MapMinimap and ns.MapMinimap[inst]
+    if set then return set end
+    if ns.FarArt and ns.FarArt.HasMapFor(inst) then return NO_TERRAIN end
 end
 
 local function NativeRadius()
@@ -216,6 +222,11 @@ local function OnUpdate()
         layoutDirty = true
     end
 
+    if ns.Caves then ns.Caves.Update(GetTime(), instance, n, w) end
+    if ns.FarArt then
+        ns.FarArt.Update(GetTime(), tileSet ~= NO_TERRAIN, ns.Caves and ns.Caves.IsDrawing())
+    end
+
     local zoomed = layoutDirty
     if radius ~= target then
         radius = Zoom.Tween(tweenFrom, target, GetTime() - tweenStart, ns.db.smoothZoom and Zoom.TWEEN or 0)
@@ -260,24 +271,35 @@ local function OnUpdate()
     canvas:SetPoint("CENTER", view, "CENTER", (cW - originW) * ppy, (originN - cN) * ppy)
     arrow:SetPoint("CENTER", view, "CENTER", (cW - w) * ppy, (n - cN) * ppy)
 
+    -- Before SetLayout, so a zoom (or the first frame in far mode) places icons for this view.
+    if ns.Mirror then ns.Mirror.SetView(cN, cW, ns.db.size / 2, zoomed) end
     if zoomed then
         layoutDirty = false
         RelayoutTiles(ppy)
         if ns.Mirror then ns.Mirror.SetLayout(instance, originN, originW, ppy, Zoom.Shrink(radius, nativeMax)) end
         if ns.Routes then ns.Routes.SetLayout(instance, originN, originW, ppy) end
         if ns.Party then ns.Party.SetLayout(instance, originN, originW, ppy) end
+        if ns.FarArt then ns.FarArt.SetLayout(instance, originN, originW, ppy) end
+        if ns.Caves then ns.Caves.SetLayout(instance, originN, originW, ppy) end
     end
     local a0, a1, b0, b1 = G.VisibleTiles(cN, cW, radius)
     if zoomed or tilesPending or a0 ~= c0 or a1 ~= c1 or b0 ~= r0 or b1 ~= r1 then
         UpdateTiles(a0, a1, b0, b1, cN, cW, ppy)
     end
 
-    if ns.Mirror then
-        if view:IsMouseOver() and not (drag and drag.moved) then
-            ns.Mirror.UpdateHover()
+    -- Hover: party dots sit above the icons, so a dot under the cursor wins.
+    if view:IsMouseOver() and not (drag and drag.moved) then
+        local unit = ns.Party and ns.Party.UnitUnderCursor()
+        if unit then
+            if ns.Mirror then ns.Mirror.ClearHover() end
+            ns.Party.SetHover(unit)
         else
-            ns.Mirror.ClearHover()
+            if ns.Party then ns.Party.SetHover(nil) end
+            if ns.Mirror then ns.Mirror.UpdateHover() end
         end
+    else
+        if ns.Party then ns.Party.SetHover(nil) end
+        if ns.Mirror then ns.Mirror.ClearHover() end
     end
 
     local facing = GetPlayerFacing()
@@ -360,6 +382,8 @@ function Far.Leave(immediate)
     end
     if ns.Routes then ns.Routes.SetLayout(nil) end
     if ns.Party then ns.Party.SetLayout(nil) end
+    if ns.FarArt then ns.FarArt.SetLayout(nil) end
+    if ns.Caves then ns.Caves.SetLayout(nil) end
     Minimap:SetAlpha(1)
     RefreshNative()
     if immediate then
@@ -474,8 +498,29 @@ local function NativeZoom(delta)
     end
 end
 
+-- Alt+wheel in far mode moves through the levels of a cave, or the floors of a city or dungeon
+-- map: down goes deeper and wraps back to the top past the bottom. At most one step per
+-- LEVEL_COOLDOWN, so a fast wheel can't skip levels; steps inside it are swallowed, not zoomed.
+local LEVEL_COOLDOWN = 0.1
+local lastLevelStep = -math.huge
+
+local function HasLevels()
+    return (ns.Caves and ns.Caves.HasLevels()) or (ns.FarArt and ns.FarArt.HasFloors()) or false
+end
+
+local function StepLevel(delta)
+    local now = GetTime()
+    if now - lastLevelStep < LEVEL_COOLDOWN - 0.001 then return end -- (1 ms: float rounding)
+    lastLevelStep = now
+    if not (ns.Caves and ns.Caves.StepLevel(delta)) and ns.FarArt then ns.FarArt.StepFloor(delta) end
+end
+
 local function OnWheel(_, delta)
     local fine = IsControlKeyDown()
+    if mode == "far" and IsAltKeyDown() and HasLevels() then
+        StepLevel(delta)
+        return
+    end
     if mode == "far" then
         Far.Step(delta, fine)
     elseif delta < 0 and Minimap:GetZoom() == 0 then
@@ -483,6 +528,11 @@ local function OnWheel(_, delta)
     else
         NativeZoom(delta)
     end
+end
+
+-- For the shell's Alt+drag catcher, which sits over the map while Alt is held.
+function Far.Wheel(delta)
+    OnWheel(nil, delta)
 end
 
 ----------------------------------------------------------------------------------------------------
@@ -525,7 +575,9 @@ function Far.Build(root, level)
     -- NPC routes: lines on the canvas itself, above its terrain, below the icon layers.
     if ns.Routes then ns.Routes.Build(canvas) end
     -- Party and raid dots: above the icons, below the player arrow (level + 5).
-    if ns.Party then ns.Party.Build(canvas, level + 4) end
+    if ns.Party then ns.Party.Build(canvas, view, level + 4) end
+    if ns.FarArt then ns.FarArt.Build(canvas, view, level + 6) end
+    if ns.Caves then ns.Caves.Build(canvas, view, level + 6) end
     view:SetScript("OnMouseDown", function(_, button)
         if button == "LeftButton" then
             local x, y = Cursor()
@@ -539,6 +591,7 @@ function Far.Build(root, level)
     end)
     view:SetScript("OnLeave", function()
         if ns.Mirror then ns.Mirror.ClearHover() end
+        if ns.Party then ns.Party.SetHover(nil) end
     end)
 
     arrowFrame = CreateFrame("Frame", nil, view)

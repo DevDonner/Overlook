@@ -50,6 +50,7 @@ See [docs/INSTALL.md](docs/INSTALL.md): download a ZIP, clone with Git, or link 
 - **Mouse wheel** on the map zooms. Past the native minimap's widest step it keeps zooming out over minimap terrain. **Ctrl + wheel** takes half steps.
 - **Drag** the map to pan; **Recenter** (under the map) goes back to you. Zooming back in while centred hands over to the native minimap.
 - **Alt + drag** moves the map; the **corner grip** resizes it.
+- **Alt + wheel** in a cave (or a city or dungeon with floors) changes level on the far map: down goes a level deeper, and past the bottom level it comes back to the top.
 - **`/fzm`** opens the settings, as do the minimap button (right-click: recenter) and the addon compartment.
 
 | Command | Does |
@@ -61,6 +62,9 @@ See [docs/INSTALL.md](docs/INSTALL.md): download a ZIP, clone with Git, or link 
 | `/fzm lock` | Lock or unlock the size |
 | `/fzm icons` | List icon groups; e.g. `/fzm icons rarescanner size 0.6` |
 | `/fzm reset` | Move the map back to a visible spot at the default size |
+| `/fzm caves` | Which cave the far view would draw here, its levels and the one shown, for checking in game |
+| `/fzm underground` | What map the far view would draw here (underground cities, dungeons), for checking in game |
+| `/fzm questie` | Check the Questie parts the far map uses (also run once after login; quiet when all is well) |
 | `/fzm far`, `/fzm pins`, `/fzm routes` | State, for bug reports |
 
 ## Development

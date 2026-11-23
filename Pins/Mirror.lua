@@ -288,14 +288,38 @@ local function CopyLook(p)
         end
     end
     p.bhw, p.bhh = fw * ratio / 2, fh * ratio / 2
+    p.drawn = nil -- new textures: shown state unknown until Place
 end
 
 ----------------------------------------------------------------------------------------------------
 -- Placement
 
 local function Hide(p)
+    if p.drawn == false then return end -- already hidden: nothing to do (zoom calls this a lot)
     for i = 1, p.nTex do p.tex[i]:Hide() end
     p.drawn = false
+end
+
+-- Only icons near the view are placed, so a zoom frame costs the icons on screen, not every icon
+-- on the continent. The view's centre is kept in world yards (it doesn't change with the zoom);
+-- a placement pass works out its pixel position once, with a margin of a view's width each side.
+-- The view can then move half a view before another pass is needed.
+local viewN, viewW, viewHalf -- view centre (yards) and half its size (px); nil: draw everything
+local passN, passW, passHalf -- view centre and half size at the last pass
+local vx, vy, reach          -- that centre in canvas pixels, and how far from it icons are drawn
+
+local function BeginPass()
+    passN, passW, passHalf = viewN, viewW, viewHalf
+    if viewHalf and layout then
+        vx, vy = G.WorldToPixel(viewN, viewW, layout.n, layout.w, layout.ppy)
+        reach = viewHalf * 2 + 32
+    else
+        reach = nil
+    end
+end
+
+local function InReach(x, y)
+    return not reach or (math.abs(x - vx) <= reach and math.abs(y - vy) <= reach)
 end
 
 local function Place(p)
@@ -304,6 +328,11 @@ local function Place(p)
         return
     end
     local x, y = G.WorldToPixel(p.n, p.w, layout.n, layout.w, layout.ppy)
+    p.x, p.y = x, y
+    if not InReach(x, y) then
+        Hide(p)
+        return
+    end
     local k = p.scale * (p.shrink and layout.shrink or 1)
     p.x, p.y, p.hw, p.hh = x, y, p.bhw * k, p.bhh * k
     local frame = p.layer.frame
@@ -326,7 +355,29 @@ function Mirror.SetLayout(inst, n, w, ppy, shrink)
         layout = nil
         Mirror.ClearHover()
     end
+    BeginPass()
     for _, p in pairs(proxies) do Place(p) end
+end
+
+-- Far mode calls this every frame with the view's centre (yards) and half its size (px).
+-- Icons are only re-placed when the view has moved more than half a view since the last pass.
+-- relayout: SetLayout follows this frame and will place everything anyway.
+function Mirror.SetView(n, w, halfPx, relayout)
+    viewN, viewW, viewHalf = n, w, halfPx
+    if not layout or relayout then return end
+    if passN and passHalf == halfPx then
+        local limit = halfPx / layout.ppy
+        if math.abs(n - passN) <= limit and math.abs(w - passW) <= limit then return end
+    end
+    BeginPass()
+    for _, p in pairs(proxies) do
+        if p.drawn then
+            if not InReach(p.x, p.y) then Hide(p) end
+        else
+            Place(p)
+        end
+    end
+    if hovered and not hovered.drawn then Mirror.ClearHover() end
 end
 
 ----------------------------------------------------------------------------------------------------

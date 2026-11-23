@@ -14,7 +14,9 @@ local DOT_SIZE = 9
 local DOT_TEXTURE = "Interface\\CHARACTERFRAME\\TempPortraitAlphaMask"
 
 local layer
+local owner -- the far view: tooltip owner
 local dots, used = {}, 0
+local hovered -- the unit whose tooltip we show
 local layout -- { inst, n, w, ppy } while far mode is drawing
 local elapsed = 0
 
@@ -70,12 +72,16 @@ local function Draw()
     if layout and ns.db.partyDots ~= false then
         for _, unit in ipairs(Units(units)) do
             local north, west, _, inst = UnitPosition(unit)
+            if north == nil and ns.FarArt then -- instances hide positions; the dungeon map doesn't
+                north, west, inst = ns.FarArt.UnitFromMap(unit)
+            end
             if north and not (Secret(north) or Secret(west) or Secret(inst)) and inst == layout.inst then
                 local x, y = G.WorldToPixel(north, west, layout.n, layout.w, layout.ppy)
                 n = n + 1
                 local d = Dot(n)
                 local r, g, b = ClassColor(unit)
                 local alpha = UnitIsConnected(unit) and 1 or 0.4
+                d.unit, d.x, d.y = unit, x, y
                 d.fill:SetVertexColor(r, g, b, alpha)
                 d.border:SetAlpha(alpha)
                 d.fill:SetPoint("CENTER", layer, "CENTER", x, y)
@@ -86,6 +92,7 @@ local function Draw()
         end
     end
     for i = n + 1, used do
+        dots[i].unit = nil
         dots[i].fill:Hide()
         dots[i].border:Hide()
     end
@@ -101,16 +108,51 @@ function Party.SetLayout(inst, n, w, ppy)
         layer:Show()
     else
         layout = nil
+        Party.SetHover(nil)
         layer:Hide()
     end
     Draw()
+end
+
+-- The group member whose dot is under the cursor (nearest if several), or nil. The game shows
+-- names for its own dots only on the normal minimap, so the far map finds the unit itself.
+local HIT = DOT_SIZE / 2 + 1
+function Party.UnitUnderCursor()
+    if not layer or not layout or used == 0 then return nil end
+    local lx, ly = layer:GetCenter()
+    if not lx then return nil end
+    local s = layer:GetEffectiveScale()
+    local cx, cy = GetCursorPosition()
+    cx, cy = cx / s - lx, cy / s - ly
+    local best, bestD
+    for i = 1, used do
+        local d = dots[i]
+        local dx, dy = cx - d.x, cy - d.y
+        if dx <= HIT and dx >= -HIT and dy <= HIT and dy >= -HIT then
+            local dist = dx * dx + dy * dy
+            if not best or dist < bestD then best, bestD = d.unit, dist end
+        end
+    end
+    return best
+end
+
+-- Shows the game's own unit tooltip for unit (nil hides ours). Far mode calls it every frame.
+function Party.SetHover(unit)
+    if unit == hovered then return end
+    if hovered and GameTooltip:IsOwned(owner) then GameTooltip:Hide() end
+    hovered = unit
+    if unit then
+        GameTooltip:SetOwner(owner, "ANCHOR_CURSOR")
+        GameTooltip:SetUnit(unit)
+    end
 end
 
 function Party.Refresh()
     if layer then Draw() end
 end
 
-function Party.Build(canvas, level)
+function Party.Build(canvas, view, level)
+    owner = view
     layer = CreateFrame("Frame", nil, canvas)
     layer:SetSize(1, 1)
     layer:SetPoint("CENTER", canvas, "CENTER")
