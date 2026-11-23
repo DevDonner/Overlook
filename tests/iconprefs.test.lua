@@ -5,8 +5,12 @@ H.loadAddonFile("Core/Zoom.lua", ns)
 local P, Zoom = ns.IconPrefs, ns.Zoom
 
 H.test("defaults: Questie icons fixed size, other addons shrink with zoom", function()
-    local hide, scale, shrink = P.Get({}, "questie:monster")
+    local hide, scale, shrink = P.Get({}, "questie:available")
     H.eq(hide, false); H.eq(scale, 1); H.eq(shrink, false)
+    hide, scale, shrink = P.Get({}, "questie:monster")
+    H.eq(scale, 1.15); H.eq(shrink, false)
+    hide, scale, shrink = P.Get({}, "questie:item")
+    H.eq(scale, 2); H.eq(shrink, true)
     hide, scale, shrink = P.Get({}, "rarescanner")
     H.eq(hide, false); H.eq(scale, 1); H.eq(shrink, true)
 end)

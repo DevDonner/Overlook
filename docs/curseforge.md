@@ -40,7 +40,7 @@ No Questie means no icons to show, so Questie is a required dependency.
 
 ## Features
 
-- **Far zoom**: mouse wheel past the native limit, out to 2,000 yards by default (up to 6,400). Smooth or stepped.
+- **Far zoom**: mouse wheel past the native limit, out to 3,000 yards by default (up to 6,400). Smooth or stepped.
 - **Questie icons and routes** at every zoom, with Questie's tooltips and clicks.
 - **Other addons' icons**: RareScanner, TomTom and anything else on the shared map-pin registry, each group with its own show, size and shrink-with-zoom.
 - **Quest areas**: the game's blue quest areas, drawn on the far map too.

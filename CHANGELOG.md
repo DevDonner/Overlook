@@ -4,7 +4,7 @@
 
 First release, for WoW Forever (1.60.1). Requires Questie.
 
-- Zoom the minimap past its native limit, out to about one zone (2,000 yards by default, up to 6,400), smoothly or in steps.
+- Zoom the minimap past its native limit, out to about one zone (3,000 yards by default, up to 6,400), smoothly or in steps.
 - Questie icons on the far map at every zoom, with Questie's own tooltips and clicks; Questie's NPC patrol routes too.
 - Other addons' map icons (RareScanner, TomTom), with per-group show, size and shrink-with-zoom.
 - Party and raid members as class-coloured dots.

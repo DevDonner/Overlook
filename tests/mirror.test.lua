@@ -137,7 +137,7 @@ H.test("a pin added before or after the hooks gets a proxy with the icon's look"
     H.eq(t.calls.SetTexture[1], "Interface/AddOns/Questie/Icons/available.png", "texture by path")
     H.eq(t.calls.SetVertexColor[4], 1, "Questie's fade alpha is ignored")
     Mirror.SetLayout(0, -8949, -132, 0.5)
-    H.eq(t.calls.SetSize[1], 24, "size follows the icon's effective scale")
+    H.near(t.calls.SetSize[1], 24 * 1.15, 1e-9, "size follows the icon's effective scale (monster default 1.15)")
 end)
 
 H.test("icon groups: Questie types are categories; hide and size apply", function()
@@ -147,7 +147,7 @@ H.test("icon groups: Questie types are categories; hide and size apply", functio
     Mirror.SetLayout(0, -8949, -132, 0.5, 0.5)
     local p = Proxy(icon)
     H.eq(p.key, "questie:monster")
-    H.eq(p.tex[1].calls.SetSize[1], 24, "Questie icons don't shrink by default")
+    H.near(p.tex[1].calls.SetSize[1], 24 * 1.15, 1e-9, "Questie icons don't shrink by default")
 
     ns.IconPrefs.Apply(ns.db, "monster", {}, "size", "0.5")
     Mirror.RefreshPrefs()

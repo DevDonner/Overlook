@@ -11,9 +11,9 @@ Settings.FAR_MIN, Settings.FAR_MAX = 500, 6400
 -- x/y (the frame's centre offset from the screen centre) start unset: the first login places the
 -- frame where the native minimap was.
 Settings.DEFAULTS = {
-    size = 200,           -- px, square
+    size = 300,           -- px, square
     locked = false,       -- hides the resize grip; Alt+drag still moves it
-    maxFarZoom = 2000,    -- yd radius; setting goes up to 6,400
+    maxFarZoom = 3000,    -- yd radius; setting goes up to 6,400
     rotate = false,       -- the game's rotating minimap, at normal zoom (Shell.SetRotate)
     clustering = false,
     smoothZoom = true,    -- tween far-zoom steps
@@ -24,8 +24,8 @@ Settings.DEFAULTS = {
     nativeIcons = false,  -- the game's own quest and town icons (Questie draws them instead)
     arrowScale = 1,       -- player arrow size on the far map (1 = the native arrow's size)
     questAreas = true,    -- the game's blue quest areas on the far map
-    questAreaFill = 0.25, -- their fill opacity (several quests' areas merge into one shape)
-    questAreaBorder = 0.5, -- their border opacity
+    questAreaFill = 0.15, -- their fill opacity (several quests' areas merge into one shape)
+    questAreaBorder = 0.2, -- their border opacity
     questAreaTracked = false, -- only quests on the objective tracker
     -- Bars: zone name above the map, coordinates / far radius / clock below it.
     topBar = true,

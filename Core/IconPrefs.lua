@@ -23,10 +23,20 @@ function IconPrefs.IsQuestie(key)
     return key:sub(1, 8) == "questie:"
 end
 
--- Questie's icons are sized for the map already; other addons' icons (RareScanner's are large)
--- shrink as you zoom out unless the user says otherwise.
+-- Defaults: Questie's icons don't shrink as you zoom out, other addons' icons (RareScanner's are
+-- large) do. Sizes per group, where they differ from 1 (scale, shrink).
+IconPrefs.DEFAULTS = {
+    ["questie:monster"] = { 1.15 },
+    ["questie:object"] = { 1.15 },
+    ["questie:event"] = { 1.15 },
+    ["questie:item"] = { 2, true },
+}
+
 function IconPrefs.Defaults(key)
-    return false, 1, not IconPrefs.IsQuestie(key)
+    local d = IconPrefs.DEFAULTS[key]
+    local shrink = not IconPrefs.IsQuestie(key)
+    if d and d[2] ~= nil then shrink = d[2] end
+    return false, d and d[1] or 1, shrink
 end
 
 -- Returns hide, scale, shrink for a category.

@@ -16,7 +16,7 @@ The full design, with decisions, risks and the test plan, is in [docs/design.md]
 
 ## Features
 
-- Zoom past the native limit, out to about one zone (default 2,000 yards, up to 6,400), smoothly or in steps
+- Zoom past the native limit, out to about one zone (default 3,000 yards, up to 6,400), smoothly or in steps
 - Questie icons at every zoom (kill swords, turn-ins, available quests, townsfolk...) with Questie's own tooltips and clicks
 - Questie's NPC patrol routes on the far map
 - Other addons' map icons too (RareScanner, TomTom): per-group show, size and shrink-with-zoom
