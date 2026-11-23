@@ -25,9 +25,9 @@ local canvas, view, level
 
 -- The fill: the game's own blue by default. The widget takes a texture, not a colour, so a colour
 -- picked in the settings (questAreaColor, "rrggbb") is drawn with the nearest of 216 flat textures
--- (Media/AreaColors/cRGB, six shades per channel). Without the extension written out, or as TGA, the
--- widget drew them as the game's green missing-texture fill; they ship as BLP and TGA, and
--- /fzm areas tex blp|tga|plain switches between them for checking in game.
+-- (Media/AreaColors/cRGB.blp, six shades per channel). Found in game: the widget draws any addon
+-- file given by path as the green missing-texture fill (BLP or TGA, with or without extension),
+-- but takes its file ID: a hidden texture loads the file, and the widget gets that ID.
 local FILL = "Interface\\WorldMap\\UI-QuestBlob-Inside"
 local PALETTE = "Interface\\AddOns\\FarZoomMinimap\\Media\\AreaColors\\c%d%d%d"
 
@@ -43,12 +43,6 @@ function Areas.Channels(hex)
     return tonumber(hex:sub(1, 2), 16) / 255, tonumber(hex:sub(3, 4), 16) / 255, tonumber(hex:sub(5, 6), 16) / 255
 end
 
--- The fill texture for a picked colour (nil or "" is the game's blue). Pure.
-local paletteKind = ".blp" -- ".blp", ".tga" or "" (no extension)
--- The widget won't take an addon file by path (all three draw green). Every loaded texture gets a
--- file ID, addon files a temporary one, so by default a hidden texture loads the file and the
--- widget is given that ID instead.
-local useFileID = true
 local probe
 local fileIDs = {} -- [path] = file ID
 local function AsFileID(path)
@@ -67,14 +61,16 @@ local function AsFileID(path)
     end
     return path
 end
+
+-- The fill texture for a picked colour (nil or "" is the game's blue). Pure.
 function Areas.FillTexture(hex)
     local r, g, b = Areas.Channels(hex)
     if not r then return FILL end
     local function L(v) return math.floor(v * 5 + 0.5) end
-    return string.format(PALETTE, L(r), L(g), L(b)) .. paletteKind
+    return string.format(PALETTE, L(r), L(g), L(b)) .. ".blp"
 end
-local BORDER = "Interface\\WorldMap\\UI-QuestBlob-Outside"
 
+local BORDER = "Interface\\WorldMap\\UI-QuestBlob-Outside"
 
 -- Sets of zone frames: [0] for the square map (on the canvas, clipped by the view), [1..] the round
 -- map's strips. { clip = clipping frame or nil, frames = { [mapID] = QuestPOIFrame } }
@@ -82,9 +78,7 @@ local sets = {}
 local zooming = false     -- a zoom is moving (the round map's strips wait for it to settle)
 -- Found in game: the widget is clipped fine by the view, but shows nothing inside a clipping frame
 -- that is itself inside the clipping view. So the round map's strips hang off the map's root
--- frame, outside the view, and are the only clipping around their widgets. (/fzm areas test
--- <mode> for checking: "nested" strips inside the view as before, "noclip" strips that don't clip.)
-local experiment
+-- frame, outside the view, and are the only clipping around their widgets.
 local root -- the map's root frame (the view's parent): the round map's strips hang off it
 local zones = {}          -- [instance] = { { mapID, top, left, bottom, right }, ... }
 local layout              -- { inst, n, w, ppy } while far mode is drawing
@@ -201,12 +195,11 @@ local function ActiveSets()
             set = { clip = clip, holder = holder, frames = {} }
             sets[i] = set
         end
-        local parent = experiment == "nested" and canvas or root
-        if set.clip:GetParent() ~= parent then set.clip:SetParent(parent) end
+
         -- Above the terrain tiles (the canvas's level), which these no longer sit inside.
         set.clip:SetFrameLevel(level + 1)
         set.holder:SetFrameLevel(level + 1)
-        if set.clip.SetClipsChildren then set.clip:SetClipsChildren(experiment ~= "noclip") end
+        if set.clip.SetClipsChildren then set.clip:SetClipsChildren(true) end
         set.clip:ClearAllPoints()
         set.clip:SetPoint("TOPLEFT", view, "CENTER", row.left, row.top)
         set.clip:SetSize(row.right - row.left, row.top - row.bottom)
@@ -345,7 +338,7 @@ end
 local function Paint(f, mapID, ids)
     pcall(f.DrawNone, f)
     local fill = Areas.FillTexture(ns.db.questAreaColor)
-    if useFileID and ns.db.questAreaColor ~= "" then fill = AsFileID(fill) end
+    if ns.db.questAreaColor ~= "" then fill = AsFileID(fill) end
     pcall(f.SetFillTexture, f, fill)
     pcall(f.SetFillAlpha, f, math.floor((ns.db.questAreaFill or 0.25) * 255 + 0.5))
     pcall(f.SetBorderAlpha, f, math.floor((ns.db.questAreaBorder or 0.5) * 255 + 0.5))
@@ -503,28 +496,7 @@ function Areas.Build(canvasFrame, frameLevel)
     end)
 end
 
-ns.RegisterCommand("areas", "show the quest areas the far view draws", function(arg)
-    local kind = type(arg) == "string" and arg:match("^tex%s*(%a*)")
-    if kind then
-        useFileID = kind == "" or kind == "id"
-        paletteKind = ({ blp = ".blp", tga = ".tga", plain = "" })[kind] or ".blp"
-        Areas.Refresh()
-        local path = Areas.FillTexture(ns.db.questAreaColor)
-        ns.Printf("quest area colours: %s", useFileID
-            and ("file ID " .. tostring(AsFileID(path)) .. " for " .. path)
-            or ("by path, " .. (paletteKind == "" and "no extension" or paletteKind)))
-        return
-    end
-    local mode = type(arg) == "string" and arg:match("^test%s*(%a*)")
-    if mode then
-        experiment = (mode == "noclip" or mode == "nested") and mode or nil
-        for _, set in pairs(sets) do
-            if set.clip then set.clip:Hide() end
-        end
-        Areas.Refresh()
-        ns.Printf("quest areas experiment: %s", experiment or "off (normal)")
-        return
-    end
+ns.RegisterCommand("areas", "show the quest areas the far view draws", function()
     local tracked = TrackedQuests()
     ns.Printf("quest areas %s  widget %s  zones on this continent %d  shown %d",
         ns.db.questAreas ~= false and "on" or "off",
