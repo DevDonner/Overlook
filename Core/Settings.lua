@@ -106,6 +106,9 @@ function Settings.Load(saved)
     for k in pairs(Settings.RANGES) do db[k] = Settings.Clamp(k, db[k]) end
     -- Per-category icon preferences (IconPrefs). Not in DEFAULTS: a table default would be shared.
     if type(db.icons) ~= "table" then db.icons = {} end
+    -- welcomeSeen (UI/Welcome.lua) is kept as it is: account-wide, not in DEFAULTS, so profiles
+    -- don't copy or reset it.
+    if db.welcomeSeen ~= nil and type(db.welcomeSeen) ~= "boolean" then db.welcomeSeen = nil end
     -- LibDBIcon's saved state for the minimap button ({ hide, minimapPos }); same reason.
     if type(db.minimapButton) ~= "table" then db.minimapButton = {} end
     -- Names of the game's tracking entries NativeIcons switched off, to switch back on; same reason.

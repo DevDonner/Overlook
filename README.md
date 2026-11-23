@@ -71,6 +71,7 @@ Install from CurseForge (the CurseForge app, or download the zip into `_forever_
 | Command | Does |
 | --- | --- |
 | `/overlook` | Open the settings |
+| `/overlook instructions` | The welcome window with every control (also the Instructions button on the settings' Map tab) |
 | `/overlook size 250` | Map size in px (120-800) |
 | `/overlook maxzoom 3200` | Far-zoom limit in yards (500-6,400) |
 | `/overlook smooth` | Toggle smooth zooming |

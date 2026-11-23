@@ -2,6 +2,8 @@
 local ADDON, ns = ...
 
 ns.name = ADDON
+-- The Overlook logo (Media/Logo.tga, 128 px): minimap button, compartment, settings and welcome.
+ns.LOGO = "Interface\\AddOns\\" .. tostring(ADDON) .. "\\Media\\Logo.tga"
 
 local PREFIX = "|cff4fc3f7Overlook|r "
 

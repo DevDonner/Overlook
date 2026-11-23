@@ -27,6 +27,7 @@ local FILES = {
     "tests/overrides.test.lua",
     "tests/buttons.test.lua",
     "tests/options.test.lua",
+    "tests/welcome.test.lua",
 }
 
 for _, file in ipairs(FILES) do

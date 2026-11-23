@@ -9,8 +9,7 @@ local Options = {}
 ns.Options = Options
 
 local NAME = "OverlookOptions"
--- The Overlook logo (Media/Logo.tga, 128 px): minimap button, addon compartment, settings windows.
-local ICON = "Interface\\AddOns\\" .. (ns.name or "Overlook") .. "\\Media\\Logo.tga"
+local ICON = ns.LOGO
 local WIDTH, HEIGHT = 460, 580
 local CONTENT_WIDTH = WIDTH - 50
 
@@ -257,6 +256,9 @@ BUILDERS[1] = { "Map", function(p)
         ns.Shell.ResetPosition()
         Options.Refresh()
     end, "Moves the map back to a visible spot at the default size.")
+    p:Button("Instructions", 130, function()
+        if ns.Welcome then ns.Welcome.Show() end
+    end, "How to zoom, move, resize, and every shortcut: the welcome window again.")
 end }
 
 BUILDERS[2] = { "Icons", function(p)
@@ -621,6 +623,10 @@ local function RegisterBlizzardCategory()
         Options.Show()
     end)
     open:SetPoint("TOPLEFT", logo, "BOTTOMLEFT", 0, -12)
+    local help = W.Button(panel, "Instructions", 140, function()
+        if ns.Welcome then ns.Welcome.Show() end
+    end)
+    help:SetPoint("LEFT", open, "RIGHT", 8, 0)
     local hint = W.Note(panel, "Also: /overlook, or the minimap button.")
     hint:SetPoint("TOPLEFT", open, "BOTTOMLEFT", 0, -8)
     pcall(function()

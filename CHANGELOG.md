@@ -19,3 +19,4 @@ First release, for WoW Forever (1.60.1). Requires Questie.
 - Square or round; movable, resizable, lockable. Optional rotation on the round map at normal zoom.
 - Questie's icon switches in our settings window, plus arrow size and route line width.
 - Settings profiles, with export and import strings.
+- A welcome window on first login with every control; the Instructions button on the settings' Map tab brings it back.
