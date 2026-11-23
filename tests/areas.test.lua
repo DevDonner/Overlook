@@ -43,7 +43,7 @@ local MAP = {
 }
 
 local saved = { CreateFrame = _G.CreateFrame, C_Map = _G.C_Map, CreateVector2D = _G.CreateVector2D,
-    C_QuestLog = _G.C_QuestLog }
+    C_QuestLog = _G.C_QuestLog, QuestieLoader = _G.QuestieLoader }
 local ns, Areas
 
 local function Fresh()
@@ -96,9 +96,19 @@ H.test("only zones in view get a frame, stretched over the zone's world rectangl
     H.near(p[1].points[4], -100, 1e-9); H.near(p[1].points[5], 100, 1e-9)
     local ids = {}
     for _, c in ipairs(calls) do if c[1] == "DrawBlob" then ids[#ids + 1] = c[2] end end
-    H.eq(#ids, 3, "every quest in the log, headers skipped (DrawAll draws nothing on Forever)")
-    H.eq(ids[1], 202)
+    H.eq(#ids, 5, "the log's quests (headers skipped) and the tracked ones (DrawAll draws nothing on Forever)")
+    H.eq(ids[1], 101)
     H.truthy(Called("EnableMerging"), "overlapping areas merge")
+end)
+
+H.test("all quests: Questie's list too (it has quests under collapsed headers), each once", function()
+    _G.QuestieLoader = { ImportModule = function(_, name)
+        if name == "QuestLogCache" then return { questLog_DO_NOT_MODIFY = { [500] = {}, [101] = {} } } end
+    end }
+    local ids = Areas.AllQuests({ 101, 102 })
+    _G.QuestieLoader = nil
+    H.eq(#ids, 6, "500 and 101 from Questie, 202-204 from the log, 102 tracked; 101 once")
+    H.eq(ids[6], 500)
 end)
 
 H.test("a zoom redraws the areas on the next frame", function()

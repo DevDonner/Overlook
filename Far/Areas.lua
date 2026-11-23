@@ -93,14 +93,34 @@ local function TrackedQuests()
     return out
 end
 
--- Every quest in the log (headers skipped). The widget's DrawAll draws nothing on this client,
--- so each quest is drawn on its own, like the tracked ones.
-local function LogQuests()
-    local out = {}
+-- Questie's cache of every quest the player has, keyed by quest ID (read, never written).
+local function QuestieQuests()
+    local loader = _G.QuestieLoader
+    if not (loader and loader.ImportModule) then return nil end
+    local ok, cache = pcall(loader.ImportModule, loader, "QuestLogCache")
+    local t = ok and type(cache) == "table" and cache.questLog_DO_NOT_MODIFY
+    return type(t) == "table" and t or nil
+end
+
+-- Every quest the player has. The widget's DrawAll draws nothing on this client, so each quest is
+-- drawn on its own. The game's log only lists quests under expanded headers, so Questie's cache
+-- comes first; the tracked quests are always added, so this never draws less than tracked-only.
+local function AllQuests(tracked)
+    local out, seen = {}, {}
+    local function Add(id)
+        if type(id) == "number" and id > 0 and not seen[id] then
+            seen[id] = true
+            out[#out + 1] = id
+        end
+    end
+    local cache = QuestieQuests()
+    if cache then
+        for id in pairs(cache) do Add(id) end
+    end
     local log = _G.C_QuestLog
-    if not (log and log.GetNumQuestLogEntries) then return out end
-    local ok, n = pcall(log.GetNumQuestLogEntries)
-    if not ok or type(n) ~= "number" then return out end
+    local ok, n = false, nil
+    if log and log.GetNumQuestLogEntries then ok, n = pcall(log.GetNumQuestLogEntries) end
+    if not ok or type(n) ~= "number" then n = 0 end
     for i = 1, n do
         local id
         if log.GetInfo then
@@ -111,17 +131,20 @@ local function LogQuests()
             local okQ, q = pcall(log.GetQuestIDForLogIndex, i)
             if okQ then id = q end
         end
-        if type(id) == "number" and id > 0 then out[#out + 1] = id end
+        Add(id)
     end
+    for _, id in ipairs(tracked) do Add(id) end
+    table.sort(out)
     return out
 end
-Areas.LogQuests = LogQuests
+Areas.AllQuests = AllQuests
 
 local function Paint(f)
     pcall(f.DrawNone, f)
     pcall(f.SetFillAlpha, f, math.floor((ns.db.questAreaFill or 0.5) * 255 + 0.5))
     pcall(f.SetBorderAlpha, f, math.floor((ns.db.questAreaBorder or 0.75) * 255 + 0.5))
-    local ids = ns.db.questAreaTracked and TrackedQuests() or LogQuests()
+    local tracked = TrackedQuests()
+    local ids = ns.db.questAreaTracked and tracked or AllQuests(tracked)
     for _, id in ipairs(ids) do pcall(f.DrawBlob, f, id, true) end
 end
 
@@ -226,8 +249,11 @@ function Areas.Build(canvasFrame, frameLevel)
 end
 
 ns.RegisterCommand("areas", "show the quest areas the far view draws", function()
+    local tracked = TrackedQuests()
     ns.Printf("quest areas %s  widget %s  zones on this continent %d  shown %d",
         ns.db.questAreas ~= false and "on" or "off",
         supported == nil and "not tried" or (supported and "yes" or "missing"),
         layout and #ZonesOf(layout.inst) or 0, Areas.ShownFrames())
+    ns.Printf("quests: %d in all (Questie's list %s), %d tracked; drawing %s", #AllQuests(tracked),
+        QuestieQuests() and "found" or "missing", #tracked, ns.db.questAreaTracked and "tracked only" or "all")
 end)
