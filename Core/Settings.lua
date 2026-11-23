@@ -45,6 +45,7 @@ Settings.DEFAULTS = {
     barAlpha = 0.8,       -- background opacity
     hideZoneHeader = true, -- the game's zone name above the minimap, while the top bar shows
     hideGameButtons = true, -- the game's calendar, tracking and addon-compartment buttons above it
+    barButtons = true,    -- our calendar and addon buttons on the top bar
     -- Mouse and mounting.
     recenterMiddle = true, -- middle-click recenters
     recenterDouble = true, -- double-click on the far map recenters

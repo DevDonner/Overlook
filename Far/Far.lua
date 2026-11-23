@@ -283,6 +283,7 @@ local function OnUpdate()
     arrow:SetPoint("CENTER", view, "CENTER", (cW - w) * ppy, (n - cN) * ppy)
 
     if ns.Areas then ns.Areas.Update(GetTime(), cN, cW, radius) end
+    if ns.Pings then ns.Pings.Update(GetTime()) end
     -- Before SetLayout, so a zoom (or the first frame in far mode) places icons for this view.
     if ns.Mirror then ns.Mirror.SetView(cN, cW, ns.db.size / 2, zoomed) end
     if zoomed then
@@ -294,6 +295,7 @@ local function OnUpdate()
         if ns.FarArt then ns.FarArt.SetLayout(instance, originN, originW, ppy) end
         if ns.Caves then ns.Caves.SetLayout(instance, originN, originW, ppy) end
         if ns.Areas then ns.Areas.SetLayout(instance, originN, originW, ppy) end
+        if ns.Pings then ns.Pings.SetLayout(instance, originN, originW, ppy) end
     end
     local a0, a1, b0, b1 = G.VisibleTiles(cN, cW, radius)
     if zoomed or tilesPending or a0 ~= c0 or a1 ~= c1 or b0 ~= r0 or b1 ~= r1 then
@@ -327,6 +329,11 @@ end
 
 function Far.IsActive()
     return mode == "far"
+end
+
+-- The player's last known world position, continent and the native minimap's radius (for pings).
+function Far.PlayerWorld()
+    return playerN, playerW, instance, nativeMax
 end
 
 -- Whether the view is pinned away from the player by a pan.
@@ -408,6 +415,7 @@ function Far.Leave(immediate)
     if ns.FarArt then ns.FarArt.SetLayout(nil) end
     if ns.Caves then ns.Caves.SetLayout(nil) end
     if ns.Areas then ns.Areas.SetLayout(nil) end
+    if ns.Pings then ns.Pings.SetLayout(nil) end
     Minimap:SetAlpha(1)
     RefreshNative()
     if immediate then
@@ -655,6 +663,8 @@ function Far.Build(root, level)
     if ns.Mirror then ns.Mirror.Build(canvas, view, level + 2) end
     -- Quest areas: one frame per zone in view, above the terrain, below the icons.
     if ns.Areas then ns.Areas.Build(canvas, level + 1) end
+    -- Pings: on top of everything on the canvas.
+    if ns.Pings then ns.Pings.Build(canvas, level + 7) end
     -- NPC routes: lines on the canvas itself, above its terrain, below the icon layers.
     if ns.Routes then ns.Routes.Build(canvas) end
     -- Party and raid dots: above the icons, below the player arrow (level + 5).

@@ -35,6 +35,7 @@ Far\Art.lua
 Far\Caves.lua
 Far\Areas.lua
 Far\Mount.lua
+Far\Pings.lua
 Pins\Mirror.lua
 Pins\Routes.lua
 Pins\Party.lua

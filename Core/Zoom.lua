@@ -78,3 +78,11 @@ Zoom.DOUBLE_CLICK = 0.3 -- seconds
 function Zoom.IsDoubleClick(last, now)
     return last ~= nil and now - last <= Zoom.DOUBLE_CLICK
 end
+
+-- The other way: a ping position from Minimap:GetPingPosition() (native units, offsets from the
+-- player) back to world yards (north, west), so the far view can draw it.
+function Zoom.PingToWorld(x, y, pN, pW, nativeSize, nativeMax)
+    if not (x and y and pN and nativeSize and nativeSize > 0 and nativeMax) then return nil end
+    local k = nativeMax / (nativeSize / 2)
+    return pN + y * k, pW - x * k
+end

@@ -56,6 +56,7 @@ local function Obj()
     o.SetHeight = function(self, h) self.height = h end
     o.SetText = function(self, t) self.text = t end
     o.CreateFontString = function() return Obj() end
+    o.CreateTexture = function() return Obj() end
     return setmetatable(o, { __index = function(_, k) if type(k) == "string" and k:match("^%u") then return noop end end })
 end
 
@@ -113,6 +114,15 @@ H.test("bars: the game's calendar, tracking and addon buttons hide, and come bac
     B.Apply()
     H.eq(GLOBALS.GameTimeFrame.alpha, 1)
     H.eq(GLOBALS.MinimapCluster.Tracking.alpha, 1)
+end)
+
+H.test("bars: with the top bar off, the game's buttons are back (ours are on that bar)", function()
+    Fresh()
+    H.eq(GLOBALS.GameTimeFrame.alpha, 0)
+    ns.db.topBar = false
+    B.Apply()
+    H.eq(GLOBALS.GameTimeFrame.alpha, 1)
+    H.eq(GLOBALS.AddonCompartmentFrame.alpha, 1)
 end)
 
 for k in pairs(GLOBALS) do _G[k] = saved[k] end

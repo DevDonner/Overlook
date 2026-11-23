@@ -15,6 +15,9 @@ local TICK = 0.2 -- seconds between coordinate / clock updates
 
 local root, top, bottom
 local zoneText, coordText, zoomText, clockText
+local calendarButton, addonsButton
+local ICON = 12        -- px, the top bar's buttons
+local GREY, GOLD, INVITE = { 0.75, 0.77, 0.8 }, { 1, 0.82, 0 }, { 1, 0.5, 0.15 }
 local headerHidden = false
 
 local function Strip(level)
@@ -107,7 +110,8 @@ end
 
 local buttonsHidden = false
 local function SyncButtons()
-    local want = ns.db.hideGameButtons == true
+    -- Only while our top bar is there to replace them (with its own calendar and addon buttons).
+    local want = ns.db.hideGameButtons == true and ns.db.topBar == true
     if want == buttonsHidden then return end
     buttonsHidden = want
     for _, f in ipairs(GameButtons()) do
@@ -129,6 +133,117 @@ local function SyncHeader()
             if region.EnableMouse and region == button then region:EnableMouse(not want) end
         end
     end
+end
+
+----------------------------------------------------------------------------------------------------
+-- The top bar's calendar and addon buttons, standing in for the game's hidden ones. Drawn from
+-- flat squares in the bars' style; clicking goes through the game's own buttons.
+
+local function Paint(button, c)
+    for _, t in ipairs(button.parts) do t:SetColorTexture(c[1], c[2], c[3], 1) end
+end
+
+local function Part(button, w, h, point, x, y)
+    local t = button:CreateTexture(nil, "OVERLAY")
+    t:SetSize(w, h)
+    t:SetPoint(point, button, point, x, y)
+    button.parts[#button.parts + 1] = t
+    return t
+end
+
+local function SmallButton(parent, tip, onClick)
+    local b = CreateFrame("Button", nil, parent)
+    b:SetSize(ICON + 4, ICON + 4)
+    b.parts = {}
+    b.color = GREY
+    b:SetScript("OnEnter", function(self)
+        Paint(self, GOLD)
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:SetText(type(tip) == "function" and tip() or tip, 1, 1, 1)
+        GameTooltip:Show()
+    end)
+    b:SetScript("OnLeave", function(self)
+        Paint(self, self.color)
+        GameTooltip:Hide()
+    end)
+    b:SetScript("OnClick", onClick)
+    return b
+end
+
+local function PendingInvites()
+    local cal = _G.C_Calendar
+    if not (cal and cal.GetNumPendingInvites) then return 0 end
+    local ok, n = pcall(cal.GetNumPendingInvites)
+    return ok and type(n) == "number" and not ns.IsSecret(n) and n or 0
+end
+
+local function OpenCalendar()
+    local game = _G.GameTimeFrame
+    if game and game.Click then
+        game:Click()
+    elseif _G.ToggleCalendar then
+        _G.ToggleCalendar()
+    end
+end
+
+local function AddonCount()
+    local f = _G.AddonCompartmentFrame
+    local text = f and f.Text and f.Text.GetText and f.Text:GetText()
+    return tonumber(text)
+end
+
+-- Opens the game's addon compartment menu at our button: its (hidden) button is moved there
+-- first, so the menu opens next to ours.
+local function OpenAddons(button)
+    local f = _G.AddonCompartmentFrame
+    if not f then return end
+    f:ClearAllPoints()
+    f:SetPoint("TOPRIGHT", button, "BOTTOMRIGHT", 0, -2)
+    if f.OpenMenu and pcall(f.OpenMenu, f) then return end
+    local down = f:GetScript("OnMouseDown")
+    if down then pcall(down, f, "LeftButton") end
+end
+
+local function BuildButtons()
+    calendarButton = SmallButton(top, function()
+        local n = PendingInvites()
+        return n > 0 and string.format("Calendar (%d invite%s)", n, n == 1 and "" or "s") or "Calendar"
+    end, OpenCalendar)
+    calendarButton:SetPoint("LEFT", top, "LEFT", PAD - 2, 0)
+    -- A page: outline, with a filled band across the top.
+    local s = ICON
+    Part(calendarButton, s, 3, "TOP", 0, -2)
+    Part(calendarButton, s, 1, "BOTTOM", 0, 2)
+    Part(calendarButton, 1, s, "LEFT", 2, 0)
+    Part(calendarButton, 1, s, "RIGHT", -2, 0)
+    Part(calendarButton, 2, 2, "CENTER", -2, -1)
+    Part(calendarButton, 2, 2, "CENTER", 2, -1)
+    Paint(calendarButton, GREY)
+
+    addonsButton = SmallButton(top, function()
+        local n = AddonCount()
+        return n and string.format("Addons (%d)", n) or "Addons"
+    end, function(self) OpenAddons(self) end)
+    addonsButton:SetPoint("RIGHT", top, "RIGHT", -(PAD - 2), 0)
+    -- Four small squares.
+    local q = (ICON - 2) / 2
+    Part(addonsButton, q, q, "TOPLEFT", 2, -2)
+    Part(addonsButton, q, q, "TOPRIGHT", -2, -2)
+    Part(addonsButton, q, q, "BOTTOMLEFT", 2, 2)
+    Part(addonsButton, q, q, "BOTTOMRIGHT", -2, 2)
+    Paint(addonsButton, GREY)
+end
+
+local function SyncBarButtons()
+    local show = ns.db.barButtons ~= false
+    calendarButton:SetShown(show and (_G.GameTimeFrame ~= nil or _G.ToggleCalendar ~= nil))
+    addonsButton:SetShown(show and _G.AddonCompartmentFrame ~= nil)
+    local inset = show and (ICON + 8) or 0
+    zoneText:ClearAllPoints()
+    zoneText:SetPoint("LEFT", top, "LEFT", PAD + inset, 0)
+    zoneText:SetPoint("RIGHT", top, "RIGHT", -(PAD + inset), 0)
+    calendarButton.color = PendingInvites() > 0 and INVITE or GREY
+    if not calendarButton:IsMouseOver() then Paint(calendarButton, calendarButton.color) end
 end
 
 ----------------------------------------------------------------------------------------------------
@@ -177,6 +292,7 @@ function Bars.Apply()
 
     SyncHeader()
     SyncButtons()
+    SyncBarButtons()
     if ns.Overrides then ns.Overrides.Apply() end
     if ns.Far and ns.Far.PlaceRecenter then ns.Far.PlaceRecenter() end
     UpdateZone()
@@ -187,8 +303,7 @@ function Bars.Build(rootFrame, level)
     root = rootFrame
     top = Strip(level)
     zoneText = Text(top, "CENTER")
-    zoneText:SetPoint("LEFT", top, "LEFT", PAD, 0)
-    zoneText:SetPoint("RIGHT", top, "RIGHT", -PAD, 0)
+    BuildButtons()
     top:EnableMouse(true)
     top:SetScript("OnMouseUp", function(_, button)
         if button == "LeftButton" and ToggleWorldMap then ToggleWorldMap() end
@@ -216,7 +331,14 @@ function Bars.Build(rootFrame, level)
     for _, e in ipairs({ "ZONE_CHANGED", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED_NEW_AREA", "PLAYER_ENTERING_WORLD" }) do
         events:RegisterEvent(e)
     end
-    events:SetScript("OnEvent", UpdateZone)
+    pcall(events.RegisterEvent, events, "CALENDAR_UPDATE_PENDING_INVITES")
+    events:SetScript("OnEvent", function(_, event)
+        if event == "CALENDAR_UPDATE_PENDING_INVITES" then
+            SyncBarButtons()
+        else
+            UpdateZone()
+        end
+    end)
 
     Bars.Apply()
 end
