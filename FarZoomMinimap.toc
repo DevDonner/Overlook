@@ -2,7 +2,7 @@
 ## Title: FarZoomMinimap
 ## Notes: Zoom the minimap out past its limit and keep Questie icons on it. Requires Questie. Commands: /fzm
 ## Author: DevDonner
-## Version: 0.1.1
+## Version: @project-version@
 ## Dependencies: Questie
 ## OptionalDeps: TomTom
 ## X-License: MIT

@@ -269,10 +269,10 @@ events:SetScript("OnEvent", function(_, event)
     end
 end)
 
-ns.RegisterCommand("options", "list the game's own options whose label has this text, e.g. /fzm options coord", function(arg)
+ns.RegisterCommand("gameoptions", "list the game's own options whose label has this text, e.g. /fzm gameoptions coord", function(arg)
     local text = (arg or ""):lower()
     if text == "" then
-        ns.Print("usage: /fzm options coord")
+        ns.Print("usage: /fzm gameoptions coord")
         return
     end
     local n = 0

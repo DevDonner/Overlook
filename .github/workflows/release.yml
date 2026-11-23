@@ -1,0 +1,30 @@
+name: Release
+
+# A version tag (v1.0.0, v1.0.1-beta, ...) builds the zip and uploads it to CurseForge and
+# GitHub Releases. A tag with -beta or -alpha goes up as that release type.
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      CF_API_KEY: ${{ secrets.CF_API_KEY }}
+      GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: leafo/gh-actions-lua@v10
+        with:
+          luaVersion: "5.1.5"
+
+      - name: Tests
+        run: lua tests/run.lua
+
+      - uses: BigWigsMods/packager@v2

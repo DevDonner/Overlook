@@ -1,0 +1,19 @@
+# BigWigs packager: what goes into the CurseForge zip.
+package-as: FarZoomMinimap
+
+enable-nolib-creation: no
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
+
+ignore:
+  - .github
+  - .luacheckrc
+  - .gitattributes
+  - .gitignore
+  - docs
+  - tests
+  - tools
+  - sc_inputs
+  - CHANGELOG.md

@@ -4,7 +4,7 @@ A minimap addon for **WoW Forever** (patch 1.60.1, `## Interface: 16001`) that l
 
 **Requires [Questie](https://www.curseforge.com/wow/addons/questie).** Questie is the source for quest, townsfolk (mailboxes, flight masters, trainers...) and NPC route icons; the game's own tracking icons only exist at native zoom, so FarZoomMinimap doesn't manage them.
 
-> **Status:** alpha. Everything listed below is built; most of it has been checked in game, and the newest parts (pings, the button panel, cave stacking, mount zoom) are waiting on in-game checks.
+> **Status:** 1.0. Available on CurseForge; see [CHANGELOG.md](CHANGELOG.md).
 
 ## Why
 
@@ -14,13 +14,13 @@ The full design, with decisions, risks and the test plan, is in [docs/design.md]
 
 ## Features
 
-- Zoom past the native limit, out to about one zone (default 2,000 yards, up to 3,200), smoothly or in steps
+- Zoom past the native limit, out to about one zone (default 2,000 yards, up to 6,400), smoothly or in steps
 - Questie icons at every zoom (kill swords, turn-ins, available quests, townsfolk...) with Questie's own tooltips and clicks
 - Questie's NPC patrol routes on the far map
 - Other addons' map icons too (RareScanner, TomTom): per-group show, size and shrink-with-zoom
 - Party and raid members as class-coloured dots on the far map
-- The game's blue quest areas on the far map, with adjustable opacity
-- Caves drawn on the far map, one level at a time
+- The game's blue quest areas on the far map, with adjustable opacity, fitted to the round map
+- Caves drawn on the far map, every level stacked; Alt + wheel peels them off one by one
 - Drag to pan, with a Recenter button; a panned map stays put while you move
 - Zooms out when you mount and comes back when you dismount (adjustable)
 - Zone name bar above the map and a bottom bar with coordinates, zoom distance and a clock
@@ -28,7 +28,8 @@ The full design, with decisions, risks and the test plan, is in [docs/design.md]
 - Questie's icon switches in our own settings window, plus player arrow size and route line width
 - Settings profiles, with export and import strings for sharing
 - Settings window, minimap button and addon compartment entry
-
+- Pings drawn on the far map
+- Other addons' minimap buttons gathered into a panel on the bottom bar; calendar and addon buttons on the top bar
 - Optional rotating minimap at normal zoom, on the round map only (off by default; the far map stays north-up)
 
 Planned: Edit Mode support.
@@ -51,7 +52,7 @@ Planned: Edit Mode support.
 
 ## Installation
 
-See [docs/INSTALL.md](docs/INSTALL.md): download a ZIP, clone with Git, or link a working copy into your Forever client's `Interface/AddOns/` folder.
+Install from CurseForge (the CurseForge app, or download the zip into `_forever_\Interface\AddOns\`). For other ways, see [docs/INSTALL.md](docs/INSTALL.md): download a ZIP, clone with Git, or link a working copy into your Forever client's `Interface/AddOns/` folder.
 
 ## Using it
 
@@ -65,13 +66,13 @@ See [docs/INSTALL.md](docs/INSTALL.md): download a ZIP, clone with Git, or link 
 | Command | Does |
 | --- | --- |
 | `/fzm` | Open the settings |
-| `/fzm size 250` | Map size in px (120-600) |
-| `/fzm maxzoom 3200` | Far-zoom limit in yards (500-3,200) |
+| `/fzm size 250` | Map size in px (120-800) |
+| `/fzm maxzoom 3200` | Far-zoom limit in yards (500-6,400) |
 | `/fzm smooth` | Toggle smooth zooming |
 | `/fzm lock` | Lock or unlock the size |
 | `/fzm icons` | List icon groups; e.g. `/fzm icons rarescanner size 0.6` |
 | `/fzm reset` | Move the map back to a visible spot at the default size |
-| `/fzm options coord` | The game's own options whose label has that text, their values and CVars |
+| `/fzm gameoptions coord` | The game's own options whose label has that text, their values and CVars |
 | `/fzm buttons` | The minimap buttons gathered into the bottom bar's panel |
 | `/fzm overrides` | What the bars switched off in other addons and the game (and what it was before) |
 | `/fzm areas` | Whether the far view can draw quest areas here, and how many zones it is drawing |
@@ -84,6 +85,7 @@ See [docs/INSTALL.md](docs/INSTALL.md): download a ZIP, clone with Git, or link 
 
 - `lua tests/run.lua` runs the offline tests (plain Lua 5.1, no dependencies).
 - `luacheck .` lints. CI runs both on every push.
+- Releases: see [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Licence and credits
 

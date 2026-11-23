@@ -31,8 +31,8 @@ end
 local commands, order = {}, {}
 
 function ns.RegisterCommand(name, help, fn)
+    if not commands[name] then order[#order + 1] = name end
     commands[name] = { help = help, fn = fn }
-    order[#order + 1] = name
 end
 
 local function ShowHelp()
