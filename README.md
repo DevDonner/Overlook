@@ -1,5 +1,7 @@
 # Overlook
 
+<img src="docs/logo.png" alt="Overlook logo" width="128">
+
 A minimap addon for **WoW Forever** (patch 1.60.1, `## Interface: 16001`) that lets you zoom out past the native minimap's limit and still see your Questie icons, the same ones the big world map shows.
 
 **Requires [Questie](https://www.curseforge.com/wow/addons/questie).** Questie is the source for quest, townsfolk (mailboxes, flight masters, trainers...) and NPC route icons; the game's own tracking icons only exist at native zoom, so Overlook doesn't manage them.

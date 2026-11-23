@@ -9,7 +9,8 @@ local Options = {}
 ns.Options = Options
 
 local NAME = "OverlookOptions"
-local ICON = "Interface\\Icons\\INV_Misc_Map_01"
+-- The Overlook logo (Media/Logo.tga, 128 px): minimap button, addon compartment, settings windows.
+local ICON = "Interface\\AddOns\\" .. (ns.name or "Overlook") .. "\\Media\\Logo.tga"
 local WIDTH, HEIGHT = 460, 580
 local CONTENT_WIDTH = WIDTH - 50
 
@@ -522,8 +523,12 @@ local function Build()
     table.insert(UISpecialFrames, NAME) -- Escape closes it
 
     local title = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    title:SetPoint("TOP", f, "TOP", 0, -6)
+    title:SetPoint("TOP", f, "TOP", 8, -6)
     title:SetText("Overlook")
+    local logo = f:CreateTexture(nil, "OVERLAY")
+    logo:SetSize(16, 16)
+    logo:SetPoint("RIGHT", title, "LEFT", -4, 0)
+    logo:SetTexture(ICON)
 
     local x, gap = 12, 3
     local tabWidth = math.floor((WIDTH - 24 - gap * (#BUILDERS - 1)) / #BUILDERS)
@@ -604,14 +609,18 @@ local function RegisterBlizzardCategory()
     local S = _G.Settings
     if not (S and S.RegisterCanvasLayoutCategory and S.RegisterAddOnCategory) then return end
     local panel = CreateFrame("Frame")
+    local logo = panel:CreateTexture(nil, "ARTWORK")
+    logo:SetSize(48, 48)
+    logo:SetPoint("TOPLEFT", 16, -16)
+    logo:SetTexture(ICON)
     local title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
-    title:SetPoint("TOPLEFT", 16, -16)
+    title:SetPoint("LEFT", logo, "RIGHT", 10, 0)
     title:SetText("Overlook")
     local open = W.Button(panel, "Open settings", 140, function()
         if _G.SettingsPanel and _G.SettingsPanel:IsShown() then HideUIPanel(_G.SettingsPanel) end
         Options.Show()
     end)
-    open:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -12)
+    open:SetPoint("TOPLEFT", logo, "BOTTOMLEFT", 0, -12)
     local hint = W.Note(panel, "Also: /overlook, or the minimap button.")
     hint:SetPoint("TOPLEFT", open, "BOTTOMLEFT", 0, -8)
     pcall(function()
