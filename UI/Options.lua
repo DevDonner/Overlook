@@ -328,7 +328,7 @@ BUILDERS[4] = { "Bars", function(p)
     local function Apply() if ns.Bars then ns.Bars.Apply() end end
     p:Header("Top bar")
     p:Check("Show the zone name above the map", "topBar", "Click it to open the world map.", Apply)
-    p:Check("Over the map instead of above it", "topBarInside", nil, Apply)
+    local topInside = p:Check("Over the map instead of above it (square map)", "topBarInside", nil, Apply)
     p:Check("Add the zone after the subzone", "topBarZone", nil, Apply)
     p:Check("Colour by PvP status", "topBarPvP", "Green friendly, red hostile, orange contested, blue sanctuary.", Apply)
     p:Check("Hide the game's own zone header", "hideZoneHeader",
@@ -336,7 +336,16 @@ BUILDERS[4] = { "Bars", function(p)
 
     p:Header("Bottom bar")
     p:Check("Show the bottom bar", "bottomBar", nil, Apply)
-    p:Check("Over the map instead of below it", "bottomBarInside", nil, Apply)
+    local bottomInside = p:Check("Over the map instead of below it (square map)", "bottomBarInside", nil, Apply)
+    -- The round map has its own layout under the circle: these two don't apply there.
+    p.onRefresh[#p.onRefresh + 1] = function()
+        for _, c in ipairs({ topInside, bottomInside }) do
+            if c and c.SetEnabled then
+                c:SetEnabled(ns.db.round ~= true)
+                if c.label then c.label:SetFontObject(ns.db.round and "GameFontDisable" or "GameFontHighlight") end
+            end
+        end
+    end
     p:Check("Coordinates", "barCoords", nil, Apply)
     p:Slider("Coordinate decimals", "coordDecimals", 1, function(v) return tostring(v) end, nil, Apply)
     p:Check("Far zoom distance", "barZoom", "How far the view reaches from the centre, while zoomed out.", Apply)

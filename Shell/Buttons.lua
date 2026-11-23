@@ -253,7 +253,11 @@ Buttons.Scan = Scan
 local function PlacePanel()
     local bar = trigger:GetParent()
     panel:ClearAllPoints()
-    panel:SetPoint("BOTTOMLEFT", bar, "TOPLEFT", 0, 2)
+    if ns.db and ns.db.round then
+        panel:SetPoint("BOTTOMRIGHT", bar, "TOPRIGHT", 0, 2)
+    else
+        panel:SetPoint("BOTTOMLEFT", bar, "TOPLEFT", 0, 2)
+    end
 end
 
 function Buttons.Toggle()

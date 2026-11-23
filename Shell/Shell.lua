@@ -226,12 +226,21 @@ function Shell.Build()
     -- The cluster's now-empty area would otherwise still swallow clicks meant for the world.
     if MinimapCluster then MinimapCluster:EnableMouse(false) end
 
-    -- LibDBIcon and similar libraries ask this global where the map's edge is.
-    if _G.GetMinimapShape == nil then
-        _G.GetMinimapShape = function() return ns.db.round and "ROUND" or "SQUARE" end
-    end
+    -- LibDBIcon, HereBeDragons (Questie's pins) and similar libraries ask this global where the
+    -- map's edge is. The map is ours, so the answer is too: other minimap addons (EnhanceQoL's and
+    -- Leatrix Plus's square minimap) set it to SQUARE, which put Questie's icons in the round map's
+    -- empty corners. Taken back if one of them sets it again later.
+    _G.GetMinimapShape = Shell.MinimapShape
+    C_Timer.NewTicker(2, function()
+        if _G.GetMinimapShape ~= Shell.MinimapShape then _G.GetMinimapShape = Shell.MinimapShape end
+    end)
 
     ApplyNow()
+end
+
+-- What GetMinimapShape answers while Overlook has the minimap.
+function Shell.MinimapShape()
+    return ns.db and ns.db.round and "ROUND" or "SQUARE"
 end
 
 -- Rotation is the game's own rotating minimap (the rotateMinimap setting), at normal zoom only:

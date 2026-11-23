@@ -1,6 +1,12 @@
 -- The top bar (zone name) and bottom bar (coordinates, far radius, clock): thin dark strips with
 -- the same 1 px black edge as the map, either outside the map (sharing its edge) or over it.
 -- Clicking the top bar opens the world map.
+--
+-- On the round map there are no long strips: the same text and buttons sit in small separate boxes
+-- in a grid under the circle, two rows of three with the middle left empty:
+--     zone name    |  (empty)  |  calendar, addons, minimap buttons
+--     coordinates  |  (empty)  |  clock
+-- (The far-zoom distance has no place there, so the round map doesn't show it.)
 local _, ns = ...
 
 local T = ns.BarText
@@ -13,7 +19,10 @@ local BG = { 0.05, 0.06, 0.08 }
 local PAD = 6
 local TICK = 0.2 -- seconds between coordinate / clock updates
 
+local GAP = 3 -- px between the circle and the grid, and between the grid's rows
+
 local root, top, bottom
+local namePill, buttonPill, coordPill, clockPill -- the round map's boxes
 local zoneText, coordText, zoomText, clockText
 local calendarButton, addonsButton, minimapButtons
 local ICON = 12        -- px, the top bar's buttons
@@ -38,8 +47,23 @@ local function Text(parent, justify)
     return t
 end
 
+local function Round() return ns.db.round == true end
+
+local function TextWidth(t)
+    local w = t.GetStringWidth and t:GetStringWidth()
+    return type(w) == "number" and w or 0
+end
+
+-- A box just wide enough for its text (in steps of 4 px, so it doesn't twitch as digits change).
+local function Fit(pill, t, minW)
+    local w = math.ceil((TextWidth(t) + 2 * PAD) / 4) * 4
+    pill:SetWidth(math.max(minW or 0, w))
+end
+
 ----------------------------------------------------------------------------------------------------
 -- Content
+
+local FitName
 
 local function UpdateZone()
     if not zoneText then return end
@@ -51,6 +75,7 @@ local function UpdateZone()
     if ns.IsSecret(pvp) then pvp = nil end
     local c = T.ZoneColor(pvp, ns.db.topBarPvP)
     zoneText:SetTextColor(c[1], c[2], c[3])
+    if Round() and FitName then FitName() end
 end
 
 local function PlayerCoords()
@@ -66,7 +91,7 @@ local function PlayerCoords()
 end
 
 local function UpdateBottom()
-    if not bottom or not bottom:IsShown() then return end
+    if not bottom or not ns.db.bottomBar then return end
     if ns.db.barCoords then
         local x, y = PlayerCoords()
         coordText:SetText(T.Coords(x, y, ns.db.coordDecimals))
@@ -84,6 +109,10 @@ local function UpdateBottom()
         clockText:SetText(T.Clock(h, m, ns.db.clock24))
     else
         clockText:SetText("")
+    end
+    if Round() then
+        Fit(coordPill, coordText)
+        Fit(clockPill, clockText)
     end
 end
 
@@ -253,11 +282,23 @@ local function BuildButtons()
     if ns.Buttons then ns.Buttons.Build(minimapButtons) end
 end
 
-local function SyncBarButtons()
-    local show = ns.db.barButtons ~= false
-    calendarButton:SetShown(show and (_G.GameTimeFrame ~= nil or _G.ToggleCalendar ~= nil))
-    addonsButton:SetShown(show and _G.AddonCompartmentFrame ~= nil)
-    if ns.Buttons then ns.Buttons.Apply() end
+-- Square map: the buttons on the strips, the text in them.
+local function ArrangeSquare(show)
+    calendarButton:SetParent(top)
+    addonsButton:SetParent(top)
+    minimapButtons:SetParent(bottom)
+    calendarButton:ClearAllPoints()
+    calendarButton:SetPoint("LEFT", top, "LEFT", PAD - 2, 0)
+    addonsButton:ClearAllPoints()
+    addonsButton:SetPoint("RIGHT", top, "RIGHT", -(PAD - 2), 0)
+    minimapButtons:ClearAllPoints()
+    minimapButtons:SetPoint("LEFT", bottom, "LEFT", PAD - 3, 0)
+
+    zoneText:SetParent(top)
+    coordText:SetParent(bottom)
+    clockText:SetParent(bottom)
+    clockText:ClearAllPoints()
+    clockText:SetPoint("RIGHT", bottom, "RIGHT", -PAD, 0)
     -- The zone name stays centred: the same room on both sides, for the widest side.
     local inset = show and (ICON + 8) or 0
     coordText:ClearAllPoints()
@@ -269,6 +310,51 @@ local function SyncBarButtons()
     zoneText:ClearAllPoints()
     zoneText:SetPoint("LEFT", top, "LEFT", PAD + inset, 0)
     zoneText:SetPoint("RIGHT", top, "RIGHT", -(PAD + inset), 0)
+end
+
+-- Round map: the text in its own boxes, the buttons side by side in theirs (left to right:
+-- calendar, addons, minimap buttons). Returns how many buttons show.
+local function ArrangeRound()
+    zoneText:SetParent(namePill)
+    zoneText:ClearAllPoints()
+    zoneText:SetPoint("LEFT", namePill, "LEFT", PAD, 0)
+    zoneText:SetPoint("RIGHT", namePill, "RIGHT", -PAD, 0)
+    coordText:SetParent(coordPill)
+    coordText:ClearAllPoints()
+    coordText:SetPoint("CENTER", coordPill, "CENTER", 0, 0)
+    clockText:SetParent(clockPill)
+    clockText:ClearAllPoints()
+    clockText:SetPoint("CENTER", clockPill, "CENTER", 0, 0)
+
+    local n, x = 0, 3
+    for _, b in ipairs({ calendarButton, addonsButton, minimapButtons }) do
+        b:SetParent(buttonPill)
+        b:ClearAllPoints()
+        if b:IsShown() then
+            b:SetPoint("LEFT", buttonPill, "LEFT", x, 0)
+            x = x + ICON + 5
+            n = n + 1
+        end
+    end
+    buttonPill:SetWidth(x + 2)
+    return n
+end
+
+local function SyncBarButtons()
+    local show = ns.db.barButtons ~= false
+    calendarButton:SetShown(show and (_G.GameTimeFrame ~= nil or _G.ToggleCalendar ~= nil))
+    addonsButton:SetShown(show and _G.AddonCompartmentFrame ~= nil)
+    if ns.Buttons then ns.Buttons.Apply() end
+    if Round() then
+        -- On the round map the minimap-buttons button goes with the others, not with the coordinates.
+        if not ns.db.topBar then
+            calendarButton:SetShown(false)
+            addonsButton:SetShown(false)
+        end
+        buttonPill:SetShown(ArrangeRound() > 0)
+    else
+        ArrangeSquare(show)
+    end
     calendarButton.color = PendingInvites() > 0 and INVITE or GREY
     if not calendarButton:IsMouseOver() then Paint(calendarButton, calendarButton.color) end
 end
@@ -290,8 +376,43 @@ local function Place(bar, edge, inside, height)
     end
 end
 
+-- The round map's grid under the circle (see the top of the file). Returns its height.
+local function PlaceRound(height)
+    local size = ns.db.size or 200
+    local row1 = ns.db.topBar or buttonPill:IsShown()
+    namePill:SetShown(ns.db.topBar == true)
+    coordPill:SetShown(ns.db.bottomBar and ns.db.barCoords and true or false)
+    clockPill:SetShown(ns.db.bottomBar and ns.db.barClock and true or false)
+    local row2 = coordPill:IsShown() or clockPill:IsShown()
+    for _, pill in ipairs({ namePill, buttonPill, coordPill, clockPill }) do pill:SetHeight(height) end
+
+    local y1 = -GAP
+    local y2 = row1 and -(GAP + height + GAP) or -GAP
+    namePill:ClearAllPoints()
+    namePill:SetPoint("TOPLEFT", root, "BOTTOMLEFT", 0, y1)
+    buttonPill:ClearAllPoints()
+    buttonPill:SetPoint("TOPRIGHT", root, "BOTTOMRIGHT", 0, y1)
+    coordPill:ClearAllPoints()
+    coordPill:SetPoint("TOPLEFT", root, "BOTTOMLEFT", 0, y2)
+    clockPill:ClearAllPoints()
+    clockPill:SetPoint("TOPRIGHT", root, "BOTTOMRIGHT", 0, y2)
+
+    -- The name gets the row less the buttons' box and a gap; longer names are cut short.
+    local room = size - (buttonPill:IsShown() and ((buttonPill.GetWidth and buttonPill:GetWidth() or 0) + GAP * 2) or 0)
+    FitName = function()
+        local w = math.ceil((TextWidth(zoneText) + 2 * PAD) / 4) * 4
+        namePill:SetWidth(math.max(40, math.min(w, room)))
+    end
+    FitName()
+
+    if row2 then return -y2 + height end
+    if row1 then return GAP + height end
+    return 0
+end
+
 -- How much of the map's bottom edge the bottom bar covers (0 when it sits outside or is off).
 function Bars.InsideBottomHeight()
+    if Round() then return 0 end
     if not (ns.db.bottomBar and ns.db.bottomBarInside) then return 0 end
     return ns.db.barFont + 2 * PAD - 2
 end
@@ -303,23 +424,31 @@ function Bars.Apply()
     for _, t in ipairs({ zoneText, coordText, zoomText, clockText }) do
         t:SetFont(FONT, ns.db.barFont, "")
     end
-    for _, bar in ipairs({ top, bottom }) do
+    for _, bar in ipairs({ top, bottom, namePill, buttonPill, coordPill, clockPill }) do
         bar:SetBackdropColor(BG[1], BG[2], BG[3], ns.db.barAlpha)
         bar:SetBackdropBorderColor(0, 0, 0, math.max(ns.db.barAlpha, 0.5))
     end
-    Place(top, "TOP", ns.db.topBarInside, height)
-    Place(bottom, "BOTTOM", ns.db.bottomBarInside, height)
-    top:SetShown(ns.db.topBar)
-    bottom:SetShown(ns.db.bottomBar)
-
-    -- Keep outside bars on screen too.
-    local up = (ns.db.topBar and not ns.db.topBarInside) and height - 1 or 0
-    local down = (ns.db.bottomBar and not ns.db.bottomBarInside) and height - 1 or 0
-    root:SetClampRectInsets(0, 0, up, -down)
-
     SyncHeader()
     SyncButtons()
-    SyncBarButtons()
+
+    if Round() then
+        top:SetShown(false)
+        bottom:SetShown(false)
+        SyncBarButtons()
+        local down = PlaceRound(height)
+        root:SetClampRectInsets(0, 0, 0, -down)
+    else
+        for _, pill in ipairs({ namePill, buttonPill, coordPill, clockPill }) do pill:SetShown(false) end
+        Place(top, "TOP", ns.db.topBarInside, height)
+        Place(bottom, "BOTTOM", ns.db.bottomBarInside, height)
+        top:SetShown(ns.db.topBar)
+        bottom:SetShown(ns.db.bottomBar)
+        -- Keep outside bars on screen too.
+        local up = (ns.db.topBar and not ns.db.topBarInside) and height - 1 or 0
+        local down = (ns.db.bottomBar and not ns.db.bottomBarInside) and height - 1 or 0
+        root:SetClampRectInsets(0, 0, up, -down)
+        SyncBarButtons()
+    end
     if ns.Overrides then ns.Overrides.Apply() end
     if ns.Far and ns.Far.PlaceRecenter then ns.Far.PlaceRecenter() end
     UpdateZone()
@@ -344,10 +473,23 @@ function Bars.Build(rootFrame, level)
     zoomText = Text(bottom, "CENTER")
     zoomText:SetPoint("CENTER", bottom, "CENTER", 0, 0)
     zoomText:SetTextColor(0.7, 0.74, 0.8)
+
+    namePill = Strip(level)
+    namePill:EnableMouse(true)
+    namePill:SetScript("OnMouseUp", function(_, button)
+        if button == "LeftButton" and ToggleWorldMap then ToggleWorldMap() end
+    end)
+    buttonPill = Strip(level)
+    coordPill = Strip(level)
+    coordPill:EnableMouse(false)
+    clockPill = Strip(level)
+    clockPill:EnableMouse(false)
+    for _, pill in ipairs({ namePill, buttonPill, coordPill, clockPill }) do pill:Hide() end
     BuildButtons()
 
     local elapsed = 0
-    bottom:SetScript("OnUpdate", function(_, dt)
+    local ticker = CreateFrame("Frame", nil, root) -- runs for the strips and the round boxes alike
+    ticker:SetScript("OnUpdate", function(_, dt)
         elapsed = elapsed + dt
         if elapsed < TICK then return end
         elapsed = 0

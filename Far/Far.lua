@@ -514,7 +514,11 @@ local function PlaceRecenter()
     local root = recenter:GetParent()
     local up = ns.Bars and ns.Bars.InsideBottomHeight() or 0
     recenter:ClearAllPoints()
-    recenter:SetPoint("BOTTOMRIGHT", root, "BOTTOMRIGHT", -RECENTER_INSET, RECENTER_INSET + up)
+    if ns.db.round then
+        recenter:SetPoint("BOTTOM", root, "BOTTOM", 0, RECENTER_INSET + 4)
+    else
+        recenter:SetPoint("BOTTOMRIGHT", root, "BOTTOMRIGHT", -RECENTER_INSET, RECENTER_INSET + up)
+    end
     local font = math.max(9, (ns.db.barFont or 11) - 1)
     recenter.label:SetFont("Fonts\\FRIZQT__.TTF", font, "")
     recenter:SetSize(recenter.label:GetStringWidth() + 16, font + 10)

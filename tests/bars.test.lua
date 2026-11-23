@@ -125,4 +125,51 @@ H.test("bars: with the top bar off, the game's buttons are back (ours are on tha
     H.eq(GLOBALS.AddonCompartmentFrame.alpha, 1)
 end)
 
+-- Round map: the strips go, four boxes under the circle (frames made in Build's order: top,
+-- bottom, then the name, buttons, coordinates and clock boxes).
+local function FreshRound()
+    local made = {}
+    GLOBALS.CreateFrame = function() local f = Obj(); made[#made + 1] = f; return f end
+    Fresh()
+    GLOBALS.CreateFrame = function() return Obj() end
+    ns.db.round = true
+    B.Apply()
+    return { top = made[1], bottom = made[2], name = made[3], buttons = made[4], coords = made[5], clock = made[6] }
+end
+
+H.test("round bars: no strips; name, buttons, coordinates and clock in boxes under the circle", function()
+    local f = FreshRound()
+    H.eq(f.top.shown, false); H.eq(f.bottom.shown, false)
+    H.eq(f.name.shown, true); H.eq(f.coords.shown, true); H.eq(f.clock.shown, true)
+    H.eq(f.name.points[1][1], "TOPLEFT"); H.eq(f.name.points[1][3], "BOTTOMLEFT")
+    H.eq(f.buttons.points[1][1], "TOPRIGHT"); H.eq(f.buttons.points[1][3], "BOTTOMRIGHT")
+    local h = ns.db.barFont + 10
+    H.eq(f.coords.points[1][5], -(3 + h + 3), "the second row under the first")
+    H.eq(root.clamp[3], 0, "nothing above the circle")
+    H.eq(root.clamp[4], -(3 + h + 3 + h), "both rows kept on screen")
+end)
+
+H.test("round bars: the bar settings still choose what shows", function()
+    local f = FreshRound()
+    ns.db.topBar = false
+    B.Apply()
+    H.eq(f.name.shown, false)
+    H.eq(f.buttons.shown, true, "the minimap-buttons button keeps the first row")
+    ns.db.barClock = false
+    B.Apply()
+    H.eq(f.clock.shown, false); H.eq(f.coords.shown, true)
+    ns.db.bottomBar = false
+    B.Apply()
+    H.eq(f.coords.shown, false)
+end)
+
+H.test("round bars: back to the strips on the square map", function()
+    local f = FreshRound()
+    ns.db.round = false
+    B.Apply()
+    H.eq(f.top.shown, true); H.eq(f.bottom.shown, true)
+    H.eq(f.name.shown, false); H.eq(f.clock.shown, false)
+    H.eq(B.InsideBottomHeight(), 0)
+end)
+
 for k in pairs(GLOBALS) do _G[k] = saved[k] end
