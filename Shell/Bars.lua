@@ -17,8 +17,6 @@ local root, top, bottom
 local zoneText, coordText, zoomText, clockText
 local calendarButton, addonsButton, minimapButtons
 local ICON = 12        -- px, the top bar's buttons
-local RING = 13        -- px, the minimap-buttons symbol on the bottom bar
-local ROUND = "Interface\\CHARACTERFRAME\\TempPortraitAlphaMask"
 local GREY, GOLD, INVITE = { 0.75, 0.77, 0.8 }, { 1, 0.82, 0 }, { 1, 0.5, 0.15 }
 local headerHidden = false
 
@@ -218,8 +216,7 @@ local function BuildButtons()
     Part(calendarButton, s, 1, "BOTTOM", 0, 2)
     Part(calendarButton, 1, s, "LEFT", 2, 0)
     Part(calendarButton, 1, s, "RIGHT", -2, 0)
-    Part(calendarButton, 2, 2, "CENTER", -2, -1)
-    Part(calendarButton, 2, 2, "CENTER", 2, -1)
+    for i = -1, 1 do Part(calendarButton, 2, 2, "CENTER", i * 3, -1) end
     Paint(calendarButton, GREY)
 
     addonsButton = SmallButton(top, function()
@@ -235,26 +232,22 @@ local function BuildButtons()
     Part(addonsButton, q, q, "BOTTOMRIGHT", -2, 2)
     Paint(addonsButton, GREY)
 
-    -- Other addons' minimap buttons (Shell/Buttons.lua): a round button symbol (ring and dot) at
-    -- the left end of the bottom bar, before the coordinates.
+    -- Other addons' minimap buttons (Shell/Buttons.lua): a chevron, like a taskbar's hidden-icons
+    -- arrow, at the left end of the bottom bar before the coordinates. Up while the panel is shut,
+    -- down while it's open.
     minimapButtons = SmallButton(bottom, function()
         local n = ns.Buttons and ns.Buttons.Count() or 0
         return string.format("Minimap buttons (%d)", n)
     end, function() if ns.Buttons then ns.Buttons.Toggle() end end)
-    minimapButtons:SetSize(RING + 4, RING + 4)
     minimapButtons:SetPoint("LEFT", bottom, "LEFT", PAD - 3, 0)
-    local ring = Part(minimapButtons, RING, RING, "CENTER", 0, 0)
-    local hole = minimapButtons:CreateTexture(nil, "OVERLAY", nil, 1)
-    hole:SetSize(RING - 4, RING - 4)
-    hole:SetPoint("CENTER")
-    hole:SetColorTexture(BG[1], BG[2], BG[3], 1)
-    local dot = minimapButtons:CreateTexture(nil, "OVERLAY", nil, 2)
-    dot:SetSize(4, 4)
-    dot:SetPoint("CENTER")
-    minimapButtons.parts[#minimapButtons.parts + 1] = dot
-    for _, t in ipairs({ ring, hole, dot }) do
-        if t.SetMask then pcall(t.SetMask, t, ROUND) end
+    local left = Part(minimapButtons, 7, 2, "CENTER", -2, 0)
+    local right = Part(minimapButtons, 7, 2, "CENTER", 2, 0)
+    function minimapButtons.SetOpen(open)
+        local tilt = open and -1 or 1
+        left:SetRotation(tilt * math.pi / 4)
+        right:SetRotation(-tilt * math.pi / 4)
     end
+    minimapButtons.SetOpen(false)
     Paint(minimapButtons, GREY)
     minimapButtons:Hide()
     if ns.Buttons then ns.Buttons.Build(minimapButtons) end
