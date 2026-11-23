@@ -72,6 +72,16 @@ end
 
 local function Noop() end
 
+-- A click on a button in the panel closes it, once the addon's own click has run.
+local function CloseAfterClick()
+    if not panel then return end
+    if C_Timer.After then
+        C_Timer.After(0, function() panel:Hide() end)
+    else
+        panel:Hide()
+    end
+end
+
 -- Hidden through LibDBIcon's own setting, or (a moved button) by its addon.
 local function Wanted(e)
     if e.orig then return not (e.orig.db and e.orig.db.hide) end
@@ -114,6 +124,7 @@ local function Proxy(name, orig, obj)
     b:SetScript("OnClick", function(self, button)
         local o = self.entry.obj
         if o.OnClick then pcall(o.OnClick, self, button) end
+        CloseAfterClick()
     end)
     b:SetScript("OnEnter", function(self)
         self:SetBackdropBorderColor(1, 0.82, 0, 1)
@@ -151,9 +162,17 @@ local function Move(button)
     o.setParent(button, panel)
     button.SetPoint, button.ClearAllPoints, button.SetParent = Noop, Noop, Noop
     if button.RegisterForDrag then pcall(button.RegisterForDrag, button) end
+    -- Some lock their strata and level (as LibDBIcon does; LFGForever's hand-made button too): a
+    -- locked button ignores the change and stays under the panel's background, which then takes
+    -- its clicks. Unlocked, raised over the panel, then locked again.
+    if button.SetFixedFrameStrata then pcall(button.SetFixedFrameStrata, button, false) end
+    if button.SetFixedFrameLevel then pcall(button.SetFixedFrameLevel, button, false) end
     button:SetFrameStrata(panel:GetFrameStrata())
     button:SetFrameLevel(panel:GetFrameLevel() + 2)
+    if button.SetFixedFrameStrata then pcall(button.SetFixedFrameStrata, button, true) end
+    if button.SetFixedFrameLevel then pcall(button.SetFixedFrameLevel, button, true) end
     button.SetFrameStrata, button.SetFrameLevel = Noop, Noop
+    if button.HookScript then button:HookScript("OnClick", CloseAfterClick) end
     return { frame = button, name = button:GetName(), moved = o }
 end
 
@@ -303,8 +322,10 @@ ns.RegisterCommand("buttons", "list the minimap buttons in the button panel", fu
         return
     end
     for _, e in ipairs(entries) do
-        ns.Printf("  %s  %s%s%s", e.name or "?", e.obj and "own button" or "moved",
-            Wanted(e) and "" or " (hidden)", e.obj and not e.obj.OnClick and " (no click)" or "")
+        local f = e.frame
+        ns.Printf("  %s  %s%s%s  %s %d", e.name or "?", e.obj and "own button" or "moved",
+            Wanted(e) and "" or " (hidden)", e.obj and not e.obj.OnClick and " (no click)" or "",
+            f:GetFrameStrata(), f:GetFrameLevel())
     end
     ns.Printf("%d button(s)", #entries)
 end)

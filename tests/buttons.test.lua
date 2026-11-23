@@ -73,6 +73,7 @@ H.test("panel: our own button per LibDBIcon addon; clicks reach the addon, origi
     local kept, made = {}, {}
     local G = {
         CreateFrame = function() local f = Obj(); made[#made + 1] = f; return f end,
+        FarZoomPanelShown = function() return made[1].shown end,
         LibStub = function() return lib end,
         C_Timer = { NewTicker = function() end }, UISpecialFrames = {}, UIParent = Obj(),
         Minimap = Obj(), GameTooltip = Obj(),
@@ -96,5 +97,43 @@ H.test("panel: our own button per LibDBIcon addon; clicks reach the addon, origi
     ours.scripts.OnClick(ours, "RightButton")
     H.eq(clicked, "RightButton", "the click went to the addon")
     M.Toggle()
+    H.eq(_G.FarZoomPanelShown(), true, "open")
+    ours.scripts.OnClick(ours, "LeftButton")
+    H.eq(_G.FarZoomPanelShown(), false, "a click closes the panel")
+    M.Toggle()
+    for k in pairs(G) do _G[k] = kept[k] end
+end)
+
+H.test("panel: a hand-made button with a locked layer is still raised over the panel", function()
+    local kept = {}
+    local function Locked(name)
+        local f = Obj()
+        f.strata, f.level, f.fixed = "MEDIUM", 8, true
+        f.GetName = function() return name end
+        f.IsObjectType = function() return true end
+        f.SetFixedFrameStrata = function(self, v) self.fixed = v end
+        f.SetFixedFrameLevel = function() end
+        f.SetFrameStrata = function(self, v) if not self.fixed then self.strata = v end end
+        f.SetFrameLevel = function(self, v) if not self.fixed then self.level = v end end
+        f.GetFrameStrata = function(self) return self.strata end
+        f.GetFrameLevel = function(self) return self.level end
+        return f
+    end
+    local lfg = Locked("LFGForeverMinimapButton")
+    local minimap = Obj()
+    minimap.GetChildren = function() return lfg end
+    local G = {
+        CreateFrame = function() return Obj() end, LibStub = function() return nil end,
+        C_Timer = { NewTicker = function() end }, UISpecialFrames = {}, UIParent = Obj(),
+        Minimap = minimap, GameTooltip = Obj(),
+    }
+    for k, v in pairs(G) do kept[k], _G[k] = _G[k], v end
+    local ns = { RegisterCommand = function() end, db = { bottomBar = true, buttonsPerRow = 6 }, Shell = {} }
+    local M = H.loadAddonFile("Shell/Buttons.lua", ns).Buttons
+    M.Build(Obj())
+    H.eq(M.Count(), 1)
+    H.eq(lfg.strata, "DIALOG", "in the panel's strata")
+    H.eq(lfg.level, 7, "above the panel")
+    H.eq(lfg.fixed, true, "and locked again")
     for k in pairs(G) do _G[k] = kept[k] end
 end)
