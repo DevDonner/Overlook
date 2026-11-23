@@ -55,10 +55,12 @@ function MapArt.Tiles(api, mapID, vec)
 end
 
 -- Which map's art to draw, or nil for the terrain alone.
--- s: { best (the player's map), mapType, hasArt, terrain (the instance has terrain tiles), indoors }
+-- s: { best (the player's map), mapType, hasArt, terrain (the instance has terrain tiles), indoors,
+--      cave (a cave's own minimap images are drawn here: they replace underground maps) }
 function MapArt.Choose(s)
     if not s.best or not s.hasArt then return nil end
     if not s.terrain then return s.best end -- a dungeon: its map is all there is
+    if s.cave then return nil end
     if s.indoors and (MapArt.UNDERGROUND[s.best] or s.mapType == MapArt.DUNGEON or s.mapType == MapArt.MICRO) then
         return s.best
     end
@@ -87,12 +89,12 @@ function MapArt.Floors(api, mapID)
     return floors
 end
 
--- The floor delta steps away from current (+1 down a level), clamped to the ends.
+-- The floor delta steps away from current (+1 down a level), wrapping past either end.
 function MapArt.StepFloor(floors, current, delta)
     local at
     for i, f in ipairs(floors) do
         if f.mapID == current then at = i end
     end
     if not at then return floors[1].mapID end
-    return floors[math.max(1, math.min(#floors, at + delta))].mapID
+    return floors[(at - 1 + delta) % #floors + 1].mapID
 end

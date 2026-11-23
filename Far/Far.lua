@@ -222,7 +222,10 @@ local function OnUpdate()
         layoutDirty = true
     end
 
-    if ns.FarArt then ns.FarArt.Update(GetTime(), tileSet ~= NO_TERRAIN) end
+    if ns.Caves then ns.Caves.Update(GetTime(), instance, n, w) end
+    if ns.FarArt then
+        ns.FarArt.Update(GetTime(), tileSet ~= NO_TERRAIN, ns.Caves and ns.Caves.IsDrawing())
+    end
 
     local zoomed = layoutDirty
     if radius ~= target then
@@ -277,6 +280,7 @@ local function OnUpdate()
         if ns.Routes then ns.Routes.SetLayout(instance, originN, originW, ppy) end
         if ns.Party then ns.Party.SetLayout(instance, originN, originW, ppy) end
         if ns.FarArt then ns.FarArt.SetLayout(instance, originN, originW, ppy) end
+        if ns.Caves then ns.Caves.SetLayout(instance, originN, originW, ppy) end
     end
     local a0, a1, b0, b1 = G.VisibleTiles(cN, cW, radius)
     if zoomed or tilesPending or a0 ~= c0 or a1 ~= c1 or b0 ~= r0 or b1 ~= r1 then
@@ -379,6 +383,7 @@ function Far.Leave(immediate)
     if ns.Routes then ns.Routes.SetLayout(nil) end
     if ns.Party then ns.Party.SetLayout(nil) end
     if ns.FarArt then ns.FarArt.SetLayout(nil) end
+    if ns.Caves then ns.Caves.SetLayout(nil) end
     Minimap:SetAlpha(1)
     RefreshNative()
     if immediate then
@@ -493,10 +498,29 @@ local function NativeZoom(delta)
     end
 end
 
+-- Alt+wheel in far mode moves through the levels of a cave, or the floors of a city or dungeon
+-- map: down goes deeper and wraps back to the top past the bottom. At most one step per
+-- LEVEL_COOLDOWN, so a fast wheel can't skip levels; steps inside it are swallowed, not zoomed.
+local LEVEL_COOLDOWN = 0.1
+local lastLevelStep = -math.huge
+
+local function HasLevels()
+    return (ns.Caves and ns.Caves.HasLevels()) or (ns.FarArt and ns.FarArt.HasFloors()) or false
+end
+
+local function StepLevel(delta)
+    local now = GetTime()
+    if now - lastLevelStep < LEVEL_COOLDOWN - 0.001 then return end -- (1 ms: float rounding)
+    lastLevelStep = now
+    if not (ns.Caves and ns.Caves.StepLevel(delta)) and ns.FarArt then ns.FarArt.StepFloor(delta) end
+end
+
 local function OnWheel(_, delta)
     local fine = IsControlKeyDown()
-    -- Shift+wheel changes floor on a multi-level map (and does nothing else there).
-    if mode == "far" and IsShiftKeyDown() and ns.FarArt and ns.FarArt.StepFloor(delta) then return end
+    if mode == "far" and IsAltKeyDown() and HasLevels() then
+        StepLevel(delta)
+        return
+    end
     if mode == "far" then
         Far.Step(delta, fine)
     elseif delta < 0 and Minimap:GetZoom() == 0 then
@@ -504,6 +528,11 @@ local function OnWheel(_, delta)
     else
         NativeZoom(delta)
     end
+end
+
+-- For the shell's Alt+drag catcher, which sits over the map while Alt is held.
+function Far.Wheel(delta)
+    OnWheel(nil, delta)
 end
 
 ----------------------------------------------------------------------------------------------------
@@ -548,6 +577,7 @@ function Far.Build(root, level)
     -- Party and raid dots: above the icons, below the player arrow (level + 5).
     if ns.Party then ns.Party.Build(canvas, view, level + 4) end
     if ns.FarArt then ns.FarArt.Build(canvas, view, level + 6) end
+    if ns.Caves then ns.Caves.Build(canvas, view, level + 6) end
     view:SetScript("OnMouseDown", function(_, button)
         if button == "LeftButton" then
             local x, y = Cursor()

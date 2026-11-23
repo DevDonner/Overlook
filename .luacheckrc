@@ -3,6 +3,7 @@ max_line_length = false
 
 exclude_files = {
     "Data/MinimapTiles.lua", -- vendored, generated
+    "Data/Caves.lua",        -- generated (tools/map-data/caves.py)
     ".lua/**",               -- CI's Lua install
     ".luarocks/**",
 }

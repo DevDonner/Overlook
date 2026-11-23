@@ -91,12 +91,19 @@ local function BuildCatcher()
     catcher = CreateFrame("Frame", nil, root)
     catcher:SetAllPoints(root)
     catcher:EnableMouse(false)
+    -- While Alt is held the catcher is over the map; the wheel goes on to the map (Alt+wheel
+    -- changes cave level or floor there).
+    catcher:EnableMouseWheel(false)
+    catcher:SetScript("OnMouseWheel", function(_, delta)
+        if ns.Far and ns.Far.Wheel then ns.Far.Wheel(delta) end
+    end)
     catcher:RegisterForDrag("LeftButton")
     catcher:SetScript("OnDragStart", function()
         -- The catcher can be left mouse-enabled if Alt was released while the game didn't have
         -- focus (Alt+Tab). Never move without Alt actually held.
         if not IsAltKeyDown() then
             catcher:EnableMouse(false)
+            catcher:EnableMouseWheel(false)
             return
         end
         if InCombatLockdown() then
@@ -113,6 +120,7 @@ local function BuildCatcher()
         SavePosition()
         ApplyNow() -- (not only the root: the Recenter button picks its side from the position)
         catcher:EnableMouse(IsAltKeyDown())
+        catcher:EnableMouseWheel(IsAltKeyDown())
     end
     catcher:SetScript("OnDragStop", Stop)
     catcher:SetScript("OnMouseUp", Stop)
@@ -177,7 +185,10 @@ end
 function Shell.SyncCatcher()
     if not catcher or root.moving then return end
     local want = IsAltKeyDown()
-    if catcher:IsMouseEnabled() ~= want then catcher:EnableMouse(want) end
+    if catcher:IsMouseEnabled() ~= want then
+        catcher:EnableMouse(want)
+        catcher:EnableMouseWheel(want)
+    end
 end
 
 function Shell.Build()

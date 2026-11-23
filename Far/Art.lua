@@ -1,7 +1,7 @@
 -- Map art on the far view: the game's own map of an underground city or a dungeon, drawn over
 -- the terrain where the terrain only shows the surface (or nothing). It sits on the far canvas
 -- like the tiles, so panning and zooming work the same over it. Multi-level maps change floor
--- with Shift+wheel. The choice of map is in Core/MapArt.lua.
+-- with Alt+wheel (Far/Far.lua). The choice of map is in Core/MapArt.lua.
 local _, ns = ...
 
 local A, G = ns.MapArt, ns.Geometry
@@ -34,8 +34,9 @@ local function BestMap()
     if best and not ns.IsSecret(best) then return best end
 end
 
--- The map to draw now, given whether the player's instance has terrain tiles.
-local function ChooseNow(terrain)
+-- The map to draw now, given whether the player's instance has terrain tiles and whether a
+-- cave's own images are drawn.
+local function ChooseNow(terrain, cave)
     local api, best = Api(), BestMap()
     if not best then return nil end
     local info = api.GetMapInfo(best)
@@ -46,6 +47,7 @@ local function ChooseNow(terrain)
         hasArt = layers ~= nil and #layers > 0,
         terrain = terrain,
         indoors = IsIndoors and IsIndoors() and true or false,
+        cave = cave or false,
     })
 end
 
@@ -76,7 +78,7 @@ local function Draw()
     local floors = chosen and A.Floors(Api(), chosen)
     if label and floors then
         local info = Api().GetMapInfo(drawn)
-        label:SetText((info and info.name or "?") .. "  (Shift+wheel: floor)")
+        label:SetText((info and info.name or "?") .. "  (Alt+wheel: floor)")
         label:Show()
     end
 end
@@ -112,17 +114,24 @@ function FarArt.UnitFromMap(unit)
 end
 
 -- Far mode calls this every frame; it looks at the player's map every CHECK_EVERY seconds.
-function FarArt.Update(now, terrain)
+-- cave: a cave is drawn here (Far/Caves.lua), so underground maps stand aside.
+function FarArt.Update(now, terrain, cave)
     if now < nextCheck or not Api() then return end
     nextCheck = now + CHECK_EVERY
-    local map = ChooseNow(terrain)
+    local map = ChooseNow(terrain, cave)
     if map ~= chosen then
         chosen, floorMap = map, nil
         Rebuild()
     end
 end
 
--- Shift+wheel: up (delta > 0) or down a floor. Returns true when there were floors to change.
+-- True when the drawn map has floors for Alt+wheel.
+function FarArt.HasFloors()
+    return layout ~= nil and chosen ~= nil and A.Floors(Api(), chosen) ~= nil
+end
+
+-- Alt+wheel: up (delta > 0) or down a floor, wrapping past either end. Returns true when there
+-- were floors to change.
 function FarArt.StepFloor(delta)
     local floors = chosen and A.Floors(Api(), chosen)
     if not floors then return false end

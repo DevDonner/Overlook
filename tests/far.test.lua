@@ -32,7 +32,7 @@ local function NewObj()
     })
 end
 
-local clock, pos, zoom, indoors, shift, best
+local clock, pos, zoom, indoors, alt, best
 
 local function V(x, y) return { x = x, y = y, GetXY = function(self) return self.x, self.y end } end
 
@@ -65,7 +65,7 @@ local GLOBALS = {
     C_Map = CMap,
     CreateVector2D = V,
     IsIndoors = function() return indoors end,
-    IsShiftKeyDown = function() return shift end,
+    IsAltKeyDown = function() return alt end,
     GetTime = function() return clock end,
     UnitPosition = function() if pos then return pos[1], pos[2], 0, pos[3] end end,
     GetCursorPosition = function() return 0, 0 end,
@@ -80,7 +80,7 @@ saved.Minimap, saved.CreateFrame = _G.Minimap, _G.CreateFrame
 local ns, Far, view, OnUpdate
 
 local function Fresh()
-    clock, pos, zoom, indoors, shift, best = 100, { -8949, -132, 0 }, 0, false, nil, nil
+    clock, pos, zoom, indoors, alt, best = 100, { -8949, -132, 0 }, 0, false, false, nil
     for k, v in pairs(GLOBALS) do _G[k] = v end
     local minimap = NewObj()
     minimap.GetZoom = function() return zoom end
@@ -100,8 +100,10 @@ local function Fresh()
     H.loadAddonFile("Core/Settings.lua", ns)
     H.loadAddonFile("Core/Zoom.lua", ns)
     H.loadAddonFile("Core/MapArt.lua", ns)
+    H.loadAddonFile("Core/CaveMath.lua", ns)
     H.loadAddonFile("Far/Far.lua", ns)
     H.loadAddonFile("Far/Art.lua", ns)
+    H.loadAddonFile("Far/Caves.lua", ns)
     Far = ns.Far
     Far.Build(NewObj(), 10)
     view = nil -- the far view: the frame with both OnUpdate and OnMouseWheel
@@ -225,16 +227,121 @@ H.test("indoors in Undercity the city's map is drawn; outdoors only the terrain"
     H.eq(ns.FarArt.ShownTiles(), 0)
 end)
 
-H.test("Shift+wheel changes floor in a multi-level dungeon; the plain wheel still zooms", function()
+local function Wheel(delta, dt)
+    if dt then clock = clock + dt end
+    view.scripts.OnMouseWheel(view, delta)
+end
+
+H.test("Alt+wheel changes floor in a multi-level dungeon, wrapping past the bottom", function()
     pos, best = nil, 100
     GoFar()
-    shift = true
-    view.scripts.OnMouseWheel(view, -1) -- down a level
+    alt = true
+    Wheel(-1) -- down a level
     H.eq(ns.FarArt.DrawnMap(), 101)
     H.eq(ns.FarArt.ShownTiles(), 4)
-    view.scripts.OnMouseWheel(view, 1)
-    H.eq(ns.FarArt.DrawnMap(), 100)
+    Wheel(-1, 0.1) -- past the bottom
+    H.eq(ns.FarArt.DrawnMap(), 100, "back to the top")
+    Wheel(1, 0.1) -- up from the top
+    H.eq(ns.FarArt.DrawnMap(), 101, "round to the bottom")
     H.truthy(Far.IsActive(), "a floor change never zooms back in")
+end)
+
+H.test("Alt+wheel with no levels here zooms as usual", function()
+    GoFar()
+    alt = true
+    Wheel(1) -- one step in from the first far step: back to the native minimap
+    Frame()
+    H.eq(Far.IsActive(), false)
+end)
+
+-- A three-level cave around the default player spot: each level a 128 yd image under the one
+-- above, so looking deeper hides the levels above.
+local function OneCave()
+    ns.CaveData = {
+        wmo = { [5] = {
+            { 1, 3, -64, -64, 501, 0, 0, 256, 256 },
+            { 2, 3, -64, -64, 502, 0, 0, 256, 256 },
+            { 3, 3, -64, -64, 503, 0, 0, 256, 256 },
+        } },
+        [0] = { { 5, -8949, -132, 0, -9013, -8885, -196, -68 } },
+    }
+end
+
+H.test("indoors in a cave, the far view draws all its levels from the top", function()
+    OneCave()
+    indoors = true
+    GoFar()
+    H.truthy(ns.Caves.IsDrawing())
+    H.eq(ns.Caves.ShownTiles(), 3)
+    H.eq(ns.Caves.Level(), 1)
+end)
+
+H.test("outdoors over a cave, only the terrain", function()
+    OneCave()
+    GoFar()
+    H.eq(ns.Caves.IsDrawing(), false)
+    H.eq(ns.Caves.ShownTiles(), 0)
+end)
+
+H.test("going outside stops drawing the cave", function()
+    OneCave()
+    indoors = true
+    GoFar()
+    indoors = false
+    Frame(0.3)
+    H.eq(ns.Caves.ShownTiles(), 0)
+end)
+
+H.test("Alt+wheel down goes a level deeper and wraps back to the top on the last step", function()
+    OneCave()
+    indoors = true
+    GoFar()
+    alt = true
+    Wheel(-1)
+    H.eq(ns.Caves.Level(), 2); H.eq(ns.Caves.ShownTiles(), 2, "the top level hides")
+    Wheel(-1, 0.1)
+    H.eq(ns.Caves.Level(), 3); H.eq(ns.Caves.ShownTiles(), 1)
+    Wheel(-1, 0.1)
+    H.eq(ns.Caves.Level(), 1, "past the bottom: the top again"); H.eq(ns.Caves.ShownTiles(), 3)
+    Wheel(1, 0.1)
+    H.eq(ns.Caves.Level(), 3, "up from the top: round to the bottom")
+    H.truthy(Far.IsActive(), "level changes never zoom")
+end)
+
+H.test("level changes wait 0.1 s between steps; steps inside it are swallowed, not zoomed", function()
+    OneCave()
+    indoors = true
+    GoFar()
+    alt = true
+    Wheel(-1)
+    Wheel(-1, 0.05)
+    H.eq(ns.Caves.Level(), 2, "too soon: no second step")
+    H.truthy(Far.IsActive(), "and no zoom either")
+    Wheel(-1, 0.05)
+    H.eq(ns.Caves.Level(), 3, "0.1 s after the first step")
+end)
+
+H.test("a new cave, or leaving far mode, starts back at the top level", function()
+    OneCave()
+    indoors = true
+    GoFar()
+    alt = true
+    Wheel(-1)
+    H.eq(ns.Caves.Level(), 2)
+    Far.Leave(true)
+    H.eq(ns.Caves.ShownTiles(), 0)
+    alt = false
+    GoFar()
+    H.eq(ns.Caves.Level(), 1)
+end)
+
+H.test("in a cave the cave's own images win over an underground city map", function()
+    OneCave()
+    indoors, best = true, 1458
+    GoFar()
+    Frame(0.6)
+    H.eq(ns.FarArt.DrawnMap(), nil)
+    H.eq(ns.Caves.ShownTiles(), 3)
 end)
 
 H.test("leaving far mode hides the map art", function()

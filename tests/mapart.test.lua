@@ -74,6 +74,11 @@ H.test("which map: indoors, only underground maps and dungeon-like maps replace 
         "an inn in Elwynn keeps the terrain")
 end)
 
+H.test("which map: where a cave's own images are drawn, underground maps stand aside", function()
+    H.eq(A.Choose({ best = 1458, hasArt = true, terrain = true, indoors = true, mapType = A.ZONE, cave = true }), nil)
+    H.eq(A.Choose({ best = 100, hasArt = true, terrain = false, cave = true }), 100, "a dungeon still draws its map")
+end)
+
 H.test("the player's world position from the map when UnitPosition gives none", function()
     local n, w, inst = A.PlayerFromMap(Api(), 100)
     H.eq(inst, 33)
@@ -104,10 +109,10 @@ H.test("floors: a map group's members in height order, else none", function()
     H.eq(floors[1].mapID, 101); H.eq(floors[2].name, "Lower")
 end)
 
-H.test("floors: stepping clamps at the ends and finds the current floor", function()
+H.test("floors: stepping wraps past either end and finds the current floor", function()
     local floors = { { mapID = 101 }, { mapID = 102 }, { mapID = 103 } }
     H.eq(A.StepFloor(floors, 102, 1), 103)
-    H.eq(A.StepFloor(floors, 103, 1), 103)
-    H.eq(A.StepFloor(floors, 101, -1), 101)
+    H.eq(A.StepFloor(floors, 103, 1), 101, "past the bottom: back to the top")
+    H.eq(A.StepFloor(floors, 101, -1), 103, "past the top: round to the bottom")
     H.eq(A.StepFloor(floors, 999, 1), 101, "unknown current: start at the first floor")
 end)
