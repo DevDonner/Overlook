@@ -321,7 +321,7 @@ BUILDERS[4] = { "Bars", function(p)
     p:Check("Calendar and addon buttons on the top bar", "barButtons",
         "Small buttons at the ends of the top bar for the game's calendar and addon compartment.", Apply)
     p:Check("Gather minimap buttons into a panel", "collectButtons",
-        "Other addons' minimap buttons go into a panel opened by the dots on the top bar. While MinimapButtonButton is enabled it handles them instead. Turning this off puts them back after a /reload.",
+        "Other addons' minimap buttons go into a panel opened by the round button left of the coordinates. While MinimapButtonButton is enabled it handles them instead. Turning this off puts them back after a /reload.",
         Apply)
     p:Slider("Buttons per row", "buttonsPerRow", 1, function(v) return tostring(v) end, nil, Apply)
     p:Check("Hide the game's buttons above the map", "hideGameButtons",

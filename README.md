@@ -72,7 +72,7 @@ See [docs/INSTALL.md](docs/INSTALL.md): download a ZIP, clone with Git, or link 
 | `/fzm icons` | List icon groups; e.g. `/fzm icons rarescanner size 0.6` |
 | `/fzm reset` | Move the map back to a visible spot at the default size |
 | `/fzm options coord` | The game's own options whose label has that text, their values and CVars |
-| `/fzm buttons` | The minimap buttons gathered into the top bar's panel |
+| `/fzm buttons` | The minimap buttons gathered into the bottom bar's panel |
 | `/fzm overrides` | What the bars switched off in other addons and the game (and what it was before) |
 | `/fzm areas` | Whether the far view can draw quest areas here, and how many zones it is drawing |
 | `/fzm caves` | Which cave the far view would draw here, its levels and the one shown, for checking in game |

@@ -1,4 +1,4 @@
--- Other addons' minimap buttons, gathered into a panel. A small button on the top bar opens it
+-- Other addons' minimap buttons, gathered into a panel. A small button on the bottom bar opens it
 -- (on click, not hover); the buttons sit in a grid inside, in the bars' style, and can't be dragged
 -- around the map any more. Buttons made later are picked up as they appear.
 --
@@ -47,7 +47,7 @@ function Buttons.LooksLikeButton(name)
 end
 
 local function Active()
-    if ns.db.collectButtons == false or not ns.db.topBar then return false end
+    if ns.db.collectButtons == false or not ns.db.bottomBar then return false end
     local loaded = _G.C_AddOns and _G.C_AddOns.IsAddOnLoaded
     if loaded and loaded("MinimapButtonButton") then return false end
     return true
@@ -69,7 +69,9 @@ end
 local function Noop() end
 
 -- Takes a button into the panel. Its own SetPoint / ClearAllPoints / SetParent are swapped for
--- no-ops (originals kept), so LibDBIcon and the addon can't pull it back onto the map edge.
+-- no-ops (originals kept), so LibDBIcon and the addon can't pull it back onto the map edge; its
+-- strata and level are locked too, or an addon resetting them drops it under the panel's
+-- background (the dark, greyed-out buttons).
 local function Collect(button)
     if collected[button] or not button.SetParent then return end
     collected[button] = {
@@ -82,6 +84,9 @@ local function Collect(button)
     if button.RegisterForDrag then pcall(button.RegisterForDrag, button) end -- no drag buttons
     if button.SetFrameStrata then button:SetFrameStrata(panel:GetFrameStrata()) end
     if button.SetFrameLevel then button:SetFrameLevel(panel:GetFrameLevel() + 2) end
+    if button.SetFixedFrameStrata then pcall(button.SetFixedFrameStrata, button, true) end
+    if button.SetFixedFrameLevel then pcall(button.SetFixedFrameLevel, button, true) end
+    button.SetFrameStrata, button.SetFrameLevel = Noop, Noop
 end
 
 local function Layout()
@@ -127,15 +132,11 @@ local function Scan()
 end
 Buttons.Scan = Scan
 
--- Below the top bar, or above it when the map sits in the lower half of the screen.
+-- Just above the bottom bar, from its left end (over the map, next to the button that opened it).
 local function PlacePanel()
     local bar = trigger:GetParent()
     panel:ClearAllPoints()
-    if (ns.db.y or 0) >= 0 then
-        panel:SetPoint("TOPRIGHT", bar, "BOTTOMRIGHT", 0, -2)
-    else
-        panel:SetPoint("BOTTOMRIGHT", bar, "TOPRIGHT", 0, 2)
-    end
+    panel:SetPoint("BOTTOMLEFT", bar, "TOPLEFT", 0, 2)
 end
 
 function Buttons.Toggle()
@@ -200,7 +201,8 @@ ns.RegisterCommand("buttons", "list the minimap buttons in the button panel", fu
         return
     end
     for _, b in ipairs(order) do
-        ns.Printf("  %s%s", b:GetName() or "?", Wanted(b) and "" or " (hidden)")
+        ns.Printf("  %s%s  %s %d  alpha %.2f", b:GetName() or "?", Wanted(b) and "" or " (hidden)",
+            b:GetFrameStrata(), b:GetFrameLevel(), b:GetAlpha())
     end
     ns.Printf("%d button(s)", #order)
 end)

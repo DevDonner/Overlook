@@ -17,6 +17,8 @@ local root, top, bottom
 local zoneText, coordText, zoomText, clockText
 local calendarButton, addonsButton, minimapButtons
 local ICON = 12        -- px, the top bar's buttons
+local RING = 13        -- px, the minimap-buttons symbol on the bottom bar
+local ROUND = "Interface\\CHARACTERFRAME\\TempPortraitAlphaMask"
 local GREY, GOLD, INVITE = { 0.75, 0.77, 0.8 }, { 1, 0.82, 0 }, { 1, 0.5, 0.15 }
 local headerHidden = false
 
@@ -233,13 +235,26 @@ local function BuildButtons()
     Part(addonsButton, q, q, "BOTTOMRIGHT", -2, 2)
     Paint(addonsButton, GREY)
 
-    -- Other addons' minimap buttons (Shell/Buttons.lua): three dots.
-    minimapButtons = SmallButton(top, function()
+    -- Other addons' minimap buttons (Shell/Buttons.lua): a round button symbol (ring and dot) at
+    -- the left end of the bottom bar, before the coordinates.
+    minimapButtons = SmallButton(bottom, function()
         local n = ns.Buttons and ns.Buttons.Count() or 0
         return string.format("Minimap buttons (%d)", n)
     end, function() if ns.Buttons then ns.Buttons.Toggle() end end)
-    minimapButtons:SetPoint("RIGHT", addonsButton, "LEFT", -2, 0)
-    for i = -1, 1 do Part(minimapButtons, 2, 2, "CENTER", i * 4, 0) end
+    minimapButtons:SetSize(RING + 4, RING + 4)
+    minimapButtons:SetPoint("LEFT", bottom, "LEFT", PAD - 3, 0)
+    local ring = Part(minimapButtons, RING, RING, "CENTER", 0, 0)
+    local hole = minimapButtons:CreateTexture(nil, "OVERLAY", nil, 1)
+    hole:SetSize(RING - 4, RING - 4)
+    hole:SetPoint("CENTER")
+    hole:SetColorTexture(BG[1], BG[2], BG[3], 1)
+    local dot = minimapButtons:CreateTexture(nil, "OVERLAY", nil, 2)
+    dot:SetSize(4, 4)
+    dot:SetPoint("CENTER")
+    minimapButtons.parts[#minimapButtons.parts + 1] = dot
+    for _, t in ipairs({ ring, hole, dot }) do
+        if t.SetMask then pcall(t.SetMask, t, ROUND) end
+    end
     Paint(minimapButtons, GREY)
     minimapButtons:Hide()
     if ns.Buttons then ns.Buttons.Build(minimapButtons) end
@@ -252,7 +267,12 @@ local function SyncBarButtons()
     if ns.Buttons then ns.Buttons.Apply() end
     -- The zone name stays centred: the same room on both sides, for the widest side.
     local inset = show and (ICON + 8) or 0
-    if minimapButtons:IsShown() then inset = inset + ICON + 6 end
+    coordText:ClearAllPoints()
+    if minimapButtons:IsShown() then
+        coordText:SetPoint("LEFT", minimapButtons, "RIGHT", 3, 0)
+    else
+        coordText:SetPoint("LEFT", bottom, "LEFT", PAD, 0)
+    end
     zoneText:ClearAllPoints()
     zoneText:SetPoint("LEFT", top, "LEFT", PAD + inset, 0)
     zoneText:SetPoint("RIGHT", top, "RIGHT", -(PAD + inset), 0)
@@ -317,7 +337,6 @@ function Bars.Build(rootFrame, level)
     root = rootFrame
     top = Strip(level)
     zoneText = Text(top, "CENTER")
-    BuildButtons()
     top:EnableMouse(true)
     top:SetScript("OnMouseUp", function(_, button)
         if button == "LeftButton" and ToggleWorldMap then ToggleWorldMap() end
@@ -332,6 +351,7 @@ function Bars.Build(rootFrame, level)
     zoomText = Text(bottom, "CENTER")
     zoomText:SetPoint("CENTER", bottom, "CENTER", 0, 0)
     zoomText:SetTextColor(0.7, 0.74, 0.8)
+    BuildButtons()
 
     local elapsed = 0
     bottom:SetScript("OnUpdate", function(_, dt)
