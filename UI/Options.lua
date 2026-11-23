@@ -293,6 +293,30 @@ BUILDERS[3] = { "Questie", function(p)
     p:DynamicList(Q.Townsfolk, "Questie's town list isn't available (is Questie loaded?).")
 end }
 
+BUILDERS[4] = { "Bars", function(p)
+    local function Apply() if ns.Bars then ns.Bars.Apply() end end
+    p:Header("Top bar")
+    p:Check("Show the zone name above the map", "topBar", "Click it to open the world map.", Apply)
+    p:Check("Over the map instead of above it", "topBarInside", nil, Apply)
+    p:Check("Add the zone after the subzone", "topBarZone", nil, Apply)
+    p:Check("Colour by PvP status", "topBarPvP", "Green friendly, red hostile, orange contested, blue sanctuary.", Apply)
+    p:Check("Hide the game's own zone header", "hideZoneHeader",
+        "The zone name the game shows above the minimap, while the top bar is on.", Apply)
+
+    p:Header("Bottom bar")
+    p:Check("Show the bottom bar", "bottomBar", nil, Apply)
+    p:Check("Over the map instead of below it", "bottomBarInside", nil, Apply)
+    p:Check("Coordinates", "barCoords", nil, Apply)
+    p:Slider("Coordinate decimals", "coordDecimals", 1, function(v) return tostring(v) end, nil, Apply)
+    p:Check("Far zoom distance", "barZoom", "How far the view reaches from the centre, while zoomed out.", Apply)
+    p:Check("Clock", "barClock", "Your computer's time.", Apply)
+    p:Check("24-hour clock", "clock24", nil, Apply)
+
+    p:Header("Style")
+    p:Slider("Text size", "barFont", 1, function(v) return v .. " px" end, nil, Apply)
+    p:Slider("Background opacity", "barAlpha", 0.05, Percent, nil, Apply)
+end }
+
 local function ShowPage(i)
     current = i
     for j, p in ipairs(pages) do
@@ -338,15 +362,16 @@ local function Build()
     title:SetPoint("TOP", f, "TOP", 0, -6)
     title:SetText("FarZoomMinimap")
 
-    local x = 12
+    local x, gap = 12, 3
+    local tabWidth = math.floor((WIDTH - 24 - gap * (#BUILDERS - 1)) / #BUILDERS)
     for i, b in ipairs(BUILDERS) do
         local page = NewPage(f, b[1])
         b[2](page)
         pages[i] = page
-        local tab = W.Button(f, b[1], 80, function() ShowPage(i) end)
+        local tab = W.Button(f, b[1], tabWidth, function() ShowPage(i) end)
         tab:SetPoint("TOPLEFT", f, "TOPLEFT", x, -28)
         tabs[i] = tab
-        x = x + 84
+        x = x + tabWidth + gap
     end
 
     f:SetScript("OnShow", function() ShowPage(current or 1) end)

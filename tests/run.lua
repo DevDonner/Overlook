@@ -20,6 +20,7 @@ local FILES = {
     "tests/caves.test.lua",
     "tests/questietoggles.test.lua",
     "tests/areas.test.lua",
+    "tests/bars.test.lua",
     "tests/options.test.lua",
 }
 

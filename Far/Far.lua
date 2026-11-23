@@ -329,6 +329,11 @@ function Far.IsActive()
     return mode == "far"
 end
 
+-- The far view's radius in yards (centre to edge), or nil in near mode.
+function Far.Radius()
+    return mode == "far" and radius or nil
+end
+
 -- Starts a new zoom step from wherever the view is now. delta follows the wheel: > 0 is in.
 function Far.Step(delta, fine)
     local r, leave = Zoom.FarStep(target, delta, fine, nativeMax, ns.db.maxFarZoom, IsPanned())
