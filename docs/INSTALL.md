@@ -14,7 +14,7 @@ Close the game, or be ready to log out to the character screen, before you start
 
 ## Option 1: download a ZIP (simplest)
 
-1. Open https://github.com/DevDonner/Overlook while logged in to GitHub (the repo is private).
+1. Open https://github.com/DevDonner/Overlook.
 2. Click **Code → Download ZIP**.
 3. Extract the ZIP. You get a folder called `Overlook-main`.
 4. Rename it to **`Overlook`**.
