@@ -59,7 +59,7 @@ See [docs/INSTALL.md](docs/INSTALL.md): download a ZIP, clone with Git, or link 
 - **Drag** the map to pan; **Recenter** (under the map), a **middle-click** or a **double-click** goes back to you. Zooming back in while centred hands over to the native minimap.
 - **Right-click** the far map to ping, like a click on the normal minimap. The game only pings within the normal minimap's range.
 - **Alt + drag** moves the map; the **corner grip** resizes it.
-- **Alt + wheel** in a cave changes level on the far map: it opens with every level stacked, and each step down separates the next level from the top, then back to the stack. In a city or dungeon with floors it steps through the floors.
+- **Alt + wheel** in a cave changes level on the far map: it opens with every level stacked, each step down peels off the top level, and past the bottom the whole stack comes back. In a city or dungeon with floors it steps through the floors.
 - **`/fzm`** opens the settings, as do the minimap button (right-click: recenter) and the addon compartment.
 
 | Command | Does |

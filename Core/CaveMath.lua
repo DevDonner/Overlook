@@ -47,19 +47,20 @@ end
 
 -- The next level for a wheel step: down (delta < 0) goes one level deeper and past the bottom
 -- back to the top; up goes the other way round.
--- Alt+wheel through a cave's levels. 0 is every level stacked (the start); down (delta < 0)
--- separates them one at a time from the top (1, 2, ... count), then wraps back to the stack.
--- Up goes the other way.
+-- Alt+wheel through a cave's levels. `at` is the top level of the stack shown (it and every level
+-- below): 1 is the whole stack (the start). Down (delta < 0) peels off the top level, and past the
+-- bottom level the whole stack comes back. Up puts the last peeled level back.
 function CaveMath.Step(at, count, delta)
-    if count <= 1 then return 0 end
-    if delta < 0 then return (at + 1) % (count + 1) end
-    return (at - 1) % (count + 1)
+    if count <= 1 then return 1 end
+    if delta < 0 then return at % count + 1 end
+    return (at - 2) % count + 1
 end
 
 -- How a level is drawn in the stack: its draw sublevel (top level highest, so it covers the
--- ones below) and brightness (each level down a little darker, so the depth reads). Pure.
-function CaveMath.StackLook(level)
-    return math.max(2, 8 - level), math.max(0.45, 1 - 0.15 * (level - 1))
+-- ones below) and brightness (each level under the stack's top a little darker, so the depth
+-- reads). depth: 1 for the stack's top level, 2 for the one under it, ... Pure.
+function CaveMath.StackLook(depth)
+    return math.max(2, 8 - depth), math.max(0.45, 1 - 0.15 * (depth - 1))
 end
 
 -- Every image of a placed cave as a quad on the world: { file, level, north, west (the image's
