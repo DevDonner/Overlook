@@ -90,32 +90,6 @@ local function EnhanceQoL()
     return type(addon) == "table" and type(addon.db) == "table" and addon.db or nil
 end
 
--- name: the addon's folder (also the prefix of what we remember); settings() -> its settings
--- table or nil; active(settings): whether its feature is on at all; refresh() redraws it.
-Overrides.PROVIDERS = {
-    {
-        name = "game", settings = GameCVars,
-        refresh = function()
-            for name, v in pairs(cvarValues) do
-                local ok, now = pcall(GetCVar, name)
-                if ok and now ~= v then pcall(SetCVar, name, v) end
-            end
-        end,
-    },
-    {
-        name = "EllesmereUIMinimap", map = Overrides.EUI, settings = EllesmereProfile,
-        refresh = function() if type(_G._EMM_ApplyMinimap) == "function" then _G._EMM_ApplyMinimap() end end,
-    },
-    {
-        name = "EnhanceQoL", map = Overrides.ENHANCE_QOL, settings = EnhanceQoL,
-        active = function(s) return s.enableSquareMinimapStats == true end,
-        refresh = function()
-            local f = _G.EnhanceQoL.functions
-            if f and f.applySquareMinimapStats then f.applySquareMinimapStats(true) end
-        end,
-    },
-}
-
 local NOTHING = {}
 
 -- The CVars that are the game's minimap-coordinates option, from a list of CVar names. Pure.
@@ -169,6 +143,33 @@ local function GameCVars()
     end
     return cvarValues
 end
+
+-- name: the addon's folder (also the prefix of what we remember); settings() -> its settings
+-- table or nil; active(settings): whether its feature is on at all; refresh() redraws it.
+Overrides.PROVIDERS = {
+    {
+        name = "game", settings = GameCVars,
+        refresh = function()
+            for name, v in pairs(cvarValues) do
+                local ok, now = pcall(GetCVar, name)
+                if ok and now ~= v then pcall(SetCVar, name, v) end
+            end
+        end,
+    },
+    {
+        name = "EllesmereUIMinimap", map = Overrides.EUI, settings = EllesmereProfile,
+        refresh = function() if type(_G._EMM_ApplyMinimap) == "function" then _G._EMM_ApplyMinimap() end end,
+    },
+    {
+        name = "EnhanceQoL", map = Overrides.ENHANCE_QOL, settings = EnhanceQoL,
+        active = function(s) return s.enableSquareMinimapStats == true end,
+        refresh = function()
+            local f = _G.EnhanceQoL.functions
+            if f and f.applySquareMinimapStats then f.applySquareMinimapStats(true) end
+        end,
+    },
+}
+
 
 local function GameClock(hide)
     local clock = _G.TimeManagerClockButton

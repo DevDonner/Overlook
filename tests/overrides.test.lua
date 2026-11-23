@@ -86,6 +86,8 @@ end)
 
 H.test("every provider covers only what our bars can show", function()
     for _, prov in ipairs(O.PROVIDERS) do
+        H.eq(type(prov.settings), "function", prov.name .. " settings")
+        H.eq(type(prov.refresh), "function", prov.name .. " refresh")
         for _, spec in ipairs(prov.map or {}) do
             H.truthy(spec[1] == "clock" or spec[1] == "coords" or spec[1] == "location", prov.name)
         end
