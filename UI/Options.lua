@@ -285,6 +285,11 @@ BUILDERS[2] = { "Icons", function(p)
             ns.db.partyDots = on
             if ns.Party then ns.Party.Refresh() end
         end }, "Class-coloured dots; faded when someone is offline.")
+    p:Check("Dungeon and raid entrances", { function() return ns.db.dungeonEntrances ~= false end,
+        function(on)
+            ns.db.dungeonEntrances = on
+            if ns.Entrances then ns.Entrances.Refresh() end
+        end }, "On the normal and the far minimap. Hover one for its name and level range, coloured for your level.")
     p:Check("Game's own quest and town icons", { function() return ns.db.nativeIcons == true end,
         function(on) ns.NativeIcons.SetShown(on) end },
         "Off: only Questie's icons, so turn-ins and town services aren't drawn twice. The game's own icons only show at native zoom. Find Herbs and other tracking spells are left alone.")

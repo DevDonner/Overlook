@@ -294,6 +294,7 @@ local function OnUpdate()
         if ns.Mirror then ns.Mirror.SetLayout(instance, originN, originW, ppy, Zoom.Shrink(radius, nativeMax)) end
         if ns.Routes then ns.Routes.SetLayout(instance, originN, originW, ppy) end
         if ns.Party then ns.Party.SetLayout(instance, originN, originW, ppy) end
+        if ns.Entrances then ns.Entrances.SetLayout(instance, originN, originW, ppy) end
         if ns.FarArt then ns.FarArt.SetLayout(instance, originN, originW, ppy) end
         if ns.Caves then ns.Caves.SetLayout(instance, originN, originW, ppy) end
         if ns.Areas then ns.Areas.SetLayout(instance, originN, originW, ppy) end
@@ -307,15 +308,23 @@ local function OnUpdate()
     -- Hover: party dots sit above the icons, so a dot under the cursor wins.
     if view:IsMouseOver() and CursorInside() and not (drag and drag.moved) then
         local unit = ns.Party and ns.Party.UnitUnderCursor()
+        local place = not unit and ns.Entrances and ns.Entrances.UnderCursor()
         if unit then
             if ns.Mirror then ns.Mirror.ClearHover() end
+            if ns.Entrances then ns.Entrances.SetHover(nil) end
             ns.Party.SetHover(unit)
+        elseif place then
+            if ns.Mirror then ns.Mirror.ClearHover() end
+            if ns.Party then ns.Party.SetHover(nil) end
+            ns.Entrances.SetHover(place)
         else
             if ns.Party then ns.Party.SetHover(nil) end
+            if ns.Entrances then ns.Entrances.SetHover(nil) end
             if ns.Mirror then ns.Mirror.UpdateHover() end
         end
     else
         if ns.Party then ns.Party.SetHover(nil) end
+        if ns.Entrances then ns.Entrances.SetHover(nil) end
         if ns.Mirror then ns.Mirror.ClearHover() end
     end
 
@@ -414,6 +423,7 @@ function Far.Leave(immediate)
     end
     if ns.Routes then ns.Routes.SetLayout(nil) end
     if ns.Party then ns.Party.SetLayout(nil) end
+    if ns.Entrances then ns.Entrances.SetLayout(nil) end
     if ns.FarArt then ns.FarArt.SetLayout(nil) end
     if ns.Caves then ns.Caves.SetLayout(nil) end
     if ns.Areas then ns.Areas.SetLayout(nil) end
@@ -733,6 +743,8 @@ function Far.Build(root, level)
     if ns.Routes then ns.Routes.Build(canvas) end
     -- Party and raid dots: above the icons, below the player arrow (level + 5).
     if ns.Party then ns.Party.Build(canvas, view, level + 4) end
+    -- Dungeon and raid entrances: with the icons, below the party dots.
+    if ns.Entrances then ns.Entrances.Build(canvas, view, level + 3) end
     if ns.FarArt then ns.FarArt.Build(canvas, view, level + 6) end
     if ns.Caves then ns.Caves.Build(canvas, view, level + 6) end
     view:SetScript("OnMouseDown", function(_, button)
@@ -751,6 +763,7 @@ function Far.Build(root, level)
     view:SetScript("OnLeave", function()
         if ns.Mirror then ns.Mirror.ClearHover() end
         if ns.Party then ns.Party.SetHover(nil) end
+        if ns.Entrances then ns.Entrances.SetHover(nil) end
     end)
 
     arrowFrame = CreateFrame("Frame", nil, view)

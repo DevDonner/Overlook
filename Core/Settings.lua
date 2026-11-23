@@ -21,6 +21,7 @@ Settings.DEFAULTS = {
     routeWidth = 1.5,     -- px, far-map route lines
     routeAlpha = 1,       -- opacity of the far-map route lines (times Questie's own)
     partyDots = true,     -- party and raid members on the far map
+    dungeonEntrances = true, -- dungeon and raid entrances, on both maps, with name and levels
     nativeIcons = false,  -- the game's own quest and town icons (Questie draws them instead)
     arrowScale = 1,       -- player arrow size on the far map (1 = the native arrow's size)
     questAreas = true,    -- the game's blue quest areas on the far map

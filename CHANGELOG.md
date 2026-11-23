@@ -8,6 +8,7 @@ First release, for WoW Forever (1.60.1). Requires Questie.
 - Questie icons on the far map at every zoom, with Questie's own tooltips and clicks; Questie's NPC patrol routes too.
 - Other addons' map icons (RareScanner, TomTom), with per-group show, size and shrink-with-zoom.
 - Party and raid members as class-coloured dots.
+- Dungeon and raid entrances on the normal and the far minimap; hover for the name and level range, coloured for your level.
 - The game's blue quest areas on the far map, with adjustable opacity.
 - Caves on the far map with every level stacked; Alt + wheel peels them off one at a time. Floors in cities and dungeons.
 - Pings drawn on the far map.

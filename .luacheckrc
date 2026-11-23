@@ -21,7 +21,7 @@ read_globals = {
     "C_AddOns", "C_Map", "C_Minimap", "C_Timer",
     "CreateFrame", "GameTooltip", "GetNumGroupMembers", "GetPlayerFacing", "GetTime", "GetCursorPosition", "debugstack",
     "InCombatLockdown", "IsInRaid", "Minimap", "UIParent",
-    "UnitName", "UnitPosition", "issecretvalue", "UnitClass", "UnitIsUnit", "UnitIsConnected",
+    "UnitName", "UnitPosition", "UnitLevel", "issecretvalue", "UnitClass", "UnitIsUnit", "UnitIsConnected",
     "hooksecurefunc", "IsAltKeyDown", "IsMouseButtonDown", "IsControlKeyDown", "MinimapCluster",
     "UISpecialFrames", "HideUIPanel", "IsIndoors", "IsShiftKeyDown", "CreateVector2D", "UnitExists",
     "GetCVar", "SetCVar", "GetNumTrackingTypes", "GetTrackingInfo", "SetTracking",

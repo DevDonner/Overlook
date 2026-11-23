@@ -21,6 +21,7 @@ The full design, with decisions, risks and the test plan, is in [docs/design.md]
 - Questie's NPC patrol routes on the far map
 - Other addons' map icons too (RareScanner, TomTom): per-group show, size and shrink-with-zoom
 - Party and raid members as class-coloured dots on the far map
+- Dungeon and raid entrances on both maps; hover one for its name and level range, coloured for your level
 - The game's blue quest areas on the far map, with adjustable opacity, fitted to the round map
 - Caves drawn on the far map, every level stacked; Alt + wheel peels them off one by one
 - Drag to pan, with a Recenter button; a panned map stays put while you move
@@ -93,5 +94,5 @@ Install from CurseForge (the CurseForge app, or download the zip into `_forever_
 
 MIT: see `LICENSE`.
 
-`Data/MinimapTiles.lua` is OpenMap's tile table, used under the MIT licence (`LICENSES/OpenMap-LICENSE.txt`).
+`Data/MinimapTiles.lua` is OpenMap's tile table and `Data/Entrances.lua` its dungeon entrance table, used under the MIT licence (`LICENSES/OpenMap-LICENSE.txt`).
 `Data/Caves.lua` is generated from the game's own files by `tools/map-data/caves.py`, and holds only file IDs and positions, no game art.

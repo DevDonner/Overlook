@@ -45,6 +45,7 @@ No Questie means no icons to show, so Questie is a required dependency.
 - **Other addons' icons**: RareScanner, TomTom and anything else on the shared map-pin registry, each group with its own show, size and shrink-with-zoom.
 - **Quest areas**: the game's blue quest areas, drawn on the far map too.
 - **Caves**: the whole cave with every level stacked; **Alt + wheel** peels off the top level, one at a time. Floors in cities and dungeons.
+- **Dungeon and raid entrances** on both maps: hover one for its name and level range, coloured for your level.
 - **Party and raid** members as class-coloured dots; **pings** shown on the far map.
 - **Pan** by dragging; **Recenter**, middle-click or double-click to come back.
 - **Mount zoom**: zooms out when you mount, back when you dismount.

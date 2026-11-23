@@ -19,6 +19,7 @@ Core\Layout.lua
 Core\MapArt.lua
 Core\CaveMath.lua
 Core\PinSources.lua
+Core\EntranceMath.lua
 Core\NativeIcons.lua
 Core\QuestieCheck.lua
 Core\QuestieToggles.lua
@@ -26,6 +27,7 @@ Core\BarText.lua
 Core\Profiles.lua
 Data\MinimapTiles.lua
 Data\Caves.lua
+Data\Entrances.lua
 Shell\Shell.lua
 Shell\Grip.lua
 Shell\Bars.lua
@@ -40,5 +42,6 @@ Far\Pings.lua
 Pins\Mirror.lua
 Pins\Routes.lua
 Pins\Party.lua
+Pins\Entrances.lua
 UI\Widgets.lua
 UI\Options.lua

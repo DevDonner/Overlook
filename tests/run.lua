@@ -14,6 +14,7 @@ local FILES = {
     "tests/layout.test.lua",
     "tests/nativeicons.test.lua",
     "tests/party.test.lua",
+    "tests/entrances.test.lua",
     "tests/far.test.lua",
     "tests/questiecheck.test.lua",
     "tests/mapart.test.lua",
