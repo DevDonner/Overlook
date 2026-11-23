@@ -144,11 +144,10 @@ function Caves.ShownTiles() return shown end
 
 function Caves.Build(canvasFrame, viewFrame, level)
     canvas, view = canvasFrame, viewFrame
-    -- Hides the terrain while a cave is drawn (above the tiles, below the cave images), in the
-    -- far view's own background colour.
+    -- Hides the terrain while a cave is drawn (above the tiles, below the cave images): black.
     cover = canvas:CreateTexture(nil, "ARTWORK", nil, 1)
     cover:SetAllPoints(view)
-    cover:SetColorTexture(0.06, 0.07, 0.09, 1)
+    cover:SetColorTexture(0, 0, 0, 1)
     cover:Hide()
     if ns.Far and ns.Far.Shape then ns.Far.Shape(cover) end
     local top = CreateFrame("Frame", nil, view)

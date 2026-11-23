@@ -70,13 +70,12 @@ H.test("wheel: down peels the top level off the stack, past the bottom the whole
     H.eq(C.Step(1, 1, -1), 1, "one level: nothing to step")
 end)
 
-H.test("stack: the top level drawn highest and brightest, deeper ones under it and darker", function()
+H.test("stack: the top level drawn highest, every level at the same brightness", function()
     local s1, l1 = C.StackLook(1)
     local s2, l2 = C.StackLook(2)
-    H.truthy(s1 > s2); H.truthy(l1 > l2)
-    H.eq(l1, 1)
+    H.truthy(s1 > s2); H.eq(l1, 1); H.eq(l2, 1)
     local s9, l9 = C.StackLook(9)
-    H.eq(s9, 2, "never under the terrain cover"); H.eq(l9, 0.45)
+    H.eq(s9, 2, "never under the terrain cover"); H.eq(l9, 1)
 end)
 
 H.test("generated data: the spot checked in game is in Wailing Caverns, with its images", function()

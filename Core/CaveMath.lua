@@ -57,10 +57,12 @@ function CaveMath.Step(at, count, delta)
 end
 
 -- How a level is drawn in the stack: its draw sublevel (top level highest, so it covers the
--- ones below) and brightness (each level under the stack's top a little darker, so the depth
--- reads). depth: 1 for the stack's top level, 2 for the one under it, ... Pure.
+-- ones below) and brightness. Every level is drawn at full brightness: the level numbers come
+-- from the cave's files, not from how the levels connect, so shading deeper ones darker would
+-- suggest an order that may not be the real one. depth: 1 for the stack's top level, 2 for the
+-- one under it, ... Pure.
 function CaveMath.StackLook(depth)
-    return math.max(2, 8 - depth), math.max(0.45, 1 - 0.15 * (depth - 1))
+    return math.max(2, 8 - depth), 1
 end
 
 -- Every image of a placed cave as a quad on the world: { file, level, north, west (the image's
