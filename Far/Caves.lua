@@ -1,7 +1,8 @@
 -- Caves on the far view. Indoors in a cave (or mine, or building), the far view draws one level
 -- of the cave's own minimap images and hides the terrain, which only shows the surface there,
 -- like the native minimap indoors. It sits on the far canvas like the tiles, so panning and
--- zooming work the same. The view starts at the top level; Alt+wheel moves through the levels
+-- zooming work the same. The view starts with every level stacked (the top one drawn over the
+-- rest); Alt+wheel down separates them one at a time from the top, then back to the stack
 -- (Far/Far.lua).
 -- The maths is in Core/CaveMath.lua and the data in Data/Caves.lua (tools/map-data/caves.py).
 local _, ns = ...
@@ -18,7 +19,7 @@ local textures, shown = {}, 0
 local placement          -- the placed cave the player is in, or nil
 local quads = {}         -- CaveMath.Quads for it
 local count = 1          -- its number of levels
-local at = 1             -- the level looked at (1 = top)
+local at = 0             -- the level looked at: 0 = all stacked, 1 = top
 local layout             -- { inst, n, w, ppy } while far mode is drawing
 local caveInst           -- the instance the placement is on
 local nextCheck = 0
@@ -41,7 +42,7 @@ local function Draw()
     cover:Show()
     local n = 0
     for _, q in ipairs(quads) do
-        if q.level == at then
+        if at == 0 or q.level == at then
             n = n + 1
             local tex = textures[n]
             if not tex then
@@ -58,19 +59,23 @@ local function Draw()
             tex:SetPoint("CENTER", canvas, "CENTER", x, y)
             tex:SetSize(q.width * layout.ppy, q.height * layout.ppy)
             tex:SetRotation(q.rotation)
+            local sub, light = C.StackLook(at == 0 and q.level or 1)
+            tex:SetDrawLayer("ARTWORK", sub)
+            tex:SetVertexColor(light, light, light)
             tex:Show()
         end
     end
     shown = n
     if count > 1 then
-        label:SetText(string.format("Level %d of %d  (Alt+wheel)", at, count))
+        label:SetText(at == 0 and string.format("All %d levels  (Alt+wheel to separate)", count)
+            or string.format("Level %d of %d  (Alt+wheel)", at, count))
         label:Show()
     end
 end
 
 local function SetPlacement(p, inst)
     if p == placement then return end
-    placement, caveInst, at = p, inst, 1
+    placement, caveInst, at = p, inst, 0
     if p then
         local _, wmo = Data(inst)
         local groups = wmo[p[1]]
@@ -104,7 +109,8 @@ function Caves.HasLevels()
     return Caves.IsDrawing() and count > 1
 end
 
--- Alt+wheel: down (delta < 0) a level, wrapping past the bottom to the top. True when handled.
+-- Alt+wheel: down (delta < 0) separates the next level, wrapping past the bottom to the stack.
+-- True when handled.
 function Caves.StepLevel(delta)
     if not Caves.HasLevels() then return false end
     at = C.Step(at, count, delta)

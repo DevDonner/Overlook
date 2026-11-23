@@ -268,13 +268,13 @@ local function OneCave()
     }
 end
 
-H.test("indoors in a cave, the far view draws its top level only", function()
+H.test("indoors in a cave, the far view draws every level stacked", function()
     OneCave()
     indoors = true
     GoFar()
     H.truthy(ns.Caves.IsDrawing())
-    H.eq(ns.Caves.ShownTiles(), 2, "the top level's two images, not the levels below")
-    H.eq(ns.Caves.Level(), 1)
+    H.eq(ns.Caves.ShownTiles(), 4, "all three levels' images")
+    H.eq(ns.Caves.Level(), 0)
 end)
 
 H.test("outdoors over a cave, only the terrain", function()
@@ -293,19 +293,21 @@ H.test("going outside stops drawing the cave", function()
     H.eq(ns.Caves.ShownTiles(), 0)
 end)
 
-H.test("Alt+wheel down goes a level deeper and wraps back to the top on the last step", function()
+H.test("Alt+wheel down separates the levels from the top, then wraps back to the stack", function()
     OneCave()
     indoors = true
     GoFar()
     alt = true
     Wheel(-1)
+    H.eq(ns.Caves.Level(), 1); H.eq(ns.Caves.ShownTiles(), 2, "only the top level")
+    Wheel(-1, 0.1)
     H.eq(ns.Caves.Level(), 2); H.eq(ns.Caves.ShownTiles(), 1, "only level 2")
     Wheel(-1, 0.1)
     H.eq(ns.Caves.Level(), 3); H.eq(ns.Caves.ShownTiles(), 1)
     Wheel(-1, 0.1)
-    H.eq(ns.Caves.Level(), 1, "past the bottom: the top again"); H.eq(ns.Caves.ShownTiles(), 2)
+    H.eq(ns.Caves.Level(), 0, "past the bottom: the stack again"); H.eq(ns.Caves.ShownTiles(), 4)
     Wheel(1, 0.1)
-    H.eq(ns.Caves.Level(), 3, "up from the top: round to the bottom")
+    H.eq(ns.Caves.Level(), 3, "up from the stack: the bottom level")
     H.truthy(Far.IsActive(), "level changes never zoom")
 end)
 
@@ -316,24 +318,24 @@ H.test("level changes wait 0.1 s between steps; steps inside it are swallowed, n
     alt = true
     Wheel(-1)
     Wheel(-1, 0.05)
-    H.eq(ns.Caves.Level(), 2, "too soon: no second step")
+    H.eq(ns.Caves.Level(), 1, "too soon: no second step")
     H.truthy(Far.IsActive(), "and no zoom either")
     Wheel(-1, 0.05)
-    H.eq(ns.Caves.Level(), 3, "0.1 s after the first step")
+    H.eq(ns.Caves.Level(), 2, "0.1 s after the first step")
 end)
 
-H.test("a new cave, or leaving far mode, starts back at the top level", function()
+H.test("a new cave, or leaving far mode, starts back at the stack", function()
     OneCave()
     indoors = true
     GoFar()
     alt = true
     Wheel(-1)
-    H.eq(ns.Caves.Level(), 2)
+    H.eq(ns.Caves.Level(), 1)
     Far.Leave(true)
     H.eq(ns.Caves.ShownTiles(), 0)
     alt = false
     GoFar()
-    H.eq(ns.Caves.Level(), 1)
+    H.eq(ns.Caves.Level(), 0)
 end)
 
 H.test("in a cave the cave's own images win over an underground city map", function()
@@ -342,7 +344,7 @@ H.test("in a cave the cave's own images win over an underground city map", funct
     GoFar()
     Frame(0.6)
     H.eq(ns.FarArt.DrawnMap(), nil)
-    H.eq(ns.Caves.ShownTiles(), 2)
+    H.eq(ns.Caves.ShownTiles(), 4)
 end)
 
 H.test("leaving far mode hides the map art", function()
