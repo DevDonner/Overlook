@@ -67,11 +67,9 @@ local function Build()
     end
 end
 
+-- Our own width (px) and opacity: Questie's minimap width, scaled up with the map, was too thick.
 local function Thickness()
-    local profile = _G.Questie and _G.Questie.db and _G.Questie.db.profile
-    local width = (profile and tonumber(profile.waypointWidth)) or 2
-    -- Questie's width is in native minimap units; the native minimap is scaled to the shell size.
-    return math.max(1, width * ns.db.size / math.max(ns.Shell.nativeSize or 1, 1))
+    return ns.db.routeWidth or 1.5
 end
 
 local function Line(i)
@@ -107,7 +105,7 @@ local function Draw()
                             line:SetStartPoint("CENTER", canvas, lastX, lastY)
                             line:SetEndPoint("CENTER", canvas, x, y)
                             line:SetThickness(thick)
-                            line:SetVertexColor(route.r, route.g, route.b, route.a)
+                            line:SetVertexColor(route.r, route.g, route.b, route.a * (ns.db.routeAlpha or 1))
                             line:Show()
                             lastX, lastY = x, y
                         end

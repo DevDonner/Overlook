@@ -18,7 +18,9 @@ ns.Far = Far
 
 local TILE = G.TILE_YARDS
 local FALLBACK_RADIUS = 700 / 3  -- the widest native step outdoors on 1.60.1
-local NEW_TILES_PER_FRAME = 16
+-- Tiles added per frame: at least NEW_TILES_PER_FRAME, more when many are missing (a big zoom
+-- out at 6,400 yd needs ~600), so a full view fills in within about LOAD_FRAMES frames.
+local NEW_TILES_PER_FRAME, MAX_TILES_PER_FRAME, LOAD_FRAMES = 16, 64, 12
 local ARROW_SIZE = 32            -- px at native minimap scale
 local ARROW_TEXTURE = "Interface\\Minimap\\MinimapArrow"
 
@@ -28,6 +30,8 @@ local radius, target, tweenFrom, tweenStart, leaving
 local nativeMax = FALLBACK_RADIUS
 local instance, tileSet, originN, originW
 local active, pool = {}, {}      -- active[key] = texture, or false when the tile has no art
+local loadStart, loadCount       -- GetTime() and tiles added since the current fill began
+local lastLoad                   -- { seconds, tiles, radius } of the last fill, for /fzm far
 local c0, c1, r0, r1             -- the tile range on screen
 local layoutDirty, tilesPending = false, false
 local lastFacing
@@ -147,8 +151,8 @@ end
 local missing, distance = {}, {}
 local function ByDistance(a, b) return distance[a] < distance[b] end
 
--- Drops tiles that left the range and adds missing ones, nearest first, at most
--- NEW_TILES_PER_FRAME per frame so a big zoom-out never stalls a frame (#28).
+-- Drops tiles that left the range and adds missing ones, nearest first, a budget per frame so a
+-- big zoom-out never stalls a frame (#28).
 local function UpdateTiles(a0, a1, b0, b1, n, w, ppy)
     for key in pairs(active) do
         local col, row = G.KeyToTile(key)
@@ -167,15 +171,18 @@ local function UpdateTiles(a0, a1, b0, b1, n, w, ppy)
             end
         end
     end
-    if #missing > NEW_TILES_PER_FRAME then table.sort(missing, ByDistance) end
+    local budget = math.min(MAX_TILES_PER_FRAME, max(NEW_TILES_PER_FRAME, math.ceil(#missing / LOAD_FRAMES)))
+    if #missing > budget then table.sort(missing, ByDistance) end
+    if #missing > 0 and not loadStart then loadStart, loadCount = GetTime(), 0 end
 
     local added = 0
     for i = 1, #missing do
         local key = missing[i]
         local fid = tileSet[key]
         if fid then
-            if added >= NEW_TILES_PER_FRAME then
+            if added >= budget then
                 tilesPending = true
+                loadCount = loadCount + added
                 return
             end
             local t = AcquireTexture()
@@ -188,6 +195,10 @@ local function UpdateTiles(a0, a1, b0, b1, n, w, ppy)
         end
     end
     tilesPending = false
+    if loadStart then
+        lastLoad = { GetTime() - loadStart, loadCount + added, radius }
+        loadStart = nil
+    end
 end
 
 ----------------------------------------------------------------------------------------------------
@@ -538,11 +549,17 @@ end
 ----------------------------------------------------------------------------------------------------
 -- Setup
 
+-- The player arrow: the native arrow's size at this map size, times the arrow size setting.
+function Far.ApplyArrowSize()
+    if not arrow then return end
+    local s = ARROW_SIZE * ns.db.size / max(ns.Shell.nativeSize or 1, 1) * (ns.db.arrowScale or 1)
+    arrow:SetSize(s, s)
+end
+
 -- Called by the shell after every layout pass (size change, Edit Mode, CVar).
 function Far.OnShellApplied()
     if not view then return end
-    local s = ARROW_SIZE * ns.db.size / max(ns.Shell.nativeSize or 1, 1)
-    arrow:SetSize(s, s)
+    Far.ApplyArrowSize()
     layoutDirty = true
     -- Proxy sizes follow the native icons, which scale with the Minimap.
     if ns.Mirror then ns.Mirror.MarkAllDirty() end
@@ -634,11 +651,14 @@ ns.RegisterCommand("far", "show far-zoom state", function()
         mode, radius and string.format("%.0f", radius) or "-", target and string.format("%.0f", target) or "-",
         nativeMax, ns.db.maxFarZoom)
     ns.Printf("tiles shown %d  pooled %d  instance %s  pending %s", n, #pool, ns.Show(instance), tostring(tilesPending))
+    if lastLoad then
+        ns.Printf("last fill: %d tiles in %.2f s (at %.0f yd)", lastLoad[2], lastLoad[1], lastLoad[3] or 0)
+    end
 end)
 
-ns.RegisterCommand("maxzoom", "set the far-zoom limit in yards (500-3200), e.g. /fzm maxzoom 3200", function(arg)
+ns.RegisterCommand("maxzoom", "set the far-zoom limit in yards (500-6400), e.g. /fzm maxzoom 6400", function(arg)
     if not tonumber(arg) then
-        ns.Printf("max far zoom is %d yd; usage: /fzm maxzoom 3200", ns.db.maxFarZoom)
+        ns.Printf("max far zoom is %d yd; usage: /fzm maxzoom 6400", ns.db.maxFarZoom)
         return
     end
     Far.SetMaxZoom(arg)

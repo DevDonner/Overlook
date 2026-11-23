@@ -260,7 +260,7 @@ ns.RegisterCommand("reset", "move the minimap back to a visible spot at the defa
     ns.Print("minimap reset")
 end)
 
-ns.RegisterCommand("size", "set the minimap size in px (120-600), e.g. /fzm size 250", function(arg)
+ns.RegisterCommand("size", "set the minimap size in px (120-800), e.g. /fzm size 250", function(arg)
     if not tonumber(arg) then
         ns.Printf("size is %d px; usage: /fzm size 250", ns.db.size)
         return

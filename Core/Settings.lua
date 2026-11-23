@@ -4,33 +4,48 @@ local _, ns = ...
 local Settings = {}
 ns.Settings = Settings
 
-Settings.VERSION = 2
-Settings.SIZE_MIN, Settings.SIZE_MAX = 120, 600
-Settings.FAR_MIN, Settings.FAR_MAX = 500, 3200
+Settings.VERSION = 3
+Settings.SIZE_MIN, Settings.SIZE_MAX = 120, 800
+Settings.FAR_MIN, Settings.FAR_MAX = 500, 6400
 
 -- x/y (the frame's centre offset from the screen centre) start unset: the first login places the
 -- frame where the native minimap was.
 Settings.DEFAULTS = {
     size = 200,           -- px, square
     locked = false,       -- hides the resize grip; Alt+drag still moves it
-    maxFarZoom = 2000,    -- yd radius; setting goes up to 3,200
+    maxFarZoom = 2000,    -- yd radius; setting goes up to 6,400
     rotate = false,
     clustering = false,
     smoothZoom = true,    -- tween far-zoom steps
     routes = true,        -- Questie's NPC routes on the far map
+    routeWidth = 1.5,     -- px, far-map route lines
+    routeAlpha = 1,       -- opacity of the far-map route lines (times Questie's own)
     partyDots = true,     -- party and raid members on the far map
     nativeIcons = false,  -- the game's own quest and town icons (Questie draws them instead)
+    arrowScale = 1,       -- player arrow size on the far map (1 = the native arrow's size)
 }
 
-function Settings.ClampSize(n)
-    n = tonumber(n) or Settings.DEFAULTS.size
-    return math.max(Settings.SIZE_MIN, math.min(Settings.SIZE_MAX, math.floor(n + 0.5)))
+-- Numeric settings: min, max, and whether they're whole numbers. Load clamps every one of them,
+-- and the settings window uses the same ranges for its sliders.
+Settings.RANGES = {
+    size = { Settings.SIZE_MIN, Settings.SIZE_MAX, true },
+    maxFarZoom = { Settings.FAR_MIN, Settings.FAR_MAX, true },
+    routeWidth = { 0.5, 6 },
+    routeAlpha = { 0.1, 1 },
+    arrowScale = { 0.4, 2 },
+}
+
+-- Clamps a value for a numeric setting; anything that isn't a number gets the default.
+function Settings.Clamp(key, n)
+    local r = Settings.RANGES[key]
+    n = tonumber(n) or Settings.DEFAULTS[key]
+    if not r then return n end
+    if r[3] then n = math.floor(n + 0.5) end
+    return math.max(r[1], math.min(r[2], n))
 end
 
-function Settings.ClampMaxFar(n)
-    n = tonumber(n) or Settings.DEFAULTS.maxFarZoom
-    return math.max(Settings.FAR_MIN, math.min(Settings.FAR_MAX, math.floor(n + 0.5)))
-end
+function Settings.ClampSize(n) return Settings.Clamp("size", n) end
+function Settings.ClampMaxFar(n) return Settings.Clamp("maxFarZoom", n) end
 
 -- Fills missing keys with defaults and clamps values. Reuses the saved table so the game writes
 -- back the same object.
@@ -41,8 +56,7 @@ function Settings.Load(saved)
     for k, v in pairs(Settings.DEFAULTS) do
         if db[k] == nil then db[k] = v end
     end
-    db.size = Settings.ClampSize(db.size)
-    db.maxFarZoom = Settings.ClampMaxFar(db.maxFarZoom)
+    for k in pairs(Settings.RANGES) do db[k] = Settings.Clamp(k, db[k]) end
     -- Per-category icon preferences (IconPrefs). Not in DEFAULTS: a table default would be shared.
     if type(db.icons) ~= "table" then db.icons = {} end
     -- LibDBIcon's saved state for the minimap button ({ hide, minimapPos }); same reason.

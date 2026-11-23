@@ -5,7 +5,7 @@
 ## Version: 0.1.1
 ## Dependencies: Questie
 ## OptionalDeps: TomTom
-## X-License: All rights reserved
+## X-License: MIT
 ## SavedVariables: FarZoomMinimapDB
 ## IconTexture: Interface\Icons\INV_Misc_Map_01
 ## AddonCompartmentFunc: FarZoomMinimap_OnAddonCompartmentClick

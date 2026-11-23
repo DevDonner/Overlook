@@ -1,5 +1,6 @@
 -- The settings window (/fzm, the minimap button, the addon compartment, or Options > AddOns),
--- and the minimap button itself.
+-- and the minimap button itself. Settings sit on tabs; each tab is a scrolling page built with
+-- the small Page helper below, so a new setting is one line in its tab's builder.
 local _, ns = ...
 
 local W, IconPrefs = ns.Widgets, ns.IconPrefs
@@ -9,7 +10,7 @@ ns.Options = Options
 
 local NAME = "FarZoomMinimapOptions"
 local ICON = "Interface\\Icons\\INV_Misc_Map_01"
-local WIDTH, HEIGHT = 440, 560
+local WIDTH, HEIGHT = 460, 580
 local CONTENT_WIDTH = WIDTH - 50
 
 local QUESTIE_LABELS = {
@@ -23,10 +24,94 @@ local QUESTIE_LABELS = {
     other = "Other Questie icons",
 }
 
-local frame, content
-local controls = {}       -- map controls, refreshed on show
-local rows = {}           -- icon group rows, pooled
-local rowsTop             -- y offset where the icon rows start
+local frame
+local pages, tabs = {}, {}
+local current
+
+----------------------------------------------------------------------------------------------------
+-- Page: a scrolling column of controls. Each add returns the control; Refresh re-reads them all.
+
+local Page = {}
+Page.__index = Page
+
+local function NewPage(parent, title)
+    local p = setmetatable({ title = title, controls = {}, y = -4, onRefresh = {} }, Page)
+    p.scroll = CreateFrame("ScrollFrame", nil, parent, "UIPanelScrollFrameTemplate")
+    p.scroll:SetPoint("TOPLEFT", parent, "TOPLEFT", 12, -58)
+    p.scroll:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -32, 10)
+    p.content = CreateFrame("Frame", nil, p.scroll)
+    p.content:SetSize(CONTENT_WIDTH, 400)
+    p.scroll:SetScrollChild(p.content)
+    p.scroll:Hide()
+    return p
+end
+
+function Page:Place(widget, x, height)
+    widget:ClearAllPoints()
+    widget:SetPoint("TOPLEFT", self.content, "TOPLEFT", x, self.y)
+    self.y = self.y - height
+    self.content:SetHeight(-self.y + 20)
+    return widget
+end
+
+function Page:Header(text)
+    if self.y < -10 then self.y = self.y - 8 end
+    return self:Place(W.Header(self.content, text), 0, 26)
+end
+
+function Page:Note(text)
+    local n = W.Note(self.content, text)
+    n:SetWidth(CONTENT_WIDTH - 10)
+    return self:Place(n, 4, 18)
+end
+
+function Page:Add(control, x, height)
+    self.controls[#self.controls + 1] = control
+    return self:Place(control, x or 0, height)
+end
+
+-- A checkbox bound to ns.db[key] (or get/set when key is a table { get, set }).
+function Page:Check(label, key, tip, after)
+    local get, set
+    if type(key) == "table" then
+        get, set = key[1], key[2]
+    else
+        get = function() return ns.db[key] == true end
+        set = function(on)
+            ns.db[key] = on
+            if after then after(on) end
+        end
+    end
+    return self:Add(W.Check(self.content, label, get, set, tip), 0, 26)
+end
+
+-- A slider bound to ns.db[key], range from Settings.RANGES.
+function Page:Slider(label, key, step, fmt, tip, after)
+    local r = ns.Settings.RANGES[key]
+    return self:Add(W.Slider(self.content, label, r[1], r[2], step, 200, fmt,
+        function() return ns.db[key] end,
+        function(v)
+            ns.db[key] = ns.Settings.Clamp(key, v)
+            if after then after(ns.db[key]) end
+        end, tip), 4, 44)
+end
+
+function Page:Button(text, width, onClick, tip)
+    return self:Place(W.Button(self.content, text, width, onClick, tip), 4, 32)
+end
+
+function Page:Refresh()
+    for _, c in ipairs(self.controls) do c.Refresh() end
+    for _, fn in ipairs(self.onRefresh) do fn() end
+end
+
+local function Percent(v) return string.format("%d%%", v * 100 + 0.5) end
+
+----------------------------------------------------------------------------------------------------
+-- Icons tab: far-map icon groups (show, size, shrink with zoom), one row per group seen
+
+local rows = {}
+local rowsPage, rowsTop
 
 local function GroupLabel(group)
     if IconPrefs.IsQuestie(group.key) then
@@ -36,9 +121,6 @@ local function GroupLabel(group)
     return group.label or group.key
 end
 
-----------------------------------------------------------------------------------------------------
--- Icon group rows: show, size, shrink with zoom
-
 local function SetPref(key, action, value)
     IconPrefs.Apply(ns.db, key, { [key] = true }, action, value)
     if ns.Mirror then ns.Mirror.RefreshPrefs() end
@@ -47,6 +129,7 @@ end
 local function Row(i)
     local row = rows[i]
     if row then return row end
+    local content = rowsPage.content
     row = CreateFrame("Frame", nil, content)
     row:SetSize(CONTENT_WIDTH, 26)
     row.show = W.Check(row, "", function() return not IconPrefs.Get(ns.db, row.key) end,
@@ -77,7 +160,7 @@ local function LayoutRows()
         row.key = g.key
         row.name:SetText(string.format("%s |cff888888(%d)|r", GroupLabel(g), g.count))
         row:ClearAllPoints()
-        row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+        row:SetPoint("TOPLEFT", rowsPage.content, "TOPLEFT", 0, y)
         row.show.Refresh()
         row.size.Refresh()
         row.shrink.Refresh()
@@ -85,17 +168,86 @@ local function LayoutRows()
         y = y - 28
     end
     for i = #groups + 1, #rows do rows[i]:Hide() end
-    content:SetHeight(-y + 20)
+    rowsPage.content:SetHeight(-y + 20)
+end
+
+----------------------------------------------------------------------------------------------------
+-- Tabs
+
+local BUILDERS = {}
+
+BUILDERS[1] = { "Map", function(p)
+    p:Header("Map")
+    p:Slider("Size", "size", 5, function(v) return v .. " px" end,
+        "The map's width and height. You can also drag the corner grip.",
+        function() ns.Shell.Apply() end)
+    p:Add(W.Slider(p.content, "Furthest zoom", ns.Settings.FAR_MIN, ns.Settings.FAR_MAX, 100, 200,
+        function(v) return v .. " yd" end,
+        function() return ns.db.maxFarZoom end,
+        function(v) ns.Far.SetMaxZoom(v) end,
+        "How far out the mouse wheel can zoom, in yards from the centre to the edge. "
+            .. "/fzm far shows how long the last zoom took to fill in."), 4, 46)
+    p:Check("Lock size (hide the resize grip)", "locked", "Alt+drag still moves the map when it's locked.")
+    p:Check("Smooth zooming", "smoothZoom")
+    p:Check("Minimap button", { function() return not ns.db.minimapButton.hide end,
+        function(on) Options.SetButtonShown(on) end })
+    p.y = p.y - 6
+    p:Button("Reset position", 130, function()
+        ns.Shell.ResetPosition()
+        Options.Refresh()
+    end, "Moves the map back to a visible spot at the default size.")
+end }
+
+BUILDERS[2] = { "Icons", function(p)
+    p:Header("Player arrow")
+    p:Slider("Arrow size", "arrowScale", 0.05, Percent, "The player arrow on the far map.",
+        function() if ns.Far then ns.Far.ApplyArrowSize() end end)
+
+    p:Header("Routes and groups")
+    p:Check("Questie's NPC routes", "routes", "Follows Questie's own route settings too.",
+        function() if ns.Routes then ns.Routes.Refresh() end end)
+    p:Slider("Route line width", "routeWidth", 0.5, function(v) return string.format("%.1f px", v) end,
+        "Far map only; Questie's own setting sets the normal minimap's.",
+        function() if ns.Routes then ns.Routes.Refresh() end end)
+    p:Slider("Route opacity", "routeAlpha", 0.05, Percent, nil,
+        function() if ns.Routes then ns.Routes.Refresh() end end)
+    p:Check("Party and raid members", { function() return ns.db.partyDots ~= false end,
+        function(on)
+            ns.db.partyDots = on
+            if ns.Party then ns.Party.Refresh() end
+        end }, "Class-coloured dots; faded when someone is offline.")
+    p:Check("Game's own quest and town icons", { function() return ns.db.nativeIcons == true end,
+        function(on) ns.NativeIcons.SetShown(on) end },
+        "Off: only Questie's icons, so turn-ins and town services aren't drawn twice. The game's own icons only show at native zoom. Find Herbs and other tracking spells are left alone.")
+
+    p:Header("Icon groups on the far map")
+    p:Note("Groups appear here once their icons have been seen.")
+    for _, col in ipairs({ { "Show", 0 }, { "Group", 28 }, { "Size", 182 }, { "Shrink", 330 } }) do
+        local n = W.Note(p.content, col[1])
+        n:SetPoint("TOPLEFT", p.content, "TOPLEFT", col[2], p.y)
+    end
+    p.y = p.y - 16
+    rowsPage, rowsTop = p, p.y
+    p.onRefresh[#p.onRefresh + 1] = LayoutRows
+end }
+
+local function ShowPage(i)
+    current = i
+    for j, p in ipairs(pages) do
+        p.scroll:SetShown(j == i)
+        if j == i then tabs[j]:LockHighlight() else tabs[j]:UnlockHighlight() end
+        tabs[j]:SetEnabled(j ~= i)
+    end
+    pages[i]:Refresh()
+end
+
+-- Other files add tabs: Options.AddTab(title, builder(page)). Call before the window is built.
+function Options.AddTab(title, builder)
+    BUILDERS[#BUILDERS + 1] = { title, builder }
 end
 
 ----------------------------------------------------------------------------------------------------
 -- Window
-
-local function Place(widget, x, y)
-    widget:ClearAllPoints()
-    widget:SetPoint("TOPLEFT", content, "TOPLEFT", x, y)
-    return widget
-end
 
 local function Build()
     local ok, f = pcall(CreateFrame, "Frame", NAME, UIParent, "BasicFrameTemplateWithInset")
@@ -124,87 +276,22 @@ local function Build()
     title:SetPoint("TOP", f, "TOP", 0, -6)
     title:SetText("FarZoomMinimap")
 
-    local scroll = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
-    scroll:SetPoint("TOPLEFT", f, "TOPLEFT", 12, -32)
-    scroll:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -32, 10)
-    content = CreateFrame("Frame", nil, scroll)
-    content:SetSize(CONTENT_WIDTH, 800)
-    scroll:SetScrollChild(content)
-
-    local y = -4
-    Place(W.Header(content, "Map"), 0, y)
-    y = y - 28
-
-    controls.size = Place(W.Slider(content, "Size", ns.Settings.SIZE_MIN, ns.Settings.SIZE_MAX, 5, 200,
-        function(v) return v .. " px" end,
-        function() return ns.db.size end,
-        function(v)
-            ns.db.size = ns.Settings.ClampSize(v)
-            ns.Shell.Apply()
-        end, "The map's width and height. You can also drag the corner grip."), 4, y)
-    y = y - 42
-
-    controls.maxZoom = Place(W.Slider(content, "Furthest zoom", ns.Settings.FAR_MIN, ns.Settings.FAR_MAX, 100, 200,
-        function(v) return v .. " yd" end,
-        function() return ns.db.maxFarZoom end,
-        function(v) ns.Far.SetMaxZoom(v) end,
-        "How far out the mouse wheel can zoom, in yards from the centre to the edge."), 4, y)
-    y = y - 46
-
-    controls.locked = Place(W.Check(content, "Lock size (hide the resize grip)",
-        function() return ns.db.locked end,
-        function(on) ns.db.locked = on end,
-        "Alt+drag still moves the map when it's locked."), 0, y)
-    y = y - 26
-    controls.smooth = Place(W.Check(content, "Smooth zooming",
-        function() return ns.db.smoothZoom end,
-        function(on) ns.db.smoothZoom = on end), 0, y)
-    y = y - 26
-    controls.routes = Place(W.Check(content, "Show Questie's NPC routes on the far map",
-        function() return ns.db.routes ~= false end,
-        function(on)
-            ns.db.routes = on
-            if ns.Routes then ns.Routes.Refresh() end
-        end, "Follows Questie's own route settings too."), 0, y)
-    y = y - 26
-    controls.party = Place(W.Check(content, "Show party and raid members on the far map",
-        function() return ns.db.partyDots ~= false end,
-        function(on)
-            ns.db.partyDots = on
-            if ns.Party then ns.Party.Refresh() end
-        end, "Class-coloured dots; faded when someone is offline."), 0, y)
-    y = y - 26
-    controls.native = Place(W.Check(content, "Game's own quest and town icons",
-        function() return ns.db.nativeIcons == true end,
-        function(on) ns.NativeIcons.SetShown(on) end,
-        "Off: only Questie's icons, so turn-ins and town services aren't drawn twice. The game's own icons only show at native zoom. Find Herbs and other tracking spells are left alone."), 0, y)
-    y = y - 26
-    controls.button = Place(W.Check(content, "Minimap button",
-        function() return not ns.db.minimapButton.hide end,
-        function(on) Options.SetButtonShown(on) end), 0, y)
-    y = y - 32
-
-    Place(W.Button(content, "Reset position", 130, function()
-        ns.Shell.ResetPosition()
-        Options.Refresh()
-    end, "Moves the map back to a visible spot at the default size."), 4, y)
-    y = y - 40
-
-    Place(W.Header(content, "Icons on the far map"), 0, y)
-    y = y - 22
-    for _, col in ipairs({ { "Show", 0 }, { "Group", 28 }, { "Size", 182 }, { "Shrink", 330 } }) do
-        Place(W.Note(content, col[1]), col[2], y)
+    local x = 12
+    for i, b in ipairs(BUILDERS) do
+        local page = NewPage(f, b[1])
+        b[2](page)
+        pages[i] = page
+        local tab = W.Button(f, b[1], 80, function() ShowPage(i) end)
+        tab:SetPoint("TOPLEFT", f, "TOPLEFT", x, -28)
+        tabs[i] = tab
+        x = x + 84
     end
-    y = y - 16
-    rowsTop = y
 
-    f:SetScript("OnShow", Options.Refresh)
+    f:SetScript("OnShow", function() ShowPage(current or 1) end)
 end
 
 function Options.Refresh()
-    if not frame then return end
-    for _, c in pairs(controls) do c.Refresh() end
-    LayoutRows()
+    if frame and current then pages[current]:Refresh() end
 end
 
 function Options.Toggle()

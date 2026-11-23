@@ -74,6 +74,7 @@ See [docs/INSTALL.md](docs/INSTALL.md): download a ZIP, clone with Git, or link 
 
 ## Licence and credits
 
-Not chosen yet. All rights reserved until a licence is added.
+MIT: see `LICENSE`.
 
 `Data/MinimapTiles.lua` is OpenMap's tile table, used under the MIT licence (`LICENSES/OpenMap-LICENSE.txt`).
+`Data/Caves.lua` is generated from the game's own files by `tools/map-data/caves.py`, and holds only file IDs and positions, no game art.
