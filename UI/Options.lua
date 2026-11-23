@@ -311,6 +311,12 @@ BUILDERS[4] = { "Bars", function(p)
     p:Check("Far zoom distance", "barZoom", "How far the view reaches from the centre, while zoomed out.", Apply)
     p:Check("Clock", "barClock", "Your computer's time.", Apply)
     p:Check("24-hour clock", "clock24", nil, Apply)
+    p:Check("Realm time", "clockServer", "The realm's time instead of your computer's.", Apply)
+
+    p:Header("Other clocks and coordinates")
+    p:Check("Turn off what the bars replace", "replaceOthers",
+        "While our bars show a clock, coordinates or the zone, the game's clock and EllesmereUI's clock, coordinates and location text are switched off. Untick (or turn our bar off) to get them back.",
+        Apply)
 
     p:Header("Style")
     p:Slider("Text size", "barFont", 1, function(v) return v .. " px" end, nil, Apply)

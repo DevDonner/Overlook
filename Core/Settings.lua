@@ -39,6 +39,8 @@ Settings.DEFAULTS = {
     barZoom = true,       -- the far view's radius, while zoomed out
     barClock = true,
     clock24 = true,
+    clockServer = false,  -- the realm's time instead of this computer's
+    replaceOthers = true, -- switch off other clocks / coordinates / zone text our bars replace
     barFont = 11,         -- px
     barAlpha = 0.8,       -- background opacity
     hideZoneHeader = true, -- the game's zone name above the minimap, while the top bar shows
@@ -94,6 +96,8 @@ function Settings.Load(saved)
     if type(db.minimapButton) ~= "table" then db.minimapButton = {} end
     -- Names of the game's tracking entries NativeIcons switched off, to switch back on; same reason.
     if type(db.nativeOff) ~= "table" then db.nativeOff = {} end
+    -- Other addons' settings the bars switched off, to switch back on (Overrides); same reason.
+    if type(db.overridden) ~= "table" then db.overridden = {} end
     if type(db.x) ~= "number" or type(db.y) ~= "number" then
         db.x, db.y = nil, nil
     end

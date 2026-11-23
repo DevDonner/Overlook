@@ -72,7 +72,12 @@ local function UpdateBottom()
     end
     zoomText:SetText(ns.db.barZoom and ns.Far and T.Yards(ns.Far.Radius()) or "")
     if ns.db.barClock then
-        local h, m = tonumber(date("%H")), tonumber(date("%M"))
+        local h, m
+        if ns.db.clockServer and GetGameTime then
+            h, m = GetGameTime()
+        else
+            h, m = tonumber(date("%H")), tonumber(date("%M"))
+        end
         clockText:SetText(T.Clock(h, m, ns.db.clock24))
     else
         clockText:SetText("")
@@ -139,6 +144,7 @@ function Bars.Apply()
     root:SetClampRectInsets(0, 0, up, -down)
 
     SyncHeader()
+    if ns.Overrides then ns.Overrides.Apply() end
     UpdateZone()
     UpdateBottom()
 end

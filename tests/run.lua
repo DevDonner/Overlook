@@ -23,6 +23,7 @@ local FILES = {
     "tests/bars.test.lua",
     "tests/mouse.test.lua",
     "tests/profiles.test.lua",
+    "tests/overrides.test.lua",
     "tests/options.test.lua",
 }
 
