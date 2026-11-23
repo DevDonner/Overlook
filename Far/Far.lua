@@ -329,6 +329,11 @@ function Far.IsActive()
     return mode == "far"
 end
 
+-- Whether the view is pinned away from the player by a pan.
+function Far.IsPanned()
+    return mode == "far" and IsPanned()
+end
+
 -- The far view's radius in yards (centre to edge), or nil in near mode.
 function Far.Radius()
     return mode == "far" and radius or nil
@@ -435,6 +440,51 @@ function Far.Recenter()
     tweenFrom, target, tweenStart, leaving = radius, nativeMax, GetTime(), true
 end
 
+-- Zooms the far view to `yards` (capped at the furthest zoom), entering far mode if needed.
+-- Returns false where there's no far map, or the radius is inside the native minimap's.
+function Far.ZoomTo(yards)
+    yards = math.min(yards, ns.db.maxFarZoom)
+    if mode ~= "far" then
+        if yards <= NativeRadius() * 1.0001 then return false end
+        if not Far.Enter(false, false) then return false end
+    end
+    tweenFrom, target, tweenStart, leaving = radius, yards, GetTime(), false
+    return true
+end
+
+-- Right-click: a ping where the cursor is, seen by the party, if the native minimap reaches it.
+local function Ping()
+    local cN, cW = anchorN or playerN, anchorW or playerW
+    if not (cN and radius) then return end
+    local cx, cy = Cursor()
+    local vx, vy = view:GetCenter()
+    local x, y = Zoom.PingOffset(cx - vx, cy - vy, ns.db.size / 2 / radius, cN, cW, playerN, playerW,
+        ns.Shell.nativeSize or Minimap:GetWidth(), nativeMax)
+    if x then
+        pcall(Minimap.PingLocation, Minimap, x, y)
+    elseif _G.UIErrorsFrame then
+        _G.UIErrorsFrame:AddMessage("Too far away to ping: the game only pings within the normal minimap's range.", 1, 0.1, 0.1)
+    end
+end
+
+-- A click on the far view that wasn't a drag or on an icon.
+local lastLeftClick
+local function OnViewClick(button)
+    if button == "MiddleButton" then
+        if ns.db.recenterMiddle then Far.Recenter() end
+    elseif button == "RightButton" then
+        if ns.db.rightClickPing then Ping() end
+    elseif button == "LeftButton" and ns.db.recenterDouble then
+        local now = GetTime()
+        if Zoom.IsDoubleClick(lastLeftClick, now) then
+            lastLeftClick = nil
+            Far.Recenter()
+        else
+            lastLeftClick = now
+        end
+    end
+end
+
 -- Below the map's bottom-right corner, or above it when the map sits in the lower half of the
 -- screen (so it stays on screen).
 local function PlaceRecenter()
@@ -490,13 +540,17 @@ local function HookNativeMouse()
     end)
     -- MinimapMixin pings on every mouse-up. Wrap it so the mouse-up that ends a drag doesn't.
     local original = Minimap:GetScript("OnMouseUp")
-    Minimap:SetScript("OnMouseUp", function(self, ...)
+    Minimap:SetScript("OnMouseUp", function(self, button, ...)
         nearDrag = nil
         if suppressPing then
             suppressPing = false
             return
         end
-        if original then return original(self, ...) end
+        if button == "MiddleButton" and ns.db.recenterMiddle then
+            Far.Recenter()
+            return
+        end
+        if original then return original(self, button, ...) end
     end)
 end
 
@@ -614,7 +668,9 @@ function Far.Build(root, level)
     view:SetScript("OnMouseUp", function(_, button)
         local wasDrag = drag and drag.moved
         if button == "LeftButton" and drag then FinishDrag() end
-        if not wasDrag and ns.Mirror then ns.Mirror.Click(button) end
+        if wasDrag then return end
+        if ns.Mirror and ns.Mirror.Click(button) then return end
+        OnViewClick(button)
     end)
     view:SetScript("OnLeave", function()
         if ns.Mirror then ns.Mirror.ClearHover() end

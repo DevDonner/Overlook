@@ -19,11 +19,16 @@ The full design, with decisions, risks and the test plan, is in [docs/design.md]
 - Questie's NPC patrol routes on the far map
 - Other addons' map icons too (RareScanner, TomTom): per-group show, size and shrink-with-zoom
 - Party and raid members as class-coloured dots on the far map
+- The game's blue quest areas on the far map, with adjustable opacity
+- Caves drawn on the far map, one level at a time
 - Drag to pan, with a Recenter button; a panned map stays put while you move
+- Zooms out when you mount and comes back when you dismount (adjustable)
+- Zone name bar above the map and a bottom bar with coordinates, zoom distance and a clock
 - Square, movable (Alt + drag) and resizable from its corner, with a lock
+- Questie's icon switches in our own settings window, plus player arrow size and route line width
 - Settings window, minimap button and addon compartment entry
 
-Planned: optional rotation, profiles, Edit Mode support, button tray, coordinates and zone text.
+Planned: optional rotation, profiles, Edit Mode support.
 
 ## Roadmap
 
@@ -48,7 +53,8 @@ See [docs/INSTALL.md](docs/INSTALL.md): download a ZIP, clone with Git, or link 
 ## Using it
 
 - **Mouse wheel** on the map zooms. Past the native minimap's widest step it keeps zooming out over minimap terrain. **Ctrl + wheel** takes half steps.
-- **Drag** the map to pan; **Recenter** (under the map) goes back to you. Zooming back in while centred hands over to the native minimap.
+- **Drag** the map to pan; **Recenter** (under the map), a **middle-click** or a **double-click** goes back to you. Zooming back in while centred hands over to the native minimap.
+- **Right-click** the far map to ping, like a click on the normal minimap. The game only pings within the normal minimap's range.
 - **Alt + drag** moves the map; the **corner grip** resizes it.
 - **Alt + wheel** in a cave (or a city or dungeon with floors) changes level on the far map: down goes a level deeper, and past the bottom level it comes back to the top.
 - **`/fzm`** opens the settings, as do the minimap button (right-click: recenter) and the addon compartment.

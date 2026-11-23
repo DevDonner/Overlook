@@ -21,6 +21,7 @@ local FILES = {
     "tests/questietoggles.test.lua",
     "tests/areas.test.lua",
     "tests/bars.test.lua",
+    "tests/mouse.test.lua",
     "tests/options.test.lua",
 }
 

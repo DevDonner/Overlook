@@ -55,3 +55,26 @@ function Zoom.Tween(from, to, t, duration)
     if t <= 0 then return from end
     return from * (to / from) ^ (t / duration)
 end
+
+-- A ping on the far view, in the native minimap's own units (what Minimap:PingLocation takes:
+-- offsets from its centre, the player, with nativeSize across nativeMax * 2 yards).
+-- dx, dy: the cursor's offset from the view's centre in px; ppy: px per yard; cN, cW: the view's
+-- centre and pN, pW the player, in world yards (north, west). nil where the native minimap
+-- doesn't reach, since the game can only ping there.
+function Zoom.PingOffset(dx, dy, ppy, cN, cW, pN, pW, nativeSize, nativeMax)
+    if not (ppy and ppy > 0 and pN and nativeMax and nativeMax > 0) then return nil end
+    local north = cN + dy / ppy - pN
+    local east = pW - (cW - dx / ppy)
+    local k = nativeSize / 2 / nativeMax
+    local x, y = east * k, north * k
+    local half = nativeSize / 2
+    if math.abs(x) > half or math.abs(y) > half then return nil end
+    return x, y
+end
+
+Zoom.DOUBLE_CLICK = 0.3 -- seconds
+
+-- Whether a click at `now` makes a double click with one at `last` (nil: none yet).
+function Zoom.IsDoubleClick(last, now)
+    return last ~= nil and now - last <= Zoom.DOUBLE_CLICK
+end

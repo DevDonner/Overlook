@@ -317,6 +317,20 @@ BUILDERS[4] = { "Bars", function(p)
     p:Slider("Background opacity", "barAlpha", 0.05, Percent, nil, Apply)
 end }
 
+BUILDERS[5] = { "Behaviour", function(p)
+    p:Header("Mouse")
+    p:Note("Wheel zooms; drag pans; Alt+drag moves the map; Alt+wheel changes cave levels.")
+    p:Check("Middle-click recenters", "recenterMiddle")
+    p:Check("Double-click recenters", "recenterDouble", "On the far map. Back over you and to the normal minimap.")
+    p:Check("Right-click pings", "rightClickPing",
+        "On the far map, like a click on the normal minimap. The game only pings within the normal minimap's range.")
+
+    p:Header("Mounted")
+    p:Check("Zoom out when mounted", "mountZoom", "Back to the normal minimap when you dismount.")
+    p:Slider("Mounted zoom", "mountRadius", 50, function(v) return v .. " yd" end,
+        "Capped at the furthest zoom on the Map tab.")
+end }
+
 local function ShowPage(i)
     current = i
     for j, p in ipairs(pages) do

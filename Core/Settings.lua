@@ -42,6 +42,12 @@ Settings.DEFAULTS = {
     barFont = 11,         -- px
     barAlpha = 0.8,       -- background opacity
     hideZoneHeader = true, -- the game's zone name above the minimap, while the top bar shows
+    -- Mouse and mounting.
+    recenterMiddle = true, -- middle-click recenters
+    recenterDouble = true, -- double-click on the far map recenters
+    rightClickPing = true, -- right-click on the far map pings, where the native map reaches
+    mountZoom = true,      -- zoom out on mounting, recenter on dismounting
+    mountRadius = 800,     -- yd, the mounted view
 }
 
 -- Numeric settings: min, max, and whether they're whole numbers. Load clamps every one of them,
@@ -57,6 +63,7 @@ Settings.RANGES = {
     coordDecimals = { 0, 2, true },
     barFont = { 8, 18, true },
     barAlpha = { 0, 1 },
+    mountRadius = { 300, Settings.FAR_MAX, true },
 }
 
 -- Clamps a value for a numeric setting; anything that isn't a number gets the default.

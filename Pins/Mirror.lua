@@ -635,14 +635,16 @@ function Mirror.UpdateHover()
     if p then Enter(p) end
 end
 
+-- Passes a click to the hovered icon. Returns true when there was one (the click was its).
 function Mirror.Click(button)
-    if not hovered then return end
+    if not hovered then return false end
     local icon = hovered.icon
     local f = icon:GetScript("OnClick")
     if f then
         local ok, err = pcall(f, icon, button)
         if not ok then Report(err) end
     end
+    return true
 end
 
 ----------------------------------------------------------------------------------------------------
