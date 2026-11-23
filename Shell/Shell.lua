@@ -217,6 +217,18 @@ function Shell.Build()
     ApplyNow()
 end
 
+-- Rotation is the game's own rotating minimap (the rotateMinimap setting), at normal zoom only:
+-- the far map stays north-up. ns.db.rotate follows the game's setting, so a profile carries it.
+local function RotationNow()
+    local ok, v = pcall(GetCVar, "rotateMinimap")
+    return ok and v == "1"
+end
+
+function Shell.SetRotate(on)
+    ns.db.rotate = on and true or false
+    if RotationNow() ~= ns.db.rotate then pcall(SetCVar, "rotateMinimap", ns.db.rotate and "1" or "0") end
+end
+
 function Shell.ResetPosition()
     ns.db.size = ns.Settings.DEFAULTS.size
     -- Back to the middle-right of the screen, a known-visible spot.
@@ -244,6 +256,7 @@ events:SetScript("OnEvent", function(_, event, arg1)
             events:UnregisterEvent("ADDON_LOADED")
         end
     elseif event == "PLAYER_LOGIN" then
+        ns.db.rotate = RotationNow()
         Shell.Build()
     elseif event == "PLAYER_LOGOUT" then
         if ns.Profiles and ns.db then ns.Profiles.Save(ns.db) end
@@ -254,6 +267,7 @@ events:SetScript("OnEvent", function(_, event, arg1)
     elseif event == "PLAYER_REGEN_ENABLED" then
         if applyQueued then ApplyNow() end
     else -- CVAR_UPDATE (rotateMinimap resets the mask), EDIT_MODE_LAYOUTS_UPDATED
+        if event == "CVAR_UPDATE" then ns.db.rotate = RotationNow() end
         Shell.Apply()
     end
 end)

@@ -325,6 +325,11 @@ BUILDERS[5] = { "Behaviour", function(p)
     p:Check("Right-click pings", "rightClickPing",
         "On the far map, like a click on the normal minimap. The game only pings within the normal minimap's range.")
 
+    p:Header("Rotation")
+    p:Check("Rotate the minimap with the camera", { function() return ns.db.rotate == true end,
+        function(on) ns.Shell.SetRotate(on) end },
+        "The game's own rotating minimap, at normal zoom. The far map stays north-up, so the view turns back to north when you zoom out past the normal minimap.")
+
     p:Header("Mounted")
     p:Check("Zoom out when mounted", "mountZoom", "Back to the normal minimap when you dismount.")
     p:Slider("Mounted zoom", "mountRadius", 50, function(v) return v .. " yd" end,

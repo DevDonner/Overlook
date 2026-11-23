@@ -313,6 +313,7 @@ end
 -- Re-applies every setting after the live table changed wholesale (switch, import, reset).
 function Profiles.Reapply(nativeWas)
     local function try(fn, ...) if fn then pcall(fn, ...) end end
+    try(ns.Shell and ns.Shell.SetRotate, ns.db.rotate)
     try(ns.Shell and ns.Shell.Apply)
     try(ns.Far and ns.Far.SetMaxZoom, ns.db.maxFarZoom)
     try(ns.Routes and ns.Routes.Refresh)

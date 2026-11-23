@@ -29,7 +29,9 @@ The full design, with decisions, risks and the test plan, is in [docs/design.md]
 - Settings profiles, with export and import strings for sharing
 - Settings window, minimap button and addon compartment entry
 
-Planned: optional rotation, Edit Mode support.
+- Optional rotating minimap at normal zoom (off by default; the far map stays north-up)
+
+Planned: Edit Mode support.
 
 ## Roadmap
 

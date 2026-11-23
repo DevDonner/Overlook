@@ -47,7 +47,7 @@ local function Fresh()
     H.loadAddonFile("Core/QuestieToggles.lua", ns)
     H.loadAddonFile("Core/Profiles.lua", ns)
     ns.db = ns.Profiles.Init(ns.Settings.Load(nil))
-    ns.Shell = { Apply = noop, ResetPosition = noop, nativeSize = 140 }
+    ns.Shell = { Apply = noop, ResetPosition = noop, SetRotate = noop, nativeSize = 140 }
     ns.Far = { SetMaxZoom = noop, ApplyArrowSize = noop, Recenter = noop }
     ns.Routes = { Refresh = noop }
     ns.Party = { Refresh = noop }
