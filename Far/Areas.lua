@@ -21,7 +21,8 @@ ns.Areas = Areas
 local CHECK_EVERY = 0.5   -- seconds between looks at which zones are in view
 local CONTINENT = 2       -- Enum.UIMapType
 local ZONE = 3
-local FILL = "Interface\\WorldMap\\UI-QuestBlob-Inside"
+-- A lighter blue than the game's fill (ours: a flat RGB 146, 174, 251; the game's is 56, 108, 248).
+local FILL = "Interface\\AddOns\\FarZoomMinimap\\Media\\QuestAreaFill"
 local BORDER = "Interface\\WorldMap\\UI-QuestBlob-Outside"
 
 
@@ -293,19 +294,10 @@ local function QuestsToDraw()
     return ns.db.questAreaTracked and tracked or AllQuests(tracked)
 end
 
-local function Paint(f, mapID, ids, inStrip)
+local function Paint(f, mapID, ids)
     pcall(f.DrawNone, f)
-    local fill, border = ns.db.questAreaFill or 0.25, ns.db.questAreaBorder or 0.5
-    if inStrip then
-        -- In a clipping strip the widget's own fill opacity comes out near solid, so the frame
-        -- itself is faded to the fill setting (the border follows it, a little fainter).
-        f:SetAlpha(fill)
-        fill, border = 1, math.min(1, border / math.max(fill, 0.01))
-    else
-        f:SetAlpha(1)
-    end
-    pcall(f.SetFillAlpha, f, math.floor(fill * 255 + 0.5))
-    pcall(f.SetBorderAlpha, f, math.floor(border * 255 + 0.5))
+    pcall(f.SetFillAlpha, f, math.floor((ns.db.questAreaFill or 0.25) * 255 + 0.5))
+    pcall(f.SetBorderAlpha, f, math.floor((ns.db.questAreaBorder or 0.5) * 255 + 0.5))
     for _, id in ipairs(ids) do
         -- A quest no zone in view lists has no marker: left to every frame, as before.
         local owner = owners[id]
@@ -348,7 +340,7 @@ local function Draw()
                                 UpdateOwners()
                                 ids = QuestsToDraw()
                             end
-                            Paint(f, z.mapID, ids, set.holder ~= nil)
+                            Paint(f, z.mapID, ids)
                             painted[f] = generation
                         end
                         keep[f] = true
