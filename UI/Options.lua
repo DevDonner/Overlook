@@ -1,4 +1,4 @@
--- The settings window (/fzm, the minimap button, the addon compartment, or Options > AddOns),
+-- The settings window (/overlook, the minimap button, the addon compartment, or Options > AddOns),
 -- and the minimap button itself. Settings sit on tabs; each tab is a scrolling page built with
 -- the small Page helper below, so a new setting is one line in its tab's builder.
 local _, ns = ...
@@ -8,7 +8,7 @@ local W, IconPrefs = ns.Widgets, ns.IconPrefs
 local Options = {}
 ns.Options = Options
 
-local NAME = "FarZoomMinimapOptions"
+local NAME = "OverlookOptions"
 local ICON = "Interface\\Icons\\INV_Misc_Map_01"
 local WIDTH, HEIGHT = 460, 580
 local CONTENT_WIDTH = WIDTH - 50
@@ -244,7 +244,7 @@ BUILDERS[1] = { "Map", function(p)
         function() return ns.db.maxFarZoom end,
         function(v) ns.Far.SetMaxZoom(v) end,
         "How far out the mouse wheel can zoom, in yards from the centre to the edge. "
-            .. "/fzm far shows how long the last zoom took to fill in."), 4, 46)
+            .. "/overlook far shows how long the last zoom took to fill in."), 4, 46)
     p:Check("Round map", "round", "A round map instead of a square one. Rotation (Behaviour tab) needs the round map.",
         function() ns.Shell.Apply(); Options.Refresh() end)
     p:Check("Lock size (hide the resize grip)", "locked", "Alt+drag still moves the map when it's locked.")
@@ -343,7 +343,7 @@ BUILDERS[4] = { "Bars", function(p)
 
     p:Header("Other clocks and coordinates")
     p:Check("Turn off what the bars replace", "replaceOthers",
-        "While our bars show a clock, coordinates or the zone, the same from the game (its clock and zone header), EllesmereUI's minimap and EnhanceQoL's minimap stats is switched off in their own settings. Untick (or turn our bar off) to get them back. /fzm overrides lists what was switched off.",
+        "While our bars show a clock, coordinates or the zone, the same from the game (its clock and zone header), EllesmereUI's minimap and EnhanceQoL's minimap stats is switched off in their own settings. Untick (or turn our bar off) to get them back. /overlook overrides lists what was switched off.",
         Apply)
 
     p:Check("Calendar and addon buttons on the top bar", "barButtons",
@@ -523,7 +523,7 @@ local function Build()
 
     local title = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     title:SetPoint("TOP", f, "TOP", 0, -6)
-    title:SetText("FarZoomMinimap")
+    title:SetText("Overlook")
 
     local x, gap = 12, 3
     local tabWidth = math.floor((WIDTH - 24 - gap * (#BUILDERS - 1)) / #BUILDERS)
@@ -580,11 +580,11 @@ local function RegisterButton()
     if not (okL and ldb and okI and icon) then return end
     local obj = ldb:NewDataObject(ns.name, {
         type = "launcher",
-        text = "FarZoomMinimap",
+        text = "Overlook",
         icon = ICON,
         OnClick = OnClick,
         OnTooltipShow = function(tt)
-            tt:AddLine("FarZoomMinimap")
+            tt:AddLine("Overlook")
             tt:AddLine("|cffffffffClick|r  settings", 0.8, 0.8, 0.8)
             tt:AddLine("|cffffffffRight-click|r  recenter", 0.8, 0.8, 0.8)
         end,
@@ -596,7 +596,7 @@ local function RegisterButton()
 end
 
 -- Named in the TOC (## AddonCompartmentFunc).
-function FarZoomMinimap_OnAddonCompartmentClick(_, button)
+function Overlook_OnAddonCompartmentClick(_, button)
     OnClick(nil, button)
 end
 
@@ -606,16 +606,16 @@ local function RegisterBlizzardCategory()
     local panel = CreateFrame("Frame")
     local title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 16, -16)
-    title:SetText("FarZoomMinimap")
+    title:SetText("Overlook")
     local open = W.Button(panel, "Open settings", 140, function()
         if _G.SettingsPanel and _G.SettingsPanel:IsShown() then HideUIPanel(_G.SettingsPanel) end
         Options.Show()
     end)
     open:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -12)
-    local hint = W.Note(panel, "Also: /fzm, or the minimap button.")
+    local hint = W.Note(panel, "Also: /overlook, or the minimap button.")
     hint:SetPoint("TOPLEFT", open, "BOTTOMLEFT", 0, -8)
     pcall(function()
-        local category = S.RegisterCanvasLayoutCategory(panel, "FarZoomMinimap")
+        local category = S.RegisterCanvasLayoutCategory(panel, "Overlook")
         S.RegisterAddOnCategory(category)
     end)
 end

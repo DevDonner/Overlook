@@ -158,7 +158,7 @@ function Caves.Build(canvasFrame, viewFrame, level)
     label:Hide()
 end
 
--- /fzm caves: what the far view knows about the cave here, for checking in game.
+-- /overlook caves: what the far view knows about the cave here, for checking in game.
 if ns.RegisterCommand then
     ns.RegisterCommand("caves", "show the cave the far view would draw here", function()
         local north, west, _, inst = UnitPosition("player")

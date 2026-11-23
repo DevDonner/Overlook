@@ -7,7 +7,7 @@
 -- nothing that holds ns.db goes stale. The map's position and the minimap button stay as they
 -- are: they belong to this screen, not to a look.
 --
--- An export string is "FZM1:" and base64 of a small table syntax of our own. Imports are parsed,
+-- An export string is "OVL1:" (or "FZM1:", from before the rebrand) and base64 of a small table syntax of our own. Imports are parsed,
 -- never run, and only known keys with the right types survive (then Settings.Load clamps them).
 local _, ns = ...
 
@@ -15,7 +15,8 @@ local Profiles = {}
 ns.Profiles = Profiles
 
 Profiles.DEFAULT = "Default"
-Profiles.PREFIX = "FZM1:"
+Profiles.PREFIX = "OVL1:"
+Profiles.OLD_PREFIX = "FZM1:" -- strings exported before the rebrand still import
 Profiles.MAX_NAME = 32
 
 ----------------------------------------------------------------------------------------------------
@@ -280,10 +281,12 @@ end
 function Profiles.Decode(text)
     if type(text) ~= "string" then return nil, "nothing to import" end
     text = text:gsub("^%s+", ""):gsub("%s+$", "")
-    if text:sub(1, #Profiles.PREFIX) ~= Profiles.PREFIX then
-        return nil, "that isn't a FarZoomMinimap profile string"
+    local prefix
+    for _, p in ipairs({ Profiles.PREFIX, Profiles.OLD_PREFIX }) do
+        if text:sub(1, #p) == p then prefix = p end
     end
-    local raw = Profiles.FromBase64(text:sub(#Profiles.PREFIX + 1))
+    if not prefix then return nil, "that isn't an Overlook profile string" end
+    local raw = Profiles.FromBase64(text:sub(#prefix + 1))
     local t = raw and Profiles.Deserialize(raw)
     if type(t) ~= "table" then return nil, "that profile string is damaged (copied in full?)" end
     local snap = ns.Settings.Load(Profiles.Snapshot(t))

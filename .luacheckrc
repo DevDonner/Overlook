@@ -9,11 +9,11 @@ exclude_files = {
 }
 
 globals = {
-    "SLASH_FARZOOMMINIMAP1",
+    "SLASH_OVERLOOK1", "SLASH_OVERLOOK2", "SLASH_OVERLOOK3",
     "SlashCmdList",
-    "FarZoomMinimapDB",
+    "OverlookDB",
     "GetMinimapShape",
-    "FarZoomMinimap_OnAddonCompartmentClick",
+    "Overlook_OnAddonCompartmentClick",
 }
 
 read_globals = {

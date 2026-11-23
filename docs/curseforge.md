@@ -2,7 +2,7 @@
      Screenshots: upload them to the project's Images tab, then replace each SCREENSHOT_URL_... below
      with the image's link (right-click the uploaded image, copy image address). -->
 
-# FarZoomMinimap
+# Overlook
 
 **Zoom your minimap out, keep every Questie icon on it, and plan your next move without ever opening the world map.**
 
@@ -18,9 +18,9 @@ I can even see quest turn-ins from across the continent, right on my minimap.
 
 ## Why Questie is required
 
-Questie knows where every quest objective, turn-in, available quest, trainer, flight master and mailbox is. FarZoomMinimap is what lets you see all of that from far away.
+Questie knows where every quest objective, turn-in, available quest, trainer, flight master and mailbox is. Overlook is what lets you see all of that from far away.
 
-The game's own minimap only shows icons in a small circle around you. Zoom out with Questie alone and its icons stay stuck in that circle or pile up on the edge. FarZoomMinimap draws the terrain past the native limit and puts every Questie icon in its real place at every zoom level. You can hover and click them, just like on Questie's world map.
+The game's own minimap only shows icons in a small circle around you. Zoom out with Questie alone and its icons stay stuck in that circle or pile up on the edge. Overlook draws the terrain past the native limit and puts every Questie icon in its real place at every zoom level. You can hover and click them, just like on Questie's world map.
 
 No Questie means no icons to show, so Questie is a required dependency.
 
@@ -64,10 +64,10 @@ No Questie means no icons to show, so Questie is a required dependency.
 | Right-click | Ping |
 | Alt + drag | Move the map |
 | Alt + wheel | Cave levels and floors |
-| `/fzm` | Settings (also the minimap button and the addon compartment) |
+| `/overlook` or `/ol` | Settings (also the minimap button and the addon compartment) |
 
-`/fzm help` lists every command, including checks that help with bug reports (`/fzm far`, `/fzm pins`, `/fzm questie`).
+`/overlook help` lists every command, including checks that help with bug reports (`/overlook far`, `/overlook pins`, `/overlook questie`).
 
 ## Bugs and ideas
 
-Please include what `/fzm far` and `/fzm questie` print.
+Please include what `/overlook far` and `/overlook questie` print.

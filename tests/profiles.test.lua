@@ -89,7 +89,7 @@ end)
 H.test("export and import: the same settings come back as a new profile", function()
     db.arrowScale = 1.5
     local text = P.Export(db)
-    H.truthy(text:sub(1, 5) == "FZM1:")
+    H.truthy(text:sub(1, 5) == "OVL1:")
     db.arrowScale = 1
     local ok, name = P.Import(db, "  " .. text .. "\n", "")
     H.truthy(ok)
@@ -115,7 +115,7 @@ H.test("import: values are checked and clamped, unknown keys dropped", function(
 end)
 
 H.test("import: friendly errors", function()
-    H.eq(select(2, P.Import(db, "hello", "x")), "that isn't a FarZoomMinimap profile string")
+    H.eq(select(2, P.Import(db, "hello", "x")), "that isn't an Overlook profile string")
     H.eq(select(2, P.Import(db, "FZM1:abc", "x")), "that profile string is damaged (copied in full?)")
     H.eq(#P.List(db), 1, "nothing added")
 end)

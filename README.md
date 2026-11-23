@@ -1,8 +1,8 @@
-# FarZoomMinimap
+# Overlook
 
 A minimap addon for **WoW Forever** (patch 1.60.1, `## Interface: 16001`) that lets you zoom out past the native minimap's limit and still see your Questie icons, the same ones the big world map shows.
 
-**Requires [Questie](https://www.curseforge.com/wow/addons/questie).** Questie is the source for quest, townsfolk (mailboxes, flight masters, trainers...) and NPC route icons; the game's own tracking icons only exist at native zoom, so FarZoomMinimap doesn't manage them.
+**Requires [Questie](https://www.curseforge.com/wow/addons/questie).** Questie is the source for quest, townsfolk (mailboxes, flight masters, trainers...) and NPC route icons; the game's own tracking icons only exist at native zoom, so Overlook doesn't manage them.
 
 > **Status:** 1.0. Available on CurseForge; see [CHANGELOG.md](CHANGELOG.md).
 
@@ -10,7 +10,7 @@ A minimap addon for **WoW Forever** (patch 1.60.1, `## Interface: 16001`) that l
 
 I wanted a minimap that could zoom out seamlessly while still working with Questie and all of its quest icons, no matter where I panned. Now I can zoom out, find the next area with quest objectives, and plan my route, then either zoom back in or leave the map zoomed out while I cover the distance. I can even see quest turn-ins from across the continent, right on my minimap.
 
-Existing far-zoom minimaps draw extra terrain around the native minimap, but Questie icons stay stuck inside the native minimap's range, or pile up on its edge. FarZoomMinimap reads every pin from the shared HereBeDragons registry (where Questie, TomTom and others register their icons) and draws them itself, in the right place, at any zoom out to about one zone.
+Existing far-zoom minimaps draw extra terrain around the native minimap, but Questie icons stay stuck inside the native minimap's range, or pile up on its edge. Overlook reads every pin from the shared HereBeDragons registry (where Questie, TomTom and others register their icons) and draws them itself, in the right place, at any zoom out to about one zone.
 
 The full design, with decisions, risks and the test plan, is in [docs/design.md](docs/design.md).
 
@@ -64,25 +64,25 @@ Install from CurseForge (the CurseForge app, or download the zip into `_forever_
 - **Right-click** the far map to ping, like a click on the normal minimap. The game only pings within the normal minimap's range.
 - **Alt + drag** moves the map; the **corner grip** resizes it.
 - **Alt + wheel** in a cave changes level on the far map: it opens with every level stacked, each step down peels off the top level, and past the bottom the whole stack comes back. In a city or dungeon with floors it steps through the floors.
-- **`/fzm`** opens the settings, as do the minimap button (right-click: recenter) and the addon compartment.
+- **`/overlook`** (or **`/ol`**) opens the settings, as do the minimap button (right-click: recenter) and the addon compartment.
 
 | Command | Does |
 | --- | --- |
-| `/fzm` | Open the settings |
-| `/fzm size 250` | Map size in px (120-800) |
-| `/fzm maxzoom 3200` | Far-zoom limit in yards (500-6,400) |
-| `/fzm smooth` | Toggle smooth zooming |
-| `/fzm lock` | Lock or unlock the size |
-| `/fzm icons` | List icon groups; e.g. `/fzm icons rarescanner size 0.6` |
-| `/fzm reset` | Move the map back to a visible spot at the default size |
-| `/fzm gameoptions coord` | The game's own options whose label has that text, their values and CVars |
-| `/fzm buttons` | The minimap buttons gathered into the bottom bar's panel |
-| `/fzm overrides` | What the bars switched off in other addons and the game (and what it was before) |
-| `/fzm areas` | Whether the far view can draw quest areas here, and how many zones it is drawing |
-| `/fzm caves` | Which cave the far view would draw here, its levels and the one shown, for checking in game |
-| `/fzm underground` | What map the far view would draw here (underground cities, dungeons), for checking in game |
-| `/fzm questie` | Check the Questie parts the far map uses (also run once after login; quiet when all is well) |
-| `/fzm far`, `/fzm pins`, `/fzm routes` | State, for bug reports |
+| `/overlook` | Open the settings |
+| `/overlook size 250` | Map size in px (120-800) |
+| `/overlook maxzoom 3200` | Far-zoom limit in yards (500-6,400) |
+| `/overlook smooth` | Toggle smooth zooming |
+| `/overlook lock` | Lock or unlock the size |
+| `/overlook icons` | List icon groups; e.g. `/overlook icons rarescanner size 0.6` |
+| `/overlook reset` | Move the map back to a visible spot at the default size |
+| `/overlook gameoptions coord` | The game's own options whose label has that text, their values and CVars |
+| `/overlook buttons` | The minimap buttons gathered into the bottom bar's panel |
+| `/overlook overrides` | What the bars switched off in other addons and the game (and what it was before) |
+| `/overlook areas` | Whether the far view can draw quest areas here, and how many zones it is drawing |
+| `/overlook caves` | Which cave the far view would draw here, its levels and the one shown, for checking in game |
+| `/overlook underground` | What map the far view would draw here (underground cities, dungeons), for checking in game |
+| `/overlook questie` | Check the Questie parts the far map uses (also run once after login; quiet when all is well) |
+| `/overlook far`, `/overlook pins`, `/overlook routes` | State, for bug reports |
 
 ## Development
 

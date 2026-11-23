@@ -5,7 +5,7 @@ Releases are built by `.github/workflows/release.yml` with the BigWigs packager,
 ## One-time setup
 
 1. Create the project on CurseForge (WoW → Addons, game version WoW Forever / 1.60.1, licence MIT).
-2. Put its project ID in `FarZoomMinimap.toc`: `## X-Curse-Project-ID: <id>`. Without it the packager skips CurseForge and only makes the GitHub release.
+2. Put its project ID in `Overlook.toc`: `## X-Curse-Project-ID: <id>`. Without it the packager skips CurseForge and only makes the GitHub release.
 3. Create an API token at https://legacy.curseforge.com/account/api-tokens and add it to the repo as the secret `CF_API_KEY` (Settings → Secrets and variables → Actions).
 
 ## Each release

@@ -221,7 +221,7 @@ ns.RegisterCommand("hover", "name what is under the mouse and who owns the toolt
     end
 end)
 
-ns.RegisterCommand("native", "the game's own quest and town icons: state (/fzm native on | off | dump)", function(arg)
+ns.RegisterCommand("native", "the game's own quest and town icons: state (/overlook native on | off | dump)", function(arg)
     arg = (arg or ""):lower()
     if arg == "dump" then
         Dump()

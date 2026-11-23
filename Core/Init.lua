@@ -1,9 +1,9 @@
--- Namespace, chat output and the /fzm command dispatcher.
+-- Namespace, chat output and the /overlook command dispatcher.
 local ADDON, ns = ...
 
 ns.name = ADDON
 
-local PREFIX = "|cff4fc3f7FZM|r "
+local PREFIX = "|cff4fc3f7Overlook|r "
 
 function ns.Print(msg)
     print(PREFIX .. tostring(msg))
@@ -36,15 +36,17 @@ function ns.RegisterCommand(name, help, fn)
 end
 
 local function ShowHelp()
-    if ns.Options then ns.Print("/fzm on its own opens the settings") end
+    if ns.Options then ns.Print("/overlook on its own opens the settings") end
     ns.Print("commands:")
     for _, name in ipairs(order) do
-        ns.Printf("  /fzm %s - %s", name, commands[name].help)
+        ns.Printf("  /overlook %s - %s", name, commands[name].help)
     end
 end
 
-SLASH_FARZOOMMINIMAP1 = "/fzm"
-SlashCmdList.FARZOOMMINIMAP = function(msg)
+SLASH_OVERLOOK1 = "/overlook"
+SLASH_OVERLOOK2 = "/ol"
+SLASH_OVERLOOK3 = "/fzm" -- the name before the rebrand
+SlashCmdList.OVERLOOK = function(msg)
     local name, rest = (msg or ""):match("^%s*(%S*)%s*(.-)%s*$")
     name = name:lower()
     if name == "" and ns.Options then

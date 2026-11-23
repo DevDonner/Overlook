@@ -141,7 +141,7 @@ end
 
 local function ResolveTexture(region, icon)
     -- 1. What the owner passed to SetTexture, recorded by our hook (HookFrame).
-    if Usable(region.fzmTexture) then return region.fzmTexture end
+    if Usable(region.overlookTexture) then return region.overlookTexture end
 
     -- 2. The owner's data (Questie, RareScanner): known-good paths, no client readback.
     local id = region:GetTexture()
@@ -168,15 +168,15 @@ end
 
 -- Records what an icon's textures are set to, so we never have to read a loose file back.
 local function RecordTexture(region, tex)
-    region.fzmTexture = tex
+    region.overlookTexture = tex
 end
 
 -- Every texture of a pin frame, whatever addon owns it. Pools reuse frames, so from the second
 -- use on we know exactly what was set; the first time the owner's data or the readback has to do.
 local function HookTextures(icon)
     for _, region in ipairs({ icon:GetRegions() }) do
-        if region:IsObjectType("Texture") and not rawget(region, "fzmHooked") then
-            region.fzmHooked = true
+        if region:IsObjectType("Texture") and not rawget(region, "overlookHooked") then
+            region.overlookHooked = true
             hooksecurefunc(region, "SetTexture", RecordTexture)
         end
     end
@@ -671,7 +671,7 @@ events:SetScript("OnEvent", function()
     if layers[1] then Mirror.RefreshSources() end
 end)
 
--- Re-reads preferences for every proxy and redraws (after /fzm icons changes them).
+-- Re-reads preferences for every proxy and redraws (after /overlook icons changes them).
 -- Icon groups for the settings window: every Questie type plus every addon seen so far, with
 -- how many icons each has now. Sorted: Questie first, then addons by name.
 function Mirror.Groups()
@@ -705,10 +705,10 @@ function Mirror.RefreshPrefs()
 end
 
 local ICONS_HELP = {
-    "/fzm icons <group> hide | show",
-    "/fzm icons <group> size 0.6   (0.25 - 3)",
-    "/fzm icons <group> shrink on | off   (smaller as you zoom out)",
-    "/fzm icons <group> reset",
+    "/overlook icons <group> hide | show",
+    "/overlook icons <group> size 0.6   (0.25 - 3)",
+    "/overlook icons <group> shrink on | off   (smaller as you zoom out)",
+    "/overlook icons <group> reset",
     "<group>: a name from the list, a Questie type (monster, item...), questie, or all",
 }
 
@@ -729,7 +729,7 @@ local function ListIcons()
     for _, line in ipairs(ICONS_HELP) do ns.Print(line) end
 end
 
-ns.RegisterCommand("icons", "show, hide or resize icon groups: /fzm icons", function(arg)
+ns.RegisterCommand("icons", "show, hide or resize icon groups: /overlook icons", function(arg)
     local name, action, value = (arg or ""):match("^(%S+)%s+(%S+)%s*(%S*)")
     if not name then
         ListIcons()

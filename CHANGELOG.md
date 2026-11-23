@@ -1,4 +1,4 @@
-# FarZoomMinimap
+# Overlook
 
 ## 1.0.0
 

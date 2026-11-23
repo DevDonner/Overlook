@@ -40,7 +40,7 @@ end
 
 -- Whether a frame's name marks it as some addon's minimap button. Pure.
 local BLIZZARD = { "^MiniMap", "^Minimap", "^GameTime", "^QueueStatus", "^ExpansionLanding",
-    "^AddonCompartment", "^TimeManager", "^FarZoomMinimap" }
+    "^AddonCompartment", "^TimeManager", "^Overlook" }
 function Buttons.LooksLikeButton(name)
     if type(name) ~= "string" then return false end
     if name:find("^LibDBIcon10_") then return true end
@@ -272,7 +272,7 @@ end
 -- The bottom bar calls this with its trigger button.
 function Buttons.Build(triggerButton)
     trigger = triggerButton
-    panel = CreateFrame("Frame", "FarZoomMinimapButtonPanel", UIParent, "BackdropTemplate")
+    panel = CreateFrame("Frame", "OverlookButtonPanel", UIParent, "BackdropTemplate")
     panel:SetFrameStrata("DIALOG")
     panel:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
     panel:SetBackdropColor(0.05, 0.06, 0.08, 0.92)
@@ -284,7 +284,7 @@ function Buttons.Build(triggerButton)
         panel:SetScript("OnShow", function() trigger.SetOpen(true) end)
         panel:SetScript("OnHide", function() trigger.SetOpen(false) end)
     end
-    table.insert(UISpecialFrames, "FarZoomMinimapButtonPanel") -- Escape closes it
+    table.insert(UISpecialFrames, "OverlookButtonPanel") -- Escape closes it
 
     local lib = DBIcon()
     if lib and lib.RegisterCallback then

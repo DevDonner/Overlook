@@ -1,7 +1,7 @@
 -- Questie compatibility check. The far map reads parts of Questie that aren't a public API (its
 -- private pin registry, tooltip builder, route data and icon table). A Questie update can rename
 -- them, and the pcalls elsewhere then just leave things blank. This names what may not work, in
--- one chat line after login, so a blank map isn't a mystery. /fzm questie runs it again.
+-- one chat line after login, so a blank map isn't a mystery. /overlook questie runs it again.
 local _, ns = ...
 
 local QuestieCheck = {}

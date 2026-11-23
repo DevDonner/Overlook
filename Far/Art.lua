@@ -168,7 +168,7 @@ function FarArt.Build(canvasFrame, view, level)
     label:Hide()
 end
 
--- /fzm underground: what the game says here, to check the far map can show this place.
+-- /overlook underground: what the game says here, to check the far map can show this place.
 if ns.RegisterCommand then
     ns.RegisterCommand("underground", "show the map the far view would draw here", function()
         local api = Api()

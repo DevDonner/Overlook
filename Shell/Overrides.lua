@@ -240,7 +240,7 @@ function Overrides.Apply()
 end
 
 -- At logout everything we switched off goes back, so the other addons' saved settings and the
--- game's option are always their own: if FarZoomMinimap is ever disabled, nothing stays off.
+-- game's option are always their own: if Overlook is ever disabled, nothing stays off.
 -- Next login takes them over again.
 function Overrides.RestoreAll()
     for _, prov in ipairs(Overrides.PROVIDERS) do
@@ -269,10 +269,10 @@ events:SetScript("OnEvent", function(_, event)
     end
 end)
 
-ns.RegisterCommand("gameoptions", "list the game's own options whose label has this text, e.g. /fzm gameoptions coord", function(arg)
+ns.RegisterCommand("gameoptions", "list the game's own options whose label has this text, e.g. /overlook gameoptions coord", function(arg)
     local text = (arg or ""):lower()
     if text == "" then
-        ns.Print("usage: /fzm gameoptions coord")
+        ns.Print("usage: /overlook gameoptions coord")
         return
     end
     local n = 0

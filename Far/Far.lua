@@ -31,7 +31,7 @@ local nativeMax = FALLBACK_RADIUS
 local instance, tileSet, originN, originW
 local active, pool = {}, {}      -- active[key] = texture, or false when the tile has no art
 local loadStart, loadCount       -- GetTime() and tiles added since the current fill began
-local lastLoad                   -- { seconds, tiles, radius } of the last fill, for /fzm far
+local lastLoad                   -- { seconds, tiles, radius } of the last fill, for /overlook far
 local c0, c1, r0, r1             -- the tile range on screen
 local layoutDirty, tilesPending = false, false
 local lastFacing
@@ -829,9 +829,9 @@ ns.RegisterCommand("far", "show far-zoom state", function()
     end
 end)
 
-ns.RegisterCommand("maxzoom", "set the far-zoom limit in yards (500-6400), e.g. /fzm maxzoom 6400", function(arg)
+ns.RegisterCommand("maxzoom", "set the far-zoom limit in yards (500-6400), e.g. /overlook maxzoom 6400", function(arg)
     if not tonumber(arg) then
-        ns.Printf("max far zoom is %d yd; usage: /fzm maxzoom 6400", ns.db.maxFarZoom)
+        ns.Printf("max far zoom is %d yd; usage: /overlook maxzoom 6400", ns.db.maxFarZoom)
         return
     end
     Far.SetMaxZoom(arg)

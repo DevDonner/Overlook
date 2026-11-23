@@ -23,7 +23,7 @@ local canvas, layer
 local layout            -- { inst, n, w, ppy }
 local ping              -- { n, w, inst, start, name, r, g, b } or nil
 local marker
-local last              -- for /fzm pings: { x, y, n, w, why }
+local last              -- for /overlook pings: { x, y, n, w, why }
 local localAt = -10     -- when our own last ping was drawn (its event is then skipped)
 local LOCAL_GRACE = 1   -- seconds
 

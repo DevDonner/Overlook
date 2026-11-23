@@ -4,7 +4,7 @@
 -- shows the same state.
 --
 -- Questie's modules are reached through QuestieLoader; every call is guarded, so a Questie update
--- that renames something leaves a switch inert (and /fzm questie names it) instead of erroring.
+-- that renames something leaves a switch inert (and /overlook questie names it) instead of erroring.
 local _, ns = ...
 
 local QuestieToggles = {}

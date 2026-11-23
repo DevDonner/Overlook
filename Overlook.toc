@@ -1,14 +1,14 @@
 ## Interface: 16001
-## Title: FarZoomMinimap
-## Notes: Zoom the minimap out past its limit and keep Questie icons on it. Requires Questie. Commands: /fzm
+## Title: Overlook
+## Notes: A minimap that zooms out past its limit and keeps every Questie icon on it: find your next objectives and plan your route. Requires Questie. Settings: /overlook
 ## Author: DevDonner
 ## Version: @project-version@
 ## Dependencies: Questie
 ## OptionalDeps: TomTom
 ## X-License: MIT
-## SavedVariables: FarZoomMinimapDB
+## SavedVariables: OverlookDB
 ## IconTexture: Interface\Icons\INV_Misc_Map_01
-## AddonCompartmentFunc: FarZoomMinimap_OnAddonCompartmentClick
+## AddonCompartmentFunc: Overlook_OnAddonCompartmentClick
 
 Core\Init.lua
 Core\Settings.lua

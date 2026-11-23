@@ -136,7 +136,7 @@ local function BuildCatcher()
 end
 
 local function BuildRoot()
-    root = CreateFrame("Frame", "FarZoomMinimapFrame", UIParent)
+    root = CreateFrame("Frame", "OverlookFrame", UIParent)
     root:SetFrameStrata("LOW")
     root:SetMovable(true)
     root:SetClampedToScreen(true)
@@ -279,9 +279,9 @@ events:RegisterEvent("PLAYER_LOGOUT")
 events:SetScript("OnEvent", function(_, event, arg1)
     if event == "ADDON_LOADED" then
         if arg1 == ns.name then
-            ns.db = ns.Settings.Load(FarZoomMinimapDB)
+            ns.db = ns.Settings.Load(OverlookDB)
             if ns.Profiles then ns.Profiles.Init(ns.db) end
-            FarZoomMinimapDB = ns.db
+            OverlookDB = ns.db
             events:UnregisterEvent("ADDON_LOADED")
         end
     elseif event == "PLAYER_LOGIN" then
@@ -310,9 +310,9 @@ ns.RegisterCommand("reset", "move the minimap back to a visible spot at the defa
     ns.Print("minimap reset")
 end)
 
-ns.RegisterCommand("size", "set the minimap size in px (120-800), e.g. /fzm size 250", function(arg)
+ns.RegisterCommand("size", "set the minimap size in px (120-800), e.g. /overlook size 250", function(arg)
     if not tonumber(arg) then
-        ns.Printf("size is %d px; usage: /fzm size 250", ns.db.size)
+        ns.Printf("size is %d px; usage: /overlook size 250", ns.db.size)
         return
     end
     ns.db.size = ns.Settings.ClampSize(arg)

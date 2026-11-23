@@ -41,7 +41,7 @@ local ns
 local function Fresh()
     made = {}
     for k, v in pairs(GLOBALS) do _G[k] = v end
-    ns = { RegisterCommand = noop, name = "FarZoomMinimap" }
+    ns = { RegisterCommand = noop, name = "Overlook" }
     H.loadAddonFile("Core/Settings.lua", ns)
     H.loadAddonFile("Core/IconPrefs.lua", ns)
     H.loadAddonFile("Core/QuestieToggles.lua", ns)

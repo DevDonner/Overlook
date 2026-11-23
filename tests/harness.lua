@@ -49,7 +49,7 @@ end
 -- Runs an addon file the way the game does: with (addonName, namespace) as its varargs.
 function H.loadAddonFile(path, ns)
     local chunk = assert(loadfile(path))
-    chunk("FarZoomMinimap", ns)
+    chunk("Overlook", ns)
     return ns
 end
 

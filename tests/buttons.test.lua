@@ -35,7 +35,7 @@ H.test("buttons: LibDBIcon and minimap-button names, not the game's own", functi
     H.eq(B.LooksLikeButton("MiniMapTrackingButton"), false)
     H.eq(B.LooksLikeButton("MinimapZoomIn"), false)
     H.eq(B.LooksLikeButton("GameTimeFrame"), false)
-    H.eq(B.LooksLikeButton("FarZoomMinimapFrame"), false)
+    H.eq(B.LooksLikeButton("OverlookFrame"), false)
     H.eq(B.LooksLikeButton(nil), false)
 end)
 
@@ -73,7 +73,7 @@ H.test("panel: our own button per LibDBIcon addon; clicks reach the addon, origi
     local kept, made = {}, {}
     local G = {
         CreateFrame = function() local f = Obj(); made[#made + 1] = f; return f end,
-        FarZoomPanelShown = function() return made[1].shown end,
+        OverlookPanelShown = function() return made[1].shown end,
         LibStub = function() return lib end,
         C_Timer = { NewTicker = function() end }, UISpecialFrames = {}, UIParent = Obj(),
         Minimap = Obj(), GameTooltip = Obj(),
@@ -97,9 +97,9 @@ H.test("panel: our own button per LibDBIcon addon; clicks reach the addon, origi
     ours.scripts.OnClick(ours, "RightButton")
     H.eq(clicked, "RightButton", "the click went to the addon")
     M.Toggle()
-    H.eq(_G.FarZoomPanelShown(), true, "open")
+    H.eq(_G.OverlookPanelShown(), true, "open")
     ours.scripts.OnClick(ours, "LeftButton")
-    H.eq(_G.FarZoomPanelShown(), false, "a click closes the panel")
+    H.eq(_G.OverlookPanelShown(), false, "a click closes the panel")
     M.Toggle()
     for k in pairs(G) do _G[k] = kept[k] end
 end)

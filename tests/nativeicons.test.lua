@@ -44,7 +44,7 @@ H.test("reads subType and texture", function()
     H.eq(e[1].subType, 2); H.eq(e[1].texture, 136459)
 end)
 
--- As 1.60.1 reports them (/fzm native dump).
+-- As 1.60.1 reports them (/overlook native dump).
 local LIST = {
     { name = "Find Minerals", active = true, spell = true, subType = -1, texture = 136025 },
     { name = "Mailbox", active = true, spell = false, subType = 2, texture = 136459 },

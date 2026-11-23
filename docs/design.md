@@ -1,3 +1,5 @@
+> Written under the addon's first name, FarZoomMinimap; it was renamed Overlook before release.
+
 # Far-Zoom Minimap for WoW Forever — Design Doc
 
 Nov 20, 2026 · @Dev Donner

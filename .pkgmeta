@@ -1,5 +1,5 @@
 # BigWigs packager: what goes into the CurseForge zip.
-package-as: FarZoomMinimap
+package-as: Overlook
 
 enable-nolib-creation: no
 
