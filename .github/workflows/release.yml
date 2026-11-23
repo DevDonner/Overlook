@@ -1,7 +1,9 @@
 name: Release
 
-# A version tag (v1.0.0, v1.0.1-beta, ...) builds the zip and uploads it to CurseForge and
-# GitHub Releases. A tag with -beta or -alpha goes up as that release type.
+# A version tag (v1.0.0, v1.0.1-beta, ...) runs the tests and attaches the zip to a GitHub release.
+# CurseForge builds and publishes its own copy from the same tag (its automatic packaging, set on the
+# project), so this workflow deliberately has no CurseForge key: with one, every version would be
+# uploaded twice.
 on:
   push:
     tags:
@@ -13,7 +15,6 @@ jobs:
     permissions:
       contents: write
     env:
-      CF_API_KEY: ${{ secrets.CF_API_KEY }}
       GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v5
