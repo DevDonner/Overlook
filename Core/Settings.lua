@@ -23,6 +23,10 @@ Settings.DEFAULTS = {
     partyDots = true,     -- party and raid members on the far map
     nativeIcons = false,  -- the game's own quest and town icons (Questie draws them instead)
     arrowScale = 1,       -- player arrow size on the far map (1 = the native arrow's size)
+    questAreas = true,    -- the game's blue quest areas on the far map
+    questAreaFill = 0.5,  -- their fill opacity
+    questAreaBorder = 0.75, -- their border opacity
+    questAreaTracked = false, -- only quests on the objective tracker
 }
 
 -- Numeric settings: min, max, and whether they're whole numbers. Load clamps every one of them,
@@ -33,6 +37,8 @@ Settings.RANGES = {
     routeWidth = { 0.5, 6 },
     routeAlpha = { 0.1, 1 },
     arrowScale = { 0.4, 2 },
+    questAreaFill = { 0, 1 },
+    questAreaBorder = { 0, 1 },
 }
 
 -- Clamps a value for a numeric setting; anything that isn't a number gets the default.

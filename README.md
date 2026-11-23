@@ -62,6 +62,7 @@ See [docs/INSTALL.md](docs/INSTALL.md): download a ZIP, clone with Git, or link 
 | `/fzm lock` | Lock or unlock the size |
 | `/fzm icons` | List icon groups; e.g. `/fzm icons rarescanner size 0.6` |
 | `/fzm reset` | Move the map back to a visible spot at the default size |
+| `/fzm areas` | Whether the far view can draw quest areas here, and how many zones it is drawing |
 | `/fzm caves` | Which cave the far view would draw here, its levels and the one shown, for checking in game |
 | `/fzm underground` | What map the far view would draw here (underground cities, dungeons), for checking in game |
 | `/fzm questie` | Check the Questie parts the far map uses (also run once after login; quiet when all is well) |

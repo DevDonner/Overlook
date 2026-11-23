@@ -242,6 +242,15 @@ BUILDERS[2] = { "Icons", function(p)
     p:Slider("Arrow size", "arrowScale", 0.05, Percent, "The player arrow on the far map.",
         function() if ns.Far then ns.Far.ApplyArrowSize() end end)
 
+    p:Header("Quest areas")
+    local function Areas() if ns.Areas then ns.Areas.Refresh() end end
+    p:Check("Show quest areas", { function() return ns.db.questAreas ~= false end,
+        function(on) ns.db.questAreas = on; Areas() end },
+        "The game's blue shading where quest objectives are, on the far map.")
+    p:Check("Only tracked quests", "questAreaTracked", "Only quests on your objective tracker.", Areas)
+    p:Slider("Area fill", "questAreaFill", 0.05, Percent, nil, Areas)
+    p:Slider("Area border", "questAreaBorder", 0.05, Percent, nil, Areas)
+
     p:Header("Routes and groups")
     p:Check("Questie's NPC routes", "routes", "Follows Questie's own route settings too.",
         function() if ns.Routes then ns.Routes.Refresh() end end)

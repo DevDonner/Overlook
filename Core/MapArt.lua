@@ -78,6 +78,13 @@ function MapArt.PlayerFromMap(api, mapID, unit)
     return n, w, inst
 end
 
+-- Whether a map's world rectangle (top/left: north and west of its top-left corner; bottom/right:
+-- of its bottom-right) overlaps a square view of half-width radius around (north, west).
+function MapArt.Overlaps(top, left, bottom, right, north, west, radius)
+    return north - radius <= top and north + radius >= bottom
+        and west - radius <= left and west + radius >= right
+end
+
 -- The floors of a multi-level map, top first ({ mapID, name }), or nil for a single level.
 function MapArt.Floors(api, mapID)
     local group = api.GetMapGroupID and api.GetMapGroupID(mapID)
