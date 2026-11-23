@@ -269,4 +269,33 @@ H.test("colour: the game's blue by default, else the nearest palette texture", f
     H.eq(Areas.Hex(Areas.Channels("3a6cf8")), "3a6cf8", "round trip")
 end)
 
+H.test("colour: painted in the game's blue until the picked colour's ID is ready, then in it", function()
+    local ready, timers = false, {}
+    local probe = { SetAllPoints = noop, SetAlpha = noop, SetTexture = noop,
+        GetTextureFileID = function() return ready and -8323 or nil end }
+    local kept = { UIParent = _G.UIParent, C_Timer = _G.C_Timer }
+    _G.UIParent = Widget("Frame")
+    _G.C_Timer = { After = function(_, fn) timers[#timers + 1] = fn end }
+    local make = _G.CreateFrame
+    _G.CreateFrame = function(...)
+        local f = make(...)
+        f.CreateTexture = function() return probe end
+        return f
+    end
+    ns.db.questAreaColor = "80b0ff"
+    Areas.SetLayout(1, 0, -1000, 0.1)
+    Areas.Update(1, -1000, -1000, 300)
+    local fills = {}
+    for _, c in ipairs(calls) do if c[1] == "SetFillTexture" then fills[#fills + 1] = c[2] end end
+    H.truthy(tostring(fills[#fills]):find("UI%-QuestBlob%-Inside"), "loading: the game's blue, never the path")
+    H.truthy(#timers > 0, "a retry is waiting")
+    ready = true
+    table.remove(timers, 1)()
+    fills = {}
+    for _, c in ipairs(calls) do if c[1] == "SetFillTexture" then fills[#fills + 1] = c[2] end end
+    H.eq(fills[#fills], -8323, "then the picked colour, by file ID")
+    _G.CreateFrame = make
+    for k, v in pairs(kept) do _G[k] = v end
+end)
+
 for k, v in pairs(saved) do _G[k] = v end

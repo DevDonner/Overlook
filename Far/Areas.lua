@@ -27,7 +27,9 @@ local canvas, view, level
 -- picked in the settings (questAreaColor, "rrggbb") is drawn with the nearest of 216 flat textures
 -- (Media/AreaColors/cRGB.blp, six shades per channel). Found in game: the widget draws any addon
 -- file given by path as the green missing-texture fill (BLP or TGA, with or without extension),
--- but takes its file ID: a hidden texture loads the file, and the widget gets that ID.
+-- but takes its file ID: a texture of ours loads the file, and the widget gets that ID. The ID only
+-- comes once the file has loaded, a moment after it's set: until then the areas are painted in the
+-- game's blue (never by path, which is green) and tried again shortly.
 local FILL = "Interface\\WorldMap\\UI-QuestBlob-Inside"
 local PALETTE = "Interface\\AddOns\\FarZoomMinimap\\Media\\AreaColors\\c%d%d%d"
 
@@ -43,23 +45,34 @@ function Areas.Channels(hex)
     return tonumber(hex:sub(1, 2), 16) / 255, tonumber(hex:sub(3, 4), 16) / 255, tonumber(hex:sub(5, 6), 16) / 255
 end
 
-local probe
-local fileIDs = {} -- [path] = file ID
+local probe            -- loads palette files (a 1 px texture, on screen but invisible)
+local probePath
+local fileIDs = {}     -- [path] = file ID
+local RETRY, TRIES = 0.2, 25
+local retrying = false
+
+-- The file ID for a palette file, or nil while it's still loading.
 local function AsFileID(path)
     if fileIDs[path] then return fileIDs[path] end
-    if not probe and canvas and canvas.CreateTexture then
-        probe = canvas:CreateTexture(nil, "BACKGROUND")
-        probe:SetSize(1, 1)
-        probe:SetAlpha(0)
+    if not probe then
+        local holder = CreateFrame("Frame", nil, UIParent)
+        holder:SetSize(1, 1)
+        holder:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", 0, 0)
+        probe = holder:CreateTexture(nil, "BACKGROUND")
+        probe:SetAllPoints(holder)
+        probe:SetAlpha(0.01)
     end
-    if not (probe and probe.GetTextureFileID) then return path end
-    probe:SetTexture(path)
+    if not probe.GetTextureFileID then return nil end
+    if probePath ~= path then
+        probe:SetTexture(path)
+        probePath = path
+    end
     local ok, id = pcall(probe.GetTextureFileID, probe)
     if ok and type(id) == "number" and id ~= 0 then
         fileIDs[path] = id
         return id
     end
-    return path
+    return nil
 end
 
 -- The fill texture for a picked colour (nil or "" is the game's blue). Pure.
@@ -338,7 +351,13 @@ end
 local function Paint(f, mapID, ids)
     pcall(f.DrawNone, f)
     local fill = Areas.FillTexture(ns.db.questAreaColor)
-    if ns.db.questAreaColor ~= "" then fill = AsFileID(fill) end
+    if fill ~= FILL then
+        fill = AsFileID(fill)
+        if not fill then
+            fill = FILL -- the picked colour is still loading: the game's blue for now
+            Areas.RetryColor()
+        end
+    end
     pcall(f.SetFillTexture, f, fill)
     pcall(f.SetFillAlpha, f, math.floor((ns.db.questAreaFill or 0.25) * 255 + 0.5))
     pcall(f.SetBorderAlpha, f, math.floor((ns.db.questAreaBorder or 0.5) * 255 + 0.5))
@@ -468,8 +487,31 @@ function Areas.SetLayout(inst, n, w, ppy)
     Draw()
 end
 
+-- Repaints once the picked colour's file has loaded (checked every RETRY seconds, a few times).
+function Areas.RetryColor(tries)
+    if retrying and not tries then return end
+    retrying = true
+    tries = tries or TRIES
+    C_Timer.After(RETRY, function()
+        local path = Areas.FillTexture(ns.db.questAreaColor)
+        if path == FILL or AsFileID(path) or tries <= 1 then
+            retrying = false
+            Areas.Refresh()
+        else
+            Areas.RetryColor(tries - 1)
+        end
+    end)
+end
+
+-- Starts loading the picked colour's file before it's needed (settings, login).
+function Areas.Preload()
+    local path = Areas.FillTexture(ns.db.questAreaColor)
+    if path ~= FILL then AsFileID(path) end
+end
+
 -- Redraws after a settings change.
 function Areas.Refresh()
+    Areas.Preload()
     generation = generation + 1
     Draw()
 end
@@ -485,6 +527,7 @@ end
 function Areas.Build(canvasFrame, frameLevel)
     canvas, level = canvasFrame, frameLevel
     view = canvas.GetParent and canvas:GetParent() or nil
+    Areas.Preload()
     root = view and view.GetParent and view:GetParent() or view
     local events = CreateFrame("Frame")
     for _, e in ipairs({ "QUEST_LOG_UPDATE", "QUEST_POI_UPDATE", "QUEST_WATCH_LIST_CHANGED" }) do
