@@ -70,3 +70,10 @@ H.test("every numeric setting has a default inside its range", function()
         H.truthy(type(d) == "number" and d >= r[1] and d <= r[2], k)
     end
 end)
+
+H.test("v3's bright quest-area defaults move to the new ones; a chosen value stays", function()
+    local db = Settings.Load({ version = 3, questAreaFill = 0.5, questAreaBorder = 0.75 })
+    H.eq(db.questAreaFill, 0.25); H.eq(db.questAreaBorder, 0.5)
+    db = Settings.Load({ version = 3, questAreaFill = 0.4 })
+    H.eq(db.questAreaFill, 0.4)
+end)

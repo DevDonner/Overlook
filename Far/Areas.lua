@@ -74,6 +74,9 @@ local function Frame(mapID)
     pcall(f.SetFillTexture, f, FILL)
     pcall(f.SetBorderTexture, f, BORDER)
     pcall(f.SetBorderScalar, f, 1)
+    -- Overlapping areas merge into one shape instead of stacking into solid blue.
+    pcall(f.EnableMerging, f, true)
+    pcall(f.EnableSmoothing, f, true)
     f:SetMapID(mapID)
     frames[mapID] = f
     return f
@@ -90,15 +93,36 @@ local function TrackedQuests()
     return out
 end
 
+-- Every quest in the log (headers skipped). The widget's DrawAll draws nothing on this client,
+-- so each quest is drawn on its own, like the tracked ones.
+local function LogQuests()
+    local out = {}
+    local log = _G.C_QuestLog
+    if not (log and log.GetNumQuestLogEntries) then return out end
+    local ok, n = pcall(log.GetNumQuestLogEntries)
+    if not ok or type(n) ~= "number" then return out end
+    for i = 1, n do
+        local id
+        if log.GetInfo then
+            local okI, info = pcall(log.GetInfo, i)
+            if okI and type(info) == "table" and not info.isHeader then id = info.questID end
+        end
+        if not id and log.GetQuestIDForLogIndex then
+            local okQ, q = pcall(log.GetQuestIDForLogIndex, i)
+            if okQ then id = q end
+        end
+        if type(id) == "number" and id > 0 then out[#out + 1] = id end
+    end
+    return out
+end
+Areas.LogQuests = LogQuests
+
 local function Paint(f)
     pcall(f.DrawNone, f)
     pcall(f.SetFillAlpha, f, math.floor((ns.db.questAreaFill or 0.5) * 255 + 0.5))
     pcall(f.SetBorderAlpha, f, math.floor((ns.db.questAreaBorder or 0.75) * 255 + 0.5))
-    if ns.db.questAreaTracked then
-        for _, id in ipairs(TrackedQuests()) do pcall(f.DrawBlob, f, id, true) end
-    else
-        pcall(f.DrawAll, f)
-    end
+    local ids = ns.db.questAreaTracked and TrackedQuests() or LogQuests()
+    for _, id in ipairs(ids) do pcall(f.DrawBlob, f, id, true) end
 end
 
 local function Place(f, z)
@@ -138,8 +162,16 @@ local function Draw()
     end
 end
 
+local resized = false -- the frames changed size: redraw them next frame, once the size has applied
+
 -- Far mode calls this every frame with the view's centre and radius (yards).
 function Areas.Update(now, north, west, radius)
+    if resized and layout then
+        -- Like the world map's quest areas: drawn for the frame's size, so redrawn after a zoom.
+        resized = false
+        generation = generation + 1
+        Draw()
+    end
     if now < nextCheck or not layout then return end
     nextCheck = now + CHECK_EVERY
     local changed = false
@@ -160,6 +192,7 @@ end
 function Areas.SetLayout(inst, n, w, ppy)
     if inst then
         layout = layout or {}
+        if layout.ppy ~= ppy or layout.inst ~= inst then resized = true end
         layout.inst, layout.n, layout.w, layout.ppy = inst, n, w, ppy
     else
         layout, nextCheck = nil, 0

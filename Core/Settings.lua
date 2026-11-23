@@ -4,7 +4,7 @@ local _, ns = ...
 local Settings = {}
 ns.Settings = Settings
 
-Settings.VERSION = 3
+Settings.VERSION = 4
 Settings.SIZE_MIN, Settings.SIZE_MAX = 120, 800
 Settings.FAR_MIN, Settings.FAR_MAX = 500, 6400
 
@@ -24,8 +24,8 @@ Settings.DEFAULTS = {
     nativeIcons = false,  -- the game's own quest and town icons (Questie draws them instead)
     arrowScale = 1,       -- player arrow size on the far map (1 = the native arrow's size)
     questAreas = true,    -- the game's blue quest areas on the far map
-    questAreaFill = 0.5,  -- their fill opacity
-    questAreaBorder = 0.75, -- their border opacity
+    questAreaFill = 0.25, -- their fill opacity (several quests' areas merge into one shape)
+    questAreaBorder = 0.5, -- their border opacity
     questAreaTracked = false, -- only quests on the objective tracker
     -- Bars: zone name above the map, coordinates / far radius / clock below it.
     topBar = true,
@@ -87,6 +87,11 @@ function Settings.Load(saved)
     local db = type(saved) == "table" and saved or {}
     -- v1 saved locked = true as an unused default; v2 makes the lock real, so start unlocked.
     if (tonumber(db.version) or 0) < 2 and db.locked == true then db.locked = false end
+    -- v3's quest-area opacity defaults drew solid bright blue; move anyone still on them.
+    if (tonumber(db.version) or 0) < 4 then
+        if db.questAreaFill == 0.5 then db.questAreaFill = nil end
+        if db.questAreaBorder == 0.75 then db.questAreaBorder = nil end
+    end
     for k, v in pairs(Settings.DEFAULTS) do
         if db[k] == nil then db[k] = v end
     end

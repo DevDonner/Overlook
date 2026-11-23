@@ -16,7 +16,7 @@ local function Widget(kind)
     f.RegisterEvent = noop
     f.SetScript = function(self, k, fn) self.scripts[k] = fn end
     for _, m in ipairs({ "SetMapID", "SetFillTexture", "SetBorderTexture", "SetBorderScalar", "DrawNone",
-        "DrawAll", "DrawBlob", "SetFillAlpha", "SetBorderAlpha" }) do
+        "DrawAll", "DrawBlob", "SetFillAlpha", "SetBorderAlpha", "EnableMerging", "EnableSmoothing" }) do
         f[m] = function(_, ...) calls[#calls + 1] = { m, ... } end
     end
     if kind ~= "QuestPOIFrame" then f.SetMapID = nil end
@@ -52,7 +52,9 @@ local function Fresh()
     _G.C_Map = MAP
     _G.CreateVector2D = Vec
     _G.C_QuestLog = { GetNumQuestWatches = function() return 2 end,
-        GetQuestIDForQuestWatchIndex = function(i) return 100 + i end }
+        GetQuestIDForQuestWatchIndex = function(i) return 100 + i end,
+        GetNumQuestLogEntries = function() return 4 end,
+        GetInfo = function(i) return i == 1 and { isHeader = true } or { questID = 200 + i } end }
     ns = { RegisterCommand = noop, IsSecret = function() return false end }
     H.loadAddonFile("Core/Settings.lua", ns)
     H.loadAddonFile("Core/Geometry.lua", ns)
@@ -92,7 +94,21 @@ H.test("only zones in view get a frame, stretched over the zone's world rectangl
     H.near(p[1].w, 200, 1e-9); H.near(p[1].h, 400, 1e-9)
     H.eq(p[1].points[1], "TOPLEFT")
     H.near(p[1].points[4], -100, 1e-9); H.near(p[1].points[5], 100, 1e-9)
-    H.truthy(Called("DrawAll"))
+    local ids = {}
+    for _, c in ipairs(calls) do if c[1] == "DrawBlob" then ids[#ids + 1] = c[2] end end
+    H.eq(#ids, 3, "every quest in the log, headers skipped (DrawAll draws nothing on Forever)")
+    H.eq(ids[1], 202)
+    H.truthy(Called("EnableMerging"), "overlapping areas merge")
+end)
+
+H.test("a zoom redraws the areas on the next frame", function()
+    Areas.SetLayout(1, 0, -1000, 0.1)
+    Areas.Update(1, -1000, -1000, 300)
+    calls = {}
+    Areas.SetLayout(1, 0, -1000, 0.2)
+    Areas.Update(1.01, -1000, -1000, 150)
+    H.truthy(Called("DrawBlob"), "redrawn at the new size")
+    H.near(POIs()[1].w, 400, 1e-9)
 end)
 
 H.test("zooming out over a border shows the next zone too", function()
@@ -113,7 +129,6 @@ H.test("only tracked quests: one blob per watched quest, not all", function()
     ns.db.questAreaTracked = true
     Areas.SetLayout(1, 0, -1000, 0.1)
     Areas.Update(1, -1000, -1000, 300)
-    H.eq(Called("DrawAll"), nil)
     local ids = {}
     for _, c in ipairs(calls) do if c[1] == "DrawBlob" then ids[#ids + 1] = c[2] end end
     H.eq(#ids, 2); H.eq(ids[1], 101)
