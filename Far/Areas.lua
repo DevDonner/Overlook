@@ -31,6 +31,10 @@ local canvas, view, level
 -- map's strips. { clip = clipping frame or nil, frames = { [mapID] = QuestPOIFrame } }
 local sets = {}
 local zooming = false     -- a zoom is moving (the round map's strips wait for it to settle)
+-- In-game experiment (/fzm areas test <mode>), to find why the widget shows nothing in the strips:
+-- nil normal; "noclip" strips that don't clip; "view" strips on the view instead of the canvas;
+-- "one" a single strip the size of the whole map (clipping, like the view).
+local experiment
 local zones = {}          -- [instance] = { { mapID, top, left, bottom, right }, ... }
 local layout              -- { inst, n, w, ppy } while far mode is drawing
 local visible = {}        -- [mapID] = true for zones in view
@@ -94,15 +98,22 @@ local function ActiveSets()
         return { sets[0] }
     end
     local out = {}
-    for i, row in ipairs(Areas.Strips(ns.db.size / 2, ROUND_STEPS)) do
+    local rows = Areas.Strips(ns.db.size / 2, ROUND_STEPS)
+    if experiment == "one" then
+        local r = ns.db.size / 2
+        rows = { { top = r, bottom = -r, half = r } }
+    end
+    for i, row in ipairs(rows) do
         local set = sets[i]
         if not set then
             local clip = CreateFrame("Frame", nil, canvas)
-            clip:SetFrameLevel(level)
-            if clip.SetClipsChildren then clip:SetClipsChildren(true) end
             set = { clip = clip, frames = {} }
             sets[i] = set
         end
+        local parent = experiment == "view" and view or canvas
+        if set.clip:GetParent() ~= parent then set.clip:SetParent(parent) end
+        set.clip:SetFrameLevel(level)
+        if set.clip.SetClipsChildren then set.clip:SetClipsChildren(experiment ~= "noclip") end
         set.clip:ClearAllPoints()
         set.clip:SetPoint("TOPLEFT", view, "CENTER", -row.half, row.top)
         set.clip:SetSize(2 * row.half, row.top - row.bottom)
@@ -396,7 +407,17 @@ function Areas.Build(canvasFrame, frameLevel)
     end)
 end
 
-ns.RegisterCommand("areas", "show the quest areas the far view draws", function()
+ns.RegisterCommand("areas", "show the quest areas the far view draws", function(arg)
+    local mode = type(arg) == "string" and arg:match("^test%s*(%a*)")
+    if mode then
+        experiment = (mode == "noclip" or mode == "view" or mode == "one") and mode or nil
+        for _, set in pairs(sets) do
+            if set.clip then set.clip:Hide() end
+        end
+        Areas.Refresh()
+        ns.Printf("quest areas experiment: %s", experiment or "off (normal)")
+        return
+    end
     local tracked = TrackedQuests()
     ns.Printf("quest areas %s  widget %s  zones on this continent %d  shown %d",
         ns.db.questAreas ~= false and "on" or "off",

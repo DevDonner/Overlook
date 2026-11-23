@@ -5,7 +5,7 @@ local H = ...
 local function noop() end
 
 local made, calls
-local function Widget(kind)
+local function Widget(kind, _, parent)
     local f = { kind = kind, shown = true, points = {}, scripts = {} }
     f.Show = function(self) self.shown = true end
     f.Hide = function(self) self.shown = false end
@@ -14,12 +14,15 @@ local function Widget(kind)
     f.SetPoint = function(self, ...) self.points = { ... } end
     f.SetSize = function(self, w, h) self.w, self.h = w, h end
     f.RegisterEvent = noop
+    f.GetParent = function(self) return self.parent end
+    f.SetParent = function(self, p) self.parent = p end
     f.SetScript = function(self, k, fn) self.scripts[k] = fn end
     for _, m in ipairs({ "SetMapID", "SetFillTexture", "SetBorderTexture", "SetBorderScalar", "DrawNone",
         "DrawAll", "DrawBlob", "SetFillAlpha", "SetBorderAlpha", "EnableMerging", "EnableSmoothing" }) do
         f[m] = function(_, ...) calls[#calls + 1] = { m, ... } end
     end
     if kind ~= "QuestPOIFrame" then f.SetMapID = nil end
+    f.parent = parent
     made[#made + 1] = f
     return f
 end
@@ -206,7 +209,8 @@ end)
 H.test("round map: each zone drawn once per strip, hidden while a zoom moves", function()
     ns.db.round = true
     local canvas = Widget("Frame")
-    canvas.GetParent = function() return Widget("Frame") end
+    local viewFrame = Widget("Frame")
+    canvas.GetParent = function() return viewFrame end
     Areas.Build(canvas, 5)
     Areas.SetLayout(1, 0, -1000, 0.1)
     Areas.Update(1, -1000, -1000, 300, false)
