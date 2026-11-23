@@ -315,7 +315,7 @@ BUILDERS[4] = { "Bars", function(p)
 
     p:Header("Other clocks and coordinates")
     p:Check("Turn off what the bars replace", "replaceOthers",
-        "While our bars show a clock, coordinates or the zone, the game's clock and EllesmereUI's clock, coordinates and location text are switched off. Untick (or turn our bar off) to get them back.",
+        "While our bars show a clock, coordinates or the zone, the same from the game (its clock and zone header), EllesmereUI's minimap and EnhanceQoL's minimap stats is switched off in their own settings. Untick (or turn our bar off) to get them back. /fzm overrides lists what was switched off.",
         Apply)
 
     p:Header("Style")

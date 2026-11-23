@@ -60,3 +60,21 @@ H.test("sync: already off isn't remembered as theirs", function()
     O.Sync(eui, O.Covered(DB({ replaceOthers = false })), remembered, O.EUI, "E.")
     H.eq(eui.clockMode, "none", "stays off: it was off before us")
 end)
+
+H.test("EnhanceQoL: time, coordinates, zone and subzone switched off and back", function()
+    local eq = { squareMinimapStatsTime = true, squareMinimapStatsCoordinates = true,
+        squareMinimapStatsLocation = true, squareMinimapStatsSubzone = true }
+    local remembered = {}
+    H.eq(O.Sync(eq, O.Covered(DB()), remembered, O.ENHANCE_QOL, "Q."), true)
+    for k, v in pairs(eq) do H.eq(v, false, k) end
+    O.Sync(eq, {}, remembered, O.ENHANCE_QOL, "Q.")
+    for k, v in pairs(eq) do H.eq(v, true, k) end
+end)
+
+H.test("every provider covers only what our bars can show", function()
+    for _, prov in ipairs(O.PROVIDERS) do
+        for _, spec in ipairs(prov.map) do
+            H.truthy(spec[1] == "clock" or spec[1] == "coords" or spec[1] == "location", prov.name)
+        end
+    end
+end)

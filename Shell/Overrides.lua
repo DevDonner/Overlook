@@ -3,11 +3,13 @@
 -- nothing shows twice. What we switched off is remembered (ns.db.overridden) and switched back on
 -- when our bar stops covering it, or when "replaceOthers" is unticked.
 --
--- Covered:
---  * EllesmereUIMinimap: its clock, coordinates and location text, through its own settings
---    (clockMode / coordsMode / locationMode) and its own re-apply function.
+-- Covered (each through its own settings and its own refresh, as if switched off by hand):
+--  * EllesmereUIMinimap: clock, coordinates and location text (clockMode / coordsMode /
+--    locationMode).
+--  * EnhanceQoL's square minimap stats: time, coordinates, zone and subzone.
 --  * The game's clock button (TimeManagerClockButton). The game's zone header is the bars' own
 --    hideZoneHeader setting.
+-- To cover another addon, add an entry to Overrides.PROVIDERS.
 local _, ns = ...
 
 local Overrides = {}
@@ -23,11 +25,17 @@ function Overrides.Covered(db)
     }
 end
 
--- EllesmereUI's setting for each, and the value that turns it off.
+-- Per addon: { what our bars cover, their setting, the value that turns it off }.
 Overrides.EUI = {
-    clock = { "clockMode", "none" },
-    coords = { "coordsMode", "never" },
-    location = { "locationMode", "none" },
+    { "clock", "clockMode", "none" },
+    { "coords", "coordsMode", "never" },
+    { "location", "locationMode", "none" },
+}
+Overrides.ENHANCE_QOL = {
+    { "clock", "squareMinimapStatsTime", false },
+    { "coords", "squareMinimapStatsCoordinates", false },
+    { "location", "squareMinimapStatsLocation", false },
+    { "location", "squareMinimapStatsSubzone", false },
 }
 
 local NONE = "<unset>" -- remembered stand-in for a setting that was nil (EllesmereUI's legacy fallback)
@@ -36,8 +44,8 @@ local NONE = "<unset>" -- remembered stand-in for a setting that was nil (Ellesm
 -- saved: where the previous values are remembered, keyed by prefix .. key.
 function Overrides.Sync(settings, covered, saved, map, prefix)
     local changed = false
-    for what, spec in pairs(map) do
-        local key, off = spec[1], spec[2]
+    for _, spec in ipairs(map) do
+        local what, key, off = spec[1], spec[2], spec[3]
         local mark = prefix .. key
         if covered[what] then
             if settings[key] ~= off then
@@ -74,6 +82,30 @@ local function EllesmereProfile()
     return type(p) == "table" and type(p.minimap) == "table" and p.minimap or nil
 end
 
+local function EnhanceQoL()
+    local addon = _G.EnhanceQoL
+    return type(addon) == "table" and type(addon.db) == "table" and addon.db or nil
+end
+
+-- name: the addon's folder (also the prefix of what we remember); settings() -> its settings
+-- table or nil; active(settings): whether its feature is on at all; refresh() redraws it.
+Overrides.PROVIDERS = {
+    {
+        name = "EllesmereUIMinimap", map = Overrides.EUI, settings = EllesmereProfile,
+        refresh = function() if type(_G._EMM_ApplyMinimap) == "function" then _G._EMM_ApplyMinimap() end end,
+    },
+    {
+        name = "EnhanceQoL", map = Overrides.ENHANCE_QOL, settings = EnhanceQoL,
+        active = function(s) return s.enableSquareMinimapStats == true end,
+        refresh = function()
+            local f = _G.EnhanceQoL.functions
+            if f and f.applySquareMinimapStats then f.applySquareMinimapStats(true) end
+        end,
+    },
+}
+
+local NOTHING = {}
+
 local function GameClock(hide)
     local clock = _G.TimeManagerClockButton
     if not clock then return end
@@ -96,10 +128,15 @@ function Overrides.Apply()
         GameClock(covered.clock)
     end
 
-    local p = EllesmereProfile()
-    if p and Overrides.Sync(p, covered, ns.db.overridden, Overrides.EUI, "EllesmereUIMinimap.") then
-        local apply = _G._EMM_ApplyMinimap
-        if type(apply) == "function" then pcall(apply) end
+    for _, prov in ipairs(Overrides.PROVIDERS) do
+        local s = prov.settings()
+        if s then
+            -- Feature off in that addon: nothing of it shows, so only give back what we took.
+            local want = (not prov.active or prov.active(s)) and covered or NOTHING
+            if Overrides.Sync(s, want, ns.db.overridden, prov.map, prov.name .. ".") then
+                pcall(prov.refresh)
+            end
+        end
     end
 end
 
@@ -123,6 +160,10 @@ ns.RegisterCommand("overrides", "show what the bars switched off in other addons
         ns.Printf("  %s was %s", k, tostring(v))
         n = n + 1
     end
-    ns.Printf("%d setting(s) switched off; EllesmereUI minimap %s; game clock %s", n,
-        EllesmereProfile() and "found" or "not found", gameClockHidden and "hidden" or "shown")
+    local found = {}
+    for _, prov in ipairs(Overrides.PROVIDERS) do
+        found[#found + 1] = prov.name .. (prov.settings() and " found" or " not loaded")
+    end
+    ns.Printf("%d setting(s) switched off; %s; game clock %s", n, table.concat(found, ", "),
+        gameClockHidden and "hidden" or "shown")
 end)
