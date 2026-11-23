@@ -23,7 +23,9 @@ local CONTINENT = 2       -- Enum.UIMapType
 local ZONE = 3
 -- The fill: the game's own blue by default. The widget takes a texture, not a colour, so a colour
 -- picked in the settings (questAreaColor, "rrggbb") is drawn with the nearest of 216 flat textures
--- (Media/AreaColors/cRGB.tga, six shades per channel).
+-- (Media/AreaColors/cRGB, six shades per channel). Without the extension written out, or as TGA, the
+-- widget drew them as the game's green missing-texture fill; they ship as BLP and TGA, and
+-- /fzm areas tex blp|tga|plain switches between them for checking in game.
 local FILL = "Interface\\WorldMap\\UI-QuestBlob-Inside"
 local PALETTE = "Interface\\AddOns\\FarZoomMinimap\\Media\\AreaColors\\c%d%d%d"
 
@@ -40,11 +42,12 @@ function Areas.Channels(hex)
 end
 
 -- The fill texture for a picked colour (nil or "" is the game's blue). Pure.
+local paletteKind = ".blp" -- ".blp", ".tga" or "" (no extension)
 function Areas.FillTexture(hex)
     local r, g, b = Areas.Channels(hex)
     if not r then return FILL end
     local function L(v) return math.floor(v * 5 + 0.5) end
-    return string.format(PALETTE, L(r), L(g), L(b))
+    return string.format(PALETTE, L(r), L(g), L(b)) .. paletteKind
 end
 local BORDER = "Interface\\WorldMap\\UI-QuestBlob-Outside"
 
@@ -476,6 +479,13 @@ function Areas.Build(canvasFrame, frameLevel)
 end
 
 ns.RegisterCommand("areas", "show the quest areas the far view draws", function(arg)
+    local kind = type(arg) == "string" and arg:match("^tex%s*(%a*)")
+    if kind then
+        paletteKind = ({ blp = ".blp", tga = ".tga", plain = "" })[kind] or ".blp"
+        Areas.Refresh()
+        ns.Printf("quest area colours from %s files", paletteKind == "" and "files without an extension" or paletteKind)
+        return
+    end
     local mode = type(arg) == "string" and arg:match("^test%s*(%a*)")
     if mode then
         experiment = (mode == "noclip" or mode == "nested") and mode or nil
