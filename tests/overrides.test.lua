@@ -71,9 +71,22 @@ H.test("EnhanceQoL: time, coordinates, zone and subzone switched off and back", 
     for k, v in pairs(eq) do H.eq(v, true, k) end
 end)
 
+H.test("game option: found by name, switched to 0 and back", function()
+    local names = O.MinimapCoordCVars({ "showMinimapCoordinates", "mapCoordinates", "rotateMinimap",
+        "MINIMAPCOORDSTENTHS", "coordinatesInTenths", 7 })
+    H.eq(#names, 1, "the tenths option isn't the display switch")
+    H.eq(names[1], "showMinimapCoordinates")
+    local values, remembered = { showMinimapCoordinates = "1" }, {}
+    local map = { { "coords", "showMinimapCoordinates", "0" } }
+    O.Sync(values, O.Covered(DB()), remembered, map, "game.")
+    H.eq(values.showMinimapCoordinates, "0")
+    O.Sync(values, {}, remembered, map, "game.")
+    H.eq(values.showMinimapCoordinates, "1")
+end)
+
 H.test("every provider covers only what our bars can show", function()
     for _, prov in ipairs(O.PROVIDERS) do
-        for _, spec in ipairs(prov.map) do
+        for _, spec in ipairs(prov.map or {}) do
             H.truthy(spec[1] == "clock" or spec[1] == "coords" or spec[1] == "location", prov.name)
         end
     end
