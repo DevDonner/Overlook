@@ -134,7 +134,8 @@ local function FreshRound()
     GLOBALS.CreateFrame = function() return Obj() end
     ns.db.round = true
     B.Apply()
-    return { top = made[1], bottom = made[2], name = made[3], buttons = made[4], coords = made[5], clock = made[6] }
+    return { top = made[1], bottom = made[2], name = made[3], buttons = made[4], coords = made[5], clock = made[6],
+        zoom = made[7] }
 end
 
 H.test("round bars: no strips; name, buttons, coordinates and clock in boxes under the circle", function()
@@ -161,6 +162,19 @@ H.test("round bars: the bar settings still choose what shows", function()
     ns.db.bottomBar = false
     B.Apply()
     H.eq(f.coords.shown, false)
+end)
+
+H.test("round bars: the zoom distance in the middle of the second row, while zoomed out", function()
+    local f = FreshRound()
+    H.eq(f.zoom.points[1][1], "TOP"); H.eq(f.zoom.points[1][3], "BOTTOM")
+    H.eq(f.zoom.shown, true, "1,500 yd out")
+    ns.Far.Radius = function() return nil end -- back at normal zoom
+    B.Apply()
+    H.eq(f.zoom.shown, false)
+    ns.Far.Radius = function() return 1500 end
+    ns.db.barZoom = false
+    B.Apply()
+    H.eq(f.zoom.shown, false, "its setting off")
 end)
 
 H.test("round bars: back to the strips on the square map", function()

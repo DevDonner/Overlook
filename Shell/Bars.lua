@@ -3,10 +3,10 @@
 -- Clicking the top bar opens the world map.
 --
 -- On the round map there are no long strips: the same text and buttons sit in small separate boxes
--- in a grid under the circle, two rows of three with the middle left empty:
---     zone name    |  (empty)  |  calendar, addons, minimap buttons
---     coordinates  |  (empty)  |  clock
--- (The far-zoom distance has no place there, so the round map doesn't show it.)
+-- in a grid under the circle, two rows of three:
+--     zone name    |  (empty)        |  calendar, addons, minimap buttons
+--     coordinates  |  zoom distance  |  clock
+-- (the zoom distance only while zoomed out, and with its setting on).
 local _, ns = ...
 
 local T = ns.BarText
@@ -22,7 +22,7 @@ local TICK = 0.2 -- seconds between coordinate / clock updates
 local GAP = 3 -- px between the circle and the grid, and between the grid's rows
 
 local root, top, bottom
-local namePill, buttonPill, coordPill, clockPill -- the round map's boxes
+local namePill, buttonPill, coordPill, clockPill, zoomPill -- the round map's boxes
 local zoneText, coordText, zoomText, clockText
 local calendarButton, addonsButton, minimapButtons
 local ICON = 12        -- px, the top bar's buttons
@@ -98,7 +98,8 @@ local function UpdateBottom()
     else
         coordText:SetText("")
     end
-    zoomText:SetText(ns.db.barZoom and ns.Far and T.Yards(ns.Far.Radius()) or "")
+    local yards = ns.db.barZoom and ns.Far and T.Yards(ns.Far.Radius()) or ""
+    zoomText:SetText(yards)
     if ns.db.barClock then
         local h, m
         if ns.db.clockServer and GetGameTime then
@@ -113,6 +114,8 @@ local function UpdateBottom()
     if Round() then
         Fit(coordPill, coordText)
         Fit(clockPill, clockText)
+        Fit(zoomPill, zoomText)
+        zoomPill:SetShown(yards ~= "")
     end
 end
 
@@ -297,6 +300,9 @@ local function ArrangeSquare(show)
     zoneText:SetParent(top)
     coordText:SetParent(bottom)
     clockText:SetParent(bottom)
+    zoomText:SetParent(bottom)
+    zoomText:ClearAllPoints()
+    zoomText:SetPoint("CENTER", bottom, "CENTER", 0, 0)
     clockText:ClearAllPoints()
     clockText:SetPoint("RIGHT", bottom, "RIGHT", -PAD, 0)
     -- The zone name stays centred: the same room on both sides, for the widest side.
@@ -325,6 +331,9 @@ local function ArrangeRound()
     clockText:SetParent(clockPill)
     clockText:ClearAllPoints()
     clockText:SetPoint("CENTER", clockPill, "CENTER", 0, 0)
+    zoomText:SetParent(zoomPill)
+    zoomText:ClearAllPoints()
+    zoomText:SetPoint("CENTER", zoomPill, "CENTER", 0, 0)
 
     local n, x = 0, 3
     for _, b in ipairs({ calendarButton, addonsButton, minimapButtons }) do
@@ -383,8 +392,10 @@ local function PlaceRound(height)
     namePill:SetShown(ns.db.topBar == true)
     coordPill:SetShown(ns.db.bottomBar and ns.db.barCoords and true or false)
     clockPill:SetShown(ns.db.bottomBar and ns.db.barClock and true or false)
-    local row2 = coordPill:IsShown() or clockPill:IsShown()
-    for _, pill in ipairs({ namePill, buttonPill, coordPill, clockPill }) do pill:SetHeight(height) end
+    if not ns.db.bottomBar then zoomPill:SetShown(false) end
+    -- The zoom box comes and goes as you zoom: the grid keeps its second row while it can show.
+    local row2 = coordPill:IsShown() or clockPill:IsShown() or (ns.db.bottomBar and ns.db.barZoom and true or false)
+    for _, pill in ipairs({ namePill, buttonPill, coordPill, clockPill, zoomPill }) do pill:SetHeight(height) end
 
     local y1 = -GAP
     local y2 = row1 and -(GAP + height + GAP) or -GAP
@@ -396,6 +407,8 @@ local function PlaceRound(height)
     coordPill:SetPoint("TOPLEFT", root, "BOTTOMLEFT", 0, y2)
     clockPill:ClearAllPoints()
     clockPill:SetPoint("TOPRIGHT", root, "BOTTOMRIGHT", 0, y2)
+    zoomPill:ClearAllPoints()
+    zoomPill:SetPoint("TOP", root, "BOTTOM", 0, y2)
 
     -- The name gets the row less the buttons' box and a gap; longer names are cut short.
     local room = size - (buttonPill:IsShown() and ((buttonPill.GetWidth and buttonPill:GetWidth() or 0) + GAP * 2) or 0)
@@ -424,7 +437,7 @@ function Bars.Apply()
     for _, t in ipairs({ zoneText, coordText, zoomText, clockText }) do
         t:SetFont(FONT, ns.db.barFont, "")
     end
-    for _, bar in ipairs({ top, bottom, namePill, buttonPill, coordPill, clockPill }) do
+    for _, bar in ipairs({ top, bottom, namePill, buttonPill, coordPill, clockPill, zoomPill }) do
         bar:SetBackdropColor(BG[1], BG[2], BG[3], ns.db.barAlpha)
         bar:SetBackdropBorderColor(0, 0, 0, math.max(ns.db.barAlpha, 0.5))
     end
@@ -438,7 +451,7 @@ function Bars.Apply()
         local down = PlaceRound(height)
         root:SetClampRectInsets(0, 0, 0, -down)
     else
-        for _, pill in ipairs({ namePill, buttonPill, coordPill, clockPill }) do pill:SetShown(false) end
+        for _, pill in ipairs({ namePill, buttonPill, coordPill, clockPill, zoomPill }) do pill:SetShown(false) end
         Place(top, "TOP", ns.db.topBarInside, height)
         Place(bottom, "BOTTOM", ns.db.bottomBarInside, height)
         top:SetShown(ns.db.topBar)
@@ -484,7 +497,9 @@ function Bars.Build(rootFrame, level)
     coordPill:EnableMouse(false)
     clockPill = Strip(level)
     clockPill:EnableMouse(false)
-    for _, pill in ipairs({ namePill, buttonPill, coordPill, clockPill }) do pill:Hide() end
+    zoomPill = Strip(level)
+    zoomPill:EnableMouse(false)
+    for _, pill in ipairs({ namePill, buttonPill, coordPill, clockPill, zoomPill }) do pill:Hide() end
     BuildButtons()
 
     local elapsed = 0
