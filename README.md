@@ -8,6 +8,8 @@ A minimap addon for **WoW Forever** (patch 1.60.1, `## Interface: 16001`) that l
 
 ## Why
 
+I wanted a minimap that could zoom out seamlessly while still working with Questie and all of its quest icons, no matter where I panned. Now I can zoom out, find the next area with quest objectives, and plan my route, then either zoom back in or leave the map zoomed out while I cover the distance. I can even see quest turn-ins from across the continent, right on my minimap.
+
 Existing far-zoom minimaps draw extra terrain around the native minimap, but Questie icons stay stuck inside the native minimap's range, or pile up on its edge. FarZoomMinimap reads every pin from the shared HereBeDragons registry (where Questie, TomTom and others register their icons) and draws them itself, in the right place, at any zoom out to about one zone.
 
 The full design, with decisions, risks and the test plan, is in [docs/design.md](docs/design.md).
