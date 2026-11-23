@@ -21,6 +21,8 @@ ns.Areas = Areas
 local CHECK_EVERY = 0.5   -- seconds between looks at which zones are in view
 local CONTINENT = 2       -- Enum.UIMapType
 local ZONE = 3
+local canvas, view, level
+
 -- The fill: the game's own blue by default. The widget takes a texture, not a colour, so a colour
 -- picked in the settings (questAreaColor, "rrggbb") is drawn with the nearest of 216 flat textures
 -- (Media/AreaColors/cRGB, six shades per channel). Without the extension written out, or as TGA, the
@@ -43,6 +45,28 @@ end
 
 -- The fill texture for a picked colour (nil or "" is the game's blue). Pure.
 local paletteKind = ".blp" -- ".blp", ".tga" or "" (no extension)
+-- The widget won't take an addon file by path (all three draw green). Every loaded texture gets a
+-- file ID, addon files a temporary one, so by default a hidden texture loads the file and the
+-- widget is given that ID instead.
+local useFileID = true
+local probe
+local fileIDs = {} -- [path] = file ID
+local function AsFileID(path)
+    if fileIDs[path] then return fileIDs[path] end
+    if not probe and canvas and canvas.CreateTexture then
+        probe = canvas:CreateTexture(nil, "BACKGROUND")
+        probe:SetSize(1, 1)
+        probe:SetAlpha(0)
+    end
+    if not (probe and probe.GetTextureFileID) then return path end
+    probe:SetTexture(path)
+    local ok, id = pcall(probe.GetTextureFileID, probe)
+    if ok and type(id) == "number" and id ~= 0 then
+        fileIDs[path] = id
+        return id
+    end
+    return path
+end
 function Areas.FillTexture(hex)
     local r, g, b = Areas.Channels(hex)
     if not r then return FILL end
@@ -52,7 +76,6 @@ end
 local BORDER = "Interface\\WorldMap\\UI-QuestBlob-Outside"
 
 
-local canvas, view, level
 -- Sets of zone frames: [0] for the square map (on the canvas, clipped by the view), [1..] the round
 -- map's strips. { clip = clipping frame or nil, frames = { [mapID] = QuestPOIFrame } }
 local sets = {}
@@ -321,7 +344,9 @@ end
 
 local function Paint(f, mapID, ids)
     pcall(f.DrawNone, f)
-    pcall(f.SetFillTexture, f, Areas.FillTexture(ns.db.questAreaColor))
+    local fill = Areas.FillTexture(ns.db.questAreaColor)
+    if useFileID and ns.db.questAreaColor ~= "" then fill = AsFileID(fill) end
+    pcall(f.SetFillTexture, f, fill)
     pcall(f.SetFillAlpha, f, math.floor((ns.db.questAreaFill or 0.25) * 255 + 0.5))
     pcall(f.SetBorderAlpha, f, math.floor((ns.db.questAreaBorder or 0.5) * 255 + 0.5))
     for _, id in ipairs(ids) do
@@ -481,9 +506,13 @@ end
 ns.RegisterCommand("areas", "show the quest areas the far view draws", function(arg)
     local kind = type(arg) == "string" and arg:match("^tex%s*(%a*)")
     if kind then
+        useFileID = kind == "" or kind == "id"
         paletteKind = ({ blp = ".blp", tga = ".tga", plain = "" })[kind] or ".blp"
         Areas.Refresh()
-        ns.Printf("quest area colours from %s files", paletteKind == "" and "files without an extension" or paletteKind)
+        local path = Areas.FillTexture(ns.db.questAreaColor)
+        ns.Printf("quest area colours: %s", useFileID
+            and ("file ID " .. tostring(AsFileID(path)) .. " for " .. path)
+            or ("by path, " .. (paletteKind == "" and "no extension" or paletteKind)))
         return
     end
     local mode = type(arg) == "string" and arg:match("^test%s*(%a*)")
