@@ -14,7 +14,7 @@ local Entrances = {}
 ns.Entrances = Entrances
 
 local UPDATE_EVERY = 0.05
-local SIZE = 20          -- px on screen
+local SIZE = 20          -- px on screen, times the entranceScale setting
 local MARGIN = 4         -- px kept clear of the normal minimap's edge
 local LOOK = {
     dungeon = { atlas = "Dungeon", texture = "Interface\\TargetingFrame\\UI-TargetingFrame-Skull" },
@@ -29,6 +29,7 @@ local hovered        -- the entrance whose tooltip the far map shows
 local elapsed = 0
 
 local function On() return ns.db and ns.db.dungeonEntrances ~= false end
+local function Size() return SIZE * (tonumber(ns.db and ns.db.entranceScale) or 1) end
 
 local function Places()
     if not places then
@@ -103,7 +104,7 @@ local function DrawNative()
             local half = Minimap:GetWidth() / 2
             local facing = Rotating() and GetPlayerFacing() or nil
             if ns.IsSecret(facing) then facing = nil end
-            local size = SIZE / math.max(Minimap:GetScale(), 0.01)
+            local size = Size() / math.max(Minimap:GetScale(), 0.01)
             local round = ns.db.round == true
             for _, place in ipairs(Places()) do
                 if place.inst == inst then
@@ -137,6 +138,7 @@ local farUsed = 0
 
 local function DrawFar()
     local n = 0
+    local size = Size()
     if layout and On() then
         for _, place in ipairs(Places()) do
             if place.inst == layout.inst then
@@ -145,7 +147,6 @@ local function DrawFar()
                 local p = farPins[n]
                 if not p then
                     p = { tex = farLayer:CreateTexture(nil, "ARTWORK") }
-                    p.tex:SetSize(SIZE, SIZE)
                     if ns.Far and ns.Far.Shape then ns.Far.Shape(p.tex) end
                     farPins[n] = p
                 end
@@ -154,6 +155,7 @@ local function DrawFar()
                     SetLook(p.tex, place.raid)
                 end
                 p.x, p.y = x, y
+                p.tex:SetSize(size, size)
                 p.tex:SetPoint("CENTER", farLayer, "CENTER", x, y)
                 p.tex:Show()
             end
@@ -182,9 +184,9 @@ function Entrances.SetLayout(inst, n, w, ppy)
 end
 
 -- The entrance under the cursor on the far map (nearest if several), or nil.
-local HIT = SIZE / 2
 function Entrances.UnderCursor()
     if not farLayer or not layout or farUsed == 0 then return nil end
+    local HIT = Size() / 2
     local lx, ly = farLayer:GetCenter()
     if not lx then return nil end
     local s = farLayer:GetEffectiveScale()

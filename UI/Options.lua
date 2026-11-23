@@ -290,6 +290,8 @@ BUILDERS[2] = { "Icons", function(p)
             ns.db.dungeonEntrances = on
             if ns.Entrances then ns.Entrances.Refresh() end
         end }, "On the normal and the far minimap. Hover one for its name and level range, coloured for your level.")
+    p:Slider("Entrance size", "entranceScale", 0.05, Percent, "Dungeon and raid entrance icons, on both maps.",
+        function() if ns.Entrances then ns.Entrances.Refresh() end end)
     p:Check("Game's own quest and town icons", { function() return ns.db.nativeIcons == true end,
         function(on) ns.NativeIcons.SetShown(on) end },
         "Off: only Questie's icons, so turn-ins and town services aren't drawn twice. The game's own icons only show at native zoom. Find Herbs and other tracking spells are left alone.")

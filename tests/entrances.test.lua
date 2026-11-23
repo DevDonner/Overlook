@@ -127,6 +127,17 @@ H.test("drawing: both maps place pins, hover shows the levels, off hides them", 
     E.SetHover(place)
     H.eq(tip.lines[1], "Shadowfang Keep 20-30")
 
+    ns.db.entranceScale = 2
+    E.Refresh()
+    local sized
+    for _, f in ipairs(frames) do
+        if rawget(f, "place") then
+            f.SetSize = function(_, w) sized = w end
+        end
+    end
+    nativeLayer.OnUpdate(nativeLayer, 1)
+    H.eq(sized, 40, "entrance size 2: 40 px")
+
     ns.db.dungeonEntrances = false
     E.Refresh()
     H.eq(E.UnderCursor(), nil, "off: nothing on the far map")
