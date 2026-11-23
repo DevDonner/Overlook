@@ -180,12 +180,16 @@ local function UpdateOwners()
     owners = Areas.Assign(onMaps)
 end
 
-local function Paint(f, mapID)
-    pcall(f.DrawNone, f)
-    pcall(f.SetFillAlpha, f, math.floor((ns.db.questAreaFill or 0.5) * 255 + 0.5))
-    pcall(f.SetBorderAlpha, f, math.floor((ns.db.questAreaBorder or 0.75) * 255 + 0.5))
+-- The quests to draw, worked out once per redraw (not once per zone).
+local function QuestsToDraw()
     local tracked = TrackedQuests()
-    local ids = ns.db.questAreaTracked and tracked or AllQuests(tracked)
+    return ns.db.questAreaTracked and tracked or AllQuests(tracked)
+end
+
+local function Paint(f, mapID, ids)
+    pcall(f.DrawNone, f)
+    pcall(f.SetFillAlpha, f, math.floor((ns.db.questAreaFill or 0.25) * 255 + 0.5))
+    pcall(f.SetBorderAlpha, f, math.floor((ns.db.questAreaBorder or 0.5) * 255 + 0.5))
     for _, id in ipairs(ids) do
         -- A quest no zone in view lists has no marker: left to every frame, as before.
         local owner = owners[id]
@@ -203,13 +207,15 @@ end
 local function Showing()
     return layout ~= nil and ns.db.questAreas ~= false and not (ns.Caves and ns.Caves.IsDrawing())
 end
+local wasShowing = false
 
 -- Shows the frames of the zones in view (placed, and painted if anything changed since), hides
 -- every other frame.
 local function Draw()
     local list = layout and ZonesOf(layout.inst) or {}
     local show, keep = Showing(), {}
-    if show then UpdateOwners() end
+    wasShowing = show
+    local ids -- worked out the first time a frame needs painting
     if show then
         for _, z in ipairs(list) do
             if visible[z.mapID] then
@@ -217,7 +223,11 @@ local function Draw()
                 if f then
                     Place(f, z)
                     if painted[z.mapID] ~= generation then
-                        Paint(f, z.mapID)
+                        if not ids then
+                            UpdateOwners()
+                            ids = QuestsToDraw()
+                        end
+                        Paint(f, z.mapID, ids)
                         painted[z.mapID] = generation
                     end
                     f:Show()
@@ -253,6 +263,7 @@ function Areas.Update(now, north, west, radius)
     end
     -- Which zone draws a quest depends on which zones are in view: repaint them all.
     if changed then generation = generation + 1 end
+    if Showing() ~= wasShowing then changed = true end -- a cave started or ended
     for id in pairs(visible) do
         if painted[id] ~= generation then changed = true end
     end

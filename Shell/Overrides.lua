@@ -143,9 +143,14 @@ Overrides.EachGameSetting = EachGameSetting
 
 -- The game's minimap-coordinates option(s), found once (retried until the window has them).
 local gameSettings -- [label] = setting
+local nextSearch = 0 -- not found yet: look again at most every SEARCH_EVERY seconds
+local SEARCH_EVERY = 10
 local function GameCoordSettings()
     if gameSettings then return gameSettings end
     local found = {}
+    local now = GetTime()
+    if now < nextSearch then return found end
+    nextSearch = now + SEARCH_EVERY
     EachGameSetting(function(label, setting)
         if Overrides.IsMinimapCoordLabel(label) then found[label] = setting end
     end)
@@ -234,12 +239,28 @@ function Overrides.Apply()
     end
 end
 
+-- At logout everything we switched off goes back, so the other addons' saved settings and the
+-- game's option are always their own: if FarZoomMinimap is ever disabled, nothing stays off.
+-- Next login takes them over again.
+function Overrides.RestoreAll()
+    for _, prov in ipairs(Overrides.PROVIDERS) do
+        local s = prov.settings()
+        if s and Overrides.Sync(s, NOTHING, ns.db.overridden, prov.map or GameMap(), prov.name .. ".") then
+            -- The addons' tables are saved as they are now; the game's option needs its setter.
+            if prov.name == "game" then pcall(prov.refresh) end
+        end
+    end
+end
+
 local events = CreateFrame("Frame")
 events:RegisterEvent("PLAYER_REGEN_ENABLED")
 events:RegisterEvent("PLAYER_ENTERING_WORLD")
+events:RegisterEvent("PLAYER_LOGOUT")
 events:SetScript("OnEvent", function(_, event)
     if not ns.db then return end
-    if event == "PLAYER_ENTERING_WORLD" then
+    if event == "PLAYER_LOGOUT" then
+        Overrides.RestoreAll()
+    elseif event == "PLAYER_ENTERING_WORLD" then
         -- Other addons finish their own setup around now; once more a moment later to be sure.
         Overrides.Apply()
         C_Timer.After(2, Overrides.Apply)

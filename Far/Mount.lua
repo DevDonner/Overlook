@@ -36,7 +36,9 @@ local function Check()
         zoomedByUs = far ~= nil and not far.IsPanned() and far.ZoomTo(ns.db.mountRadius) or false
     elseif action == "back" then
         zoomedByUs = false
-        if far and not far.IsPanned() then far.Recenter() end
+        -- Only while our zoom-out is still up: if the player already went back to the normal
+        -- minimap, leave its zoom alone.
+        if far and far.IsActive() and not far.IsPanned() then far.Recenter() end
     else
         zoomedByUs = false
     end
