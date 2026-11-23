@@ -35,6 +35,10 @@ local function Dot(i)
         d.fill = layer:CreateTexture(nil, "ARTWORK", nil, 1)
         d.fill:SetSize(DOT_SIZE, DOT_SIZE)
         d.fill:SetTexture(DOT_TEXTURE)
+        if ns.Far and ns.Far.Shape then
+            ns.Far.Shape(d.border)
+            ns.Far.Shape(d.fill)
+        end
         dots[i] = d
     end
     return d

@@ -2,8 +2,11 @@
 -- under the far view, so a ping (the party's or our own right-click) is redrawn here: a dot with
 -- gold pulses and the name of who pinged, at the same world spot, for as long as the game shows it.
 --
--- The position comes from Minimap:GetPingPosition() (native units, offsets from the player) when
--- MINIMAP_PING fires, and is fixed in world yards then, so it stays put as the player moves.
+-- Our own right-click pings are drawn straight away at the clicked spot (Far/Far.lua calls
+-- Pings.Local): the ping event's values can be locked from addons, which dropped them. Other
+-- players' pings come from MINIMAP_PING with Minimap:GetPingPosition() (native units, offsets from
+-- the player), when the game lets those be read. Either way the spot is fixed in world yards, so
+-- it stays put as the player moves.
 local _, ns = ...
 
 local G, Zoom = ns.Geometry, ns.Zoom
@@ -20,7 +23,9 @@ local canvas, layer
 local layout            -- { inst, n, w, ppy }
 local ping              -- { n, w, inst, start, name, r, g, b } or nil
 local marker
-local last              -- for /fzm pings: { x, y, n, w }
+local last              -- for /fzm pings: { x, y, n, w, why }
+local localAt = -10     -- when our own last ping was drawn (its event is then skipped)
+local LOCAL_GRACE = 1   -- seconds
 
 local function Round(parent, size, r, g, b)
     local t = parent:CreateTexture(nil, "OVERLAY")
@@ -81,14 +86,38 @@ function Pings.SetLayout(inst, n, w, ppy)
     if marker then Place() end
 end
 
+local function Show(n, w, inst, name, r, g, b)
+    ping = { n = n, w = w, inst = inst, start = GetTime() }
+    marker.label:SetText(name or "")
+    marker.label:SetTextColor(r or 1, g or 0.82, b or 0)
+    marker.pulse:SetSize(DOT, DOT)
+    marker:SetAlpha(1)
+    Place()
+end
+
+-- Our own ping, at the world spot clicked (Far/Far.lua).
+function Pings.Local(n, w)
+    if not (marker and ns.Far and ns.Far.PlayerWorld) then return end
+    local _, _, inst = ns.Far.PlayerWorld()
+    localAt = GetTime()
+    last = { n = n, w = w, why = "our own" }
+    local okC, _, class = pcall(UnitClass, "player")
+    local c = okC and class and _G.RAID_CLASS_COLORS and _G.RAID_CLASS_COLORS[class]
+    Show(n, w, inst, nil, c and c.r, c and c.g, c and c.b)
+end
+
 local function OnPing(unit)
     if not (ns.Far and ns.Far.PlayerWorld) then return end
+    if GetTime() - localAt < LOCAL_GRACE then return end -- the event for our own ping, already drawn
     local pN, pW, inst, nativeMax = ns.Far.PlayerWorld()
     local ok, x, y = pcall(Minimap.GetPingPosition, Minimap)
-    if not ok or ns.IsSecret(x) or ns.IsSecret(y) or not pN then return end
+    if not ok or ns.IsSecret(x) or ns.IsSecret(y) or type(x) ~= "number" or not pN then
+        last = { why = not ok and "position unreadable (error)" or "position locked by the game" }
+        return
+    end
     local n, w = Zoom.PingToWorld(x, y, pN, pW, ns.Shell.nativeSize or Minimap:GetWidth(), nativeMax)
     if not n then return end
-    last = { x = x, y = y, n = n, w = w }
+    last = { x = x, y = y, n = n, w = w, why = "event" }
     local name, r, g, b
     if type(unit) == "string" and not ns.IsSecret(unit) then
         local okN, nm = pcall(UnitName, unit)
@@ -97,10 +126,7 @@ local function OnPing(unit)
         local c = okC and class and _G.RAID_CLASS_COLORS and _G.RAID_CLASS_COLORS[class]
         if c then r, g, b = c.r, c.g, c.b end
     end
-    ping = { n = n, w = w, inst = inst, start = GetTime() }
-    marker.label:SetText(name or "")
-    marker.label:SetTextColor(r or 1, g or 0.82, b or 0)
-    Place()
+    Show(n, w, inst, name, r, g, b)
 end
 
 function Pings.Build(canvasFrame, level)
@@ -122,6 +148,10 @@ ns.RegisterCommand("pings", "show the last ping the far view drew", function()
         ns.Print("no ping seen in far mode yet")
         return
     end
-    ns.Printf("last ping: native %.1f, %.1f  world %.1f N, %.1f W  %s", last.x, last.y, last.n, last.w,
-        ping and "showing" or "ended")
+    if not last.n then
+        ns.Printf("last ping dropped: %s", last.why or "?")
+        return
+    end
+    ns.Printf("last ping (%s): world %.1f N, %.1f W%s  %s", last.why or "?", last.n, last.w,
+        last.x and string.format("  native %.1f, %.1f", last.x, last.y) or "", ping and "showing" or "ended")
 end)

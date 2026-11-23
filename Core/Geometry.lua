@@ -62,3 +62,8 @@ function Geometry.VisibleTiles(north, west, radius)
         Clamp(floor((HALF - (north + radius)) / TILE)),
         Clamp(floor((HALF - (north - radius)) / TILE))
 end
+
+-- Whether an offset (dx, dy) from a round map's centre is on the map (radius r). Pure.
+function Geometry.InCircle(dx, dy, r)
+    return dx * dx + dy * dy <= r * r
+end

@@ -112,6 +112,7 @@ local function AcquireTexture()
             t:SetSnapToPixelGrid(false)
             t:SetTexelSnappingBias(0)
         end
+        Far.Shape(t)
     end
     t:Show()
     return t
@@ -205,6 +206,7 @@ end
 -- Frame loop (runs only while the view is shown, i.e. in far mode)
 
 local EndCover -- (below)
+local CursorInside -- (below, with the shape)
 
 local function OnUpdate()
     if coverStart then
@@ -303,7 +305,7 @@ local function OnUpdate()
     end
 
     -- Hover: party dots sit above the icons, so a dot under the cursor wins.
-    if view:IsMouseOver() and not (drag and drag.moved) then
+    if view:IsMouseOver() and CursorInside() and not (drag and drag.moved) then
         local unit = ns.Party and ns.Party.UnitUnderCursor()
         if unit then
             if ns.Mirror then ns.Mirror.ClearHover() end
@@ -470,6 +472,8 @@ local function Ping()
         ns.Shell.nativeSize or Minimap:GetWidth(), nativeMax)
     if x then
         pcall(Minimap.PingLocation, Minimap, x, y)
+        local n, w = Zoom.PingToWorld(x, y, playerN, playerW, ns.Shell.nativeSize or Minimap:GetWidth(), nativeMax)
+        if n and ns.Pings then ns.Pings.Local(n, w) end
     elseif _G.UIErrorsFrame then
         _G.UIErrorsFrame:AddMessage("Too far away to ping: the game only pings within the normal minimap's range.", 1, 0.1, 0.1)
     end
@@ -619,6 +623,64 @@ function Far.Wheel(delta)
 end
 
 ----------------------------------------------------------------------------------------------------
+-- Shape: on a round map (ns.db.round) every texture on the far view takes a round mask the size of
+-- the view; the view itself is still a square frame, so the corners are empty. Masks belong to a
+-- frame, so each frame holding textures gets its own, anchored to the view. Textures register as
+-- they're made (Far.Shape) and follow the setting from then on.
+
+local ROUND_MASK = "Interface\\CHARACTERFRAME\\TempPortraitAlphaMask"
+local masks = {}                                       -- [frame] = mask texture
+local registered = setmetatable({}, { __mode = "k" })  -- [texture] = its frame
+local masked = setmetatable({}, { __mode = "k" })      -- [texture] = true while masked
+
+local function IsRound() return ns.db.round == true end
+
+local function MaskFor(frame)
+    local m = masks[frame]
+    if not m then
+        m = frame:CreateMaskTexture()
+        if not m then return nil end
+        m:SetTexture(ROUND_MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+        m:SetAllPoints(view)
+        masks[frame] = m
+    end
+    return m
+end
+
+local function ShapeOne(t)
+    local want = IsRound()
+    if (masked[t] == true) == want then return end
+    local frame = registered[t]
+    if not (frame and frame.CreateMaskTexture) then return end
+    local m = MaskFor(frame)
+    if not m then return end
+    if want then pcall(t.AddMaskTexture, t, m) else pcall(t.RemoveMaskTexture, t, m) end
+    masked[t] = want or nil
+end
+
+-- Every module making textures on the far view passes them here once.
+function Far.Shape(t)
+    if not t or registered[t] or not view then return end
+    registered[t] = t:GetParent()
+    ShapeOne(t)
+end
+
+function Far.ApplyShape()
+    for t in pairs(registered) do ShapeOne(t) end
+end
+
+-- Whether the cursor is on the map (always, on a square one): the empty corners of a round map
+-- take no hovers or clicks.
+function CursorInside()
+    if not IsRound() then return true end
+    local vx, vy = view:GetCenter()
+    if not vx then return true end
+    local s = view:GetEffectiveScale()
+    local cx, cy = GetCursorPosition()
+    return G.InCircle(cx / s - vx, cy / s - vy, view:GetWidth() / 2)
+end
+
+----------------------------------------------------------------------------------------------------
 -- Setup
 
 -- The player arrow: the native arrow's size at this map size, times the arrow size setting.
@@ -633,6 +695,7 @@ function Far.OnShellApplied()
     if not view then return end
     Far.ApplyArrowSize()
     layoutDirty = true
+    Far.ApplyShape()
     -- Proxy sizes follow the native icons, which scale with the Minimap.
     if ns.Mirror then ns.Mirror.MarkAllDirty() end
     PlaceRecenter() -- the map may have moved
@@ -653,6 +716,7 @@ function Far.Build(root, level)
     local bg = view:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints(view)
     bg:SetColorTexture(0.06, 0.07, 0.09, 1)
+    Far.Shape(bg)
 
     canvas = CreateFrame("Frame", nil, view)
     canvas:SetSize(1, 1)
@@ -672,7 +736,7 @@ function Far.Build(root, level)
     if ns.FarArt then ns.FarArt.Build(canvas, view, level + 6) end
     if ns.Caves then ns.Caves.Build(canvas, view, level + 6) end
     view:SetScript("OnMouseDown", function(_, button)
-        if button == "LeftButton" then
+        if button == "LeftButton" and CursorInside() then
             local x, y = Cursor()
             BeginDrag(x, y, false)
         end
@@ -680,7 +744,7 @@ function Far.Build(root, level)
     view:SetScript("OnMouseUp", function(_, button)
         local wasDrag = drag and drag.moved
         if button == "LeftButton" and drag then FinishDrag() end
-        if wasDrag then return end
+        if wasDrag or not CursorInside() then return end
         if ns.Mirror and ns.Mirror.Click(button) then return end
         OnViewClick(button)
     end)
@@ -697,6 +761,7 @@ function Far.Build(root, level)
     if arrow:SetTexture(ARROW_TEXTURE) == false then
         arrow:SetColorTexture(1, 0.82, 0, 1) -- fallback so the player is still marked
     end
+    Far.Shape(arrow)
 
     -- Shown while panned.
     -- Shown while panned: a flat chip in the bars' style.

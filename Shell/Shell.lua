@@ -16,12 +16,13 @@ local Shell = {}
 ns.Shell = Shell
 
 local SQUARE_MASK = "Interface\\BUTTONS\\WHITE8X8"
+local ROUND_MASK = "Interface\\CHARACTERFRAME\\TempPortraitAlphaMask"
 
 -- Fixed frame levels. Questie pins its minimap icons at level 2016 and up (fixed), so the far view
 -- must sit above them to take the mouse; the border and Alt+drag catcher go above that.
 local LEVEL_VIEW, LEVEL_BORDER, LEVEL_CATCHER = 3000, 3010, 3020
 
-local root, catcher, border
+local root, catcher, border, ring
 local nativeSize
 local applyQueued = false
 
@@ -57,12 +58,19 @@ local function ApplyNow()
     Minimap:ClearAllPoints()
     Minimap:SetPoint("CENTER", root, "CENTER")
     Minimap:SetScale(ns.db.size / nativeSize)
-    Minimap:SetMaskTexture(SQUARE_MASK)
+    local round = ns.db.round == true
+    Minimap:SetMaskTexture(round and ROUND_MASK or SQUARE_MASK)
 
-    -- The quest/archaeology blob rings are drawn for a round map; hide them on the square.
+    -- The quest/archaeology blob rings are drawn for a round map; hidden on the square.
     for _, fn in ipairs({ "SetArchBlobRingScalar", "SetQuestBlobRingScalar", "SetTaskBlobRingScalar" }) do
-        if Minimap[fn] then pcall(Minimap[fn], Minimap, 0) end
+        if Minimap[fn] then pcall(Minimap[fn], Minimap, round and 1 or 0) end
     end
+
+    -- The edge: a 1 px square outline, or a ring (a black disc 2 px wider, behind the round map).
+    border:SetBackdropBorderColor(0, 0, 0, round and 0 or 1)
+    ring:SetSize(ns.db.size + 2, ns.db.size + 2)
+    ring:SetShown(round)
+    Shell.SyncRotation()
 
     HideArt(_G.MinimapCompassTexture)
     HideArt(_G.MinimapCompassTextureUnderlay)
@@ -140,6 +148,15 @@ local function BuildRoot()
     border:SetBackdrop({ edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
     border:SetBackdropBorderColor(0, 0, 0, 1)
 
+    ring = root:CreateTexture(nil, "BACKGROUND")
+    ring:SetPoint("CENTER")
+    ring:SetColorTexture(0, 0, 0, 1)
+    local ringMask = root:CreateMaskTexture()
+    ringMask:SetTexture(ROUND_MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    ringMask:SetAllPoints(ring)
+    ring:AddMaskTexture(ringMask)
+    ring:Hide()
+
     BuildCatcher()
 end
 
@@ -211,22 +228,34 @@ function Shell.Build()
 
     -- LibDBIcon and similar libraries ask this global where the map's edge is.
     if _G.GetMinimapShape == nil then
-        _G.GetMinimapShape = function() return "SQUARE" end
+        _G.GetMinimapShape = function() return ns.db.round and "ROUND" or "SQUARE" end
     end
 
     ApplyNow()
 end
 
 -- Rotation is the game's own rotating minimap (the rotateMinimap setting), at normal zoom only:
--- the far map stays north-up. ns.db.rotate follows the game's setting, so a profile carries it.
+-- the far map stays north-up. Only on the round map: a turning square looks wrong, so on the
+-- square the game's setting is kept off. ns.db.rotate is the player's choice (a profile carries
+-- it); on the round map it follows the game's setting both ways.
 local function RotationNow()
     local ok, v = pcall(GetCVar, "rotateMinimap")
     return ok and v == "1"
 end
 
+-- Whether the game's setting should be on: the player's choice, on the round map only. Pure.
+function Shell.WantRotation(rotate, round)
+    return rotate == true and round == true
+end
+
+function Shell.SyncRotation()
+    local want = Shell.WantRotation(ns.db.rotate, ns.db.round)
+    if RotationNow() ~= want then pcall(SetCVar, "rotateMinimap", want and "1" or "0") end
+end
+
 function Shell.SetRotate(on)
     ns.db.rotate = on and true or false
-    if RotationNow() ~= ns.db.rotate then pcall(SetCVar, "rotateMinimap", ns.db.rotate and "1" or "0") end
+    Shell.SyncRotation()
 end
 
 function Shell.ResetPosition()
@@ -256,7 +285,7 @@ events:SetScript("OnEvent", function(_, event, arg1)
             events:UnregisterEvent("ADDON_LOADED")
         end
     elseif event == "PLAYER_LOGIN" then
-        ns.db.rotate = RotationNow()
+        if ns.db.round then ns.db.rotate = RotationNow() end
         Shell.Build()
     elseif event == "PLAYER_LOGOUT" then
         if ns.Profiles and ns.db then ns.Profiles.Save(ns.db) end
@@ -267,7 +296,8 @@ events:SetScript("OnEvent", function(_, event, arg1)
     elseif event == "PLAYER_REGEN_ENABLED" then
         if applyQueued then ApplyNow() end
     else -- CVAR_UPDATE (rotateMinimap resets the mask), EDIT_MODE_LAYOUTS_UPDATED
-        if event == "CVAR_UPDATE" then ns.db.rotate = RotationNow() end
+        -- On the round map the game's setting is the choice; on the square it's put back off.
+        if event == "CVAR_UPDATE" and ns.db.round then ns.db.rotate = RotationNow() end
         Shell.Apply()
     end
 end)

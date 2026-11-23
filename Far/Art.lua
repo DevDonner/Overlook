@@ -64,6 +64,7 @@ local function Draw()
         local tex = textures[i]
         if not tex then
             tex = canvas:CreateTexture(nil, "ARTWORK", nil, 1) -- above the terrain tiles
+            if ns.Far and ns.Far.Shape then ns.Far.Shape(tex) end
             textures[i] = tex
         end
         tex:SetTexture(t.file)

@@ -24,12 +24,12 @@ The full design, with decisions, risks and the test plan, is in [docs/design.md]
 - Drag to pan, with a Recenter button; a panned map stays put while you move
 - Zooms out when you mount and comes back when you dismount (adjustable)
 - Zone name bar above the map and a bottom bar with coordinates, zoom distance and a clock
-- Square, movable (Alt + drag) and resizable from its corner, with a lock
+- Square or round, movable (Alt + drag) and resizable from its corner, with a lock
 - Questie's icon switches in our own settings window, plus player arrow size and route line width
 - Settings profiles, with export and import strings for sharing
 - Settings window, minimap button and addon compartment entry
 
-- Optional rotating minimap at normal zoom (off by default; the far map stays north-up)
+- Optional rotating minimap at normal zoom, on the round map only (off by default; the far map stays north-up)
 
 Planned: Edit Mode support.
 

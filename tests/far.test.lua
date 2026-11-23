@@ -402,3 +402,48 @@ end)
 
 for k in pairs(GLOBALS) do _G[k] = saved[k] end
 _G.Minimap, _G.CreateFrame = saved.Minimap, saved.CreateFrame
+
+-- A texture that records its masks, on a frame that can make them.
+local function MaskedTexture()
+    local frame = NewObj()
+    frame.CreateMaskTexture = function() return NewObj() end
+    local t = { masks = 0 }
+    t.GetParent = function() return frame end
+    t.AddMaskTexture = function(self) self.masks = self.masks + 1 end
+    t.RemoveMaskTexture = function(self) self.masks = self.masks - 1 end
+    return t
+end
+
+H.test("round map: far-view textures take the round mask, and lose it on the square", function()
+    local t = MaskedTexture()
+    Far.Shape(t)
+    H.eq(t.masks, 0, "square: no mask")
+    ns.db.round = true
+    Far.ApplyShape()
+    H.eq(t.masks, 1, "round: masked")
+    Far.ApplyShape()
+    H.eq(t.masks, 1, "only once")
+    local late = MaskedTexture()
+    Far.Shape(late)
+    H.eq(late.masks, 1, "made later on the round map: masked straight away")
+    ns.db.round = false
+    Far.ApplyShape()
+    H.eq(t.masks, 0, "square again: unmasked"); H.eq(late.masks, 0)
+end)
+
+H.test("round map: the corners are off the map", function()
+    local G = ns.Geometry
+    H.eq(G.InCircle(0, 0, 100), true)
+    H.eq(G.InCircle(70, 70, 100), true)
+    H.eq(G.InCircle(80, 80, 100), false, "a corner")
+    H.eq(G.InCircle(100, 0, 100), true, "the edge")
+end)
+
+H.test("rotation: only on the round map, and only when chosen", function()
+    H.loadAddonFile("Shell/Shell.lua", ns)
+    local W = ns.Shell.WantRotation
+    H.eq(W(true, true), true)
+    H.eq(W(true, false), false, "square: kept off")
+    H.eq(W(false, true), false)
+    H.eq(W(nil, nil), false)
+end)

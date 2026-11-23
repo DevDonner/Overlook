@@ -76,6 +76,7 @@ local function Line(i)
     local line = lines[i]
     if not line then
         line = canvas:CreateLine(nil, "OVERLAY")
+        if ns.Far and ns.Far.Shape then ns.Far.Shape(line) end
         line:SetTexture("Interface\\BUTTONS\\WHITE8X8")
         lines[i] = line
     end

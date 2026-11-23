@@ -108,7 +108,8 @@ end
 local function Percent(v) return string.format("%d%%", v * 100 + 0.5) end
 
 -- A list of checkboxes rebuilt on every refresh from entries() -> { { label, icon, checked(),
--- toggle() } }, starting at the page's current position. Rows are pooled.
+-- toggle(), action } }, starting at the page's current position. Rows are pooled. action, if
+-- given, is a button at the row's right end: { text, enabled(), run(), tip }.
 function Page:DynamicList(entries, empty)
     local top, pool = self.y, {}
     local note = W.Note(self.content, empty or "")
@@ -132,6 +133,21 @@ function Page:DynamicList(entries, empty)
                 pool[i] = row
             end
             row.entry = e
+            if e.action and not row.action then
+                row.action = W.Button(self.content, "", 80, function()
+                    local a = row.entry.action
+                    if a then a.run() end
+                end)
+                row.action:SetPoint("RIGHT", self.content, "LEFT", CONTENT_WIDTH - 10, 0)
+                row.action:SetPoint("TOP", row, "TOP", 0, 0)
+            end
+            if row.action then
+                row.action:SetShown(e.action ~= nil)
+                if e.action then
+                    row.action:SetText(e.action.text)
+                    row.action:SetEnabled(e.action.enabled())
+                end
+            end
             row.label:SetText(e.label)
             row.icon:SetTexture(e.icon)
             row:ClearAllPoints()
@@ -140,7 +156,10 @@ function Page:DynamicList(entries, empty)
             row:Show()
             y = y - 26
         end
-        for i = #list + 1, #pool do pool[i]:Hide() end
+        for i = #list + 1, #pool do
+            pool[i]:Hide()
+            if pool[i].action then pool[i].action:Hide() end
+        end
         self.content:SetHeight(-y + 20)
     end
     self.onRefresh[#self.onRefresh + 1] = Layout
@@ -226,6 +245,8 @@ BUILDERS[1] = { "Map", function(p)
         function(v) ns.Far.SetMaxZoom(v) end,
         "How far out the mouse wheel can zoom, in yards from the centre to the edge. "
             .. "/fzm far shows how long the last zoom took to fill in."), 4, 46)
+    p:Check("Round map", "round", "A round map instead of a square one. Rotation (Behaviour tab) needs the round map.",
+        function() ns.Shell.Apply(); Options.Refresh() end)
     p:Check("Lock size (hide the resize grip)", "locked", "Alt+drag still moves the map when it's locked.")
     p:Check("Smooth zooming", "smoothZoom")
     p:Check("Minimap button", { function() return not ns.db.minimapButton.hide end,
@@ -342,9 +363,13 @@ BUILDERS[5] = { "Behaviour", function(p)
         "On the far map, like a click on the normal minimap. The game only pings within the normal minimap's range.")
 
     p:Header("Rotation")
-    p:Check("Rotate the minimap with the camera", { function() return ns.db.rotate == true end,
+    local rotate = p:Check("Rotate the minimap with the camera (round map only)", { function() return ns.db.rotate == true end,
         function(on) ns.Shell.SetRotate(on) end },
-        "The game's own rotating minimap, at normal zoom. The far map stays north-up, so the view turns back to north when you zoom out past the normal minimap.")
+        "The game's own rotating minimap, at normal zoom, on the round map only (turn it on in the Map tab). The far map stays north-up, so the view turns back to north when you zoom out past the normal minimap.")
+    p.onRefresh[#p.onRefresh + 1] = function()
+        rotate:SetEnabled(ns.db.round == true)
+        rotate.label:SetFontObject(ns.db.round and "GameFontHighlight" or "GameFontDisable")
+    end
 
     p:Header("Mounted")
     p:Check("Zoom out when mounted", "mountZoom", "Back to the normal minimap when you dismount.")
@@ -414,21 +439,34 @@ BUILDERS[6] = { "Profiles", function(p)
     message:SetWidth(CONTENT_WIDTH - 10)
 
     p:Header("Your profiles")
-    p:Note("Tick one to switch to it. Shift-click a profile that isn't in use to delete it.")
+    p:Note("Tick one to switch to it. Delete asks once more before it deletes; the profile in use can't be deleted (switch to another first).")
+    local confirming, confirmAt -- the profile whose Delete was clicked once, and when
     p:DynamicList(function()
         local out = {}
+        local asking = confirming and GetTime() - confirmAt < 4 and confirming or nil
         for _, n in ipairs(P.List(ns.db)) do
             out[#out + 1] = {
                 label = n,
                 checked = function() return n == ns.db.profile end,
                 toggle = function()
-                    if IsShiftKeyDown() and n ~= ns.db.profile then
-                        Say(P.Delete(ns.db, n))
-                    else
-                        Change(P.Switch, n)
-                    end
+                    Change(P.Switch, n)
                     Options.Refresh()
                 end,
+                action = {
+                    text = asking == n and "Sure?" or "Delete",
+                    enabled = function() return n ~= ns.db.profile end,
+                    run = function()
+                        if confirming == n and GetTime() - confirmAt < 4 then
+                            confirming = nil
+                            Say(P.Delete(ns.db, n))
+                        else
+                            confirming, confirmAt = n, GetTime()
+                            -- Back to "Delete" if not confirmed in time.
+                            C_Timer.After(4.1, function() Options.Refresh() end)
+                        end
+                        Options.Refresh()
+                    end,
+                },
             }
         end
         return out
