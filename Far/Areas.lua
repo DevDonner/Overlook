@@ -31,9 +31,10 @@ local canvas, view, level
 -- map's strips. { clip = clipping frame or nil, frames = { [mapID] = QuestPOIFrame } }
 local sets = {}
 local zooming = false     -- a zoom is moving (the round map's strips wait for it to settle)
--- In-game experiment (/fzm areas test <mode>), to find why the widget shows nothing in the strips:
--- nil normal; "noclip" strips that don't clip; "view" strips on the view instead of the canvas;
--- "one" a single strip the size of the whole map (clipping, like the view).
+-- The widget shows nothing when its own parent clips, but is clipped fine by a clipping
+-- grandparent (the square map: view clips, canvas doesn't, widget). So each strip holds a plain
+-- frame, and the widgets sit in that. (Found in game with /fzm areas test, kept for checking:
+-- "noclip" strips that don't clip.)
 local experiment
 local zones = {}          -- [instance] = { { mapID, top, left, bottom, right }, ... }
 local layout              -- { inst, n, w, ppy } while far mode is drawing
@@ -98,21 +99,19 @@ local function ActiveSets()
         return { sets[0] }
     end
     local out = {}
-    local rows = Areas.Strips(ns.db.size / 2, ROUND_STEPS)
-    if experiment == "one" then
-        local r = ns.db.size / 2
-        rows = { { top = r, bottom = -r, half = r } }
-    end
-    for i, row in ipairs(rows) do
+    for i, row in ipairs(Areas.Strips(ns.db.size / 2, ROUND_STEPS)) do
         local set = sets[i]
         if not set then
             local clip = CreateFrame("Frame", nil, canvas)
-            set = { clip = clip, frames = {} }
+            clip:SetFrameLevel(level)
+            -- The widgets' parent: a plain frame in the strip, like the canvas in the view.
+            local holder = CreateFrame("Frame", nil, clip)
+            holder:SetSize(1, 1)
+            holder:SetPoint("CENTER", canvas, "CENTER")
+            holder:SetFrameLevel(level)
+            set = { clip = clip, holder = holder, frames = {} }
             sets[i] = set
         end
-        local parent = experiment == "view" and view or canvas
-        if set.clip:GetParent() ~= parent then set.clip:SetParent(parent) end
-        set.clip:SetFrameLevel(level)
         if set.clip.SetClipsChildren then set.clip:SetClipsChildren(experiment ~= "noclip") end
         set.clip:ClearAllPoints()
         set.clip:SetPoint("TOPLEFT", view, "CENTER", -row.half, row.top)
@@ -126,7 +125,7 @@ end
 local function Frame(set, mapID)
     local f = set.frames[mapID]
     if f or supported == false then return f end
-    local ok, made = pcall(CreateFrame, "QuestPOIFrame", nil, set.clip or canvas)
+    local ok, made = pcall(CreateFrame, "QuestPOIFrame", nil, set.holder or canvas)
     if not ok or not made or not made.SetMapID then
         supported = false
         return nil
@@ -410,7 +409,7 @@ end
 ns.RegisterCommand("areas", "show the quest areas the far view draws", function(arg)
     local mode = type(arg) == "string" and arg:match("^test%s*(%a*)")
     if mode then
-        experiment = (mode == "noclip" or mode == "view" or mode == "one") and mode or nil
+        experiment = mode == "noclip" and mode or nil
         for _, set in pairs(sets) do
             if set.clip then set.clip:Hide() end
         end

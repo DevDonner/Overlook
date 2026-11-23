@@ -215,6 +215,11 @@ H.test("round map: each zone drawn once per strip, hidden while a zoom moves", f
     Areas.SetLayout(1, 0, -1000, 0.1)
     Areas.Update(1, -1000, -1000, 300, false)
     H.eq(Areas.ShownFrames(), 9, "one zone in view, nine strips")
+    for _, f in ipairs(POIs()) do
+        local parent = f.parent
+        H.truthy(parent and parent.parent, "the widget sits in a plain frame inside the strip")
+        H.eq(parent.kind, "Frame")
+    end
     Areas.Update(1.01, -1000, -1000, 300, true)
     H.eq(Areas.ShownFrames(), 0, "zooming: hidden")
     Areas.Update(1.02, -1000, -1000, 300, false)
