@@ -23,6 +23,7 @@ Core\NativeIcons.lua
 Core\QuestieCheck.lua
 Core\QuestieToggles.lua
 Core\BarText.lua
+Core\Profiles.lua
 Data\MinimapTiles.lua
 Data\Caves.lua
 Shell\Shell.lua

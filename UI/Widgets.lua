@@ -107,3 +107,21 @@ function W.Button(parent, text, width, onClick, tip)
     Tooltip(b, tip)
     return b
 end
+
+-- A one-line text box. Enter calls onEnter(text) if given; Escape clears the focus.
+function W.Input(parent, width, onEnter, tip)
+    local ok, e = pcall(CreateFrame, "EditBox", nil, parent, "InputBoxTemplate")
+    if not ok then e = CreateFrame("EditBox", nil, parent) end
+    e:SetSize(width, 20)
+    e:SetAutoFocus(false)
+    e:SetFontObject("ChatFontNormal")
+    e:SetMaxLetters(0)
+    e:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+    e:SetScript("OnEnterPressed", function(self)
+        self:ClearFocus()
+        if onEnter then onEnter(self:GetText()) end
+    end)
+    Tooltip(e, tip)
+    e.Refresh = function() end
+    return e
+end

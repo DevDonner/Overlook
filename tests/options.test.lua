@@ -31,6 +31,7 @@ local GLOBALS = {
     GameTooltip = NewObj(),
     LibStub = function() return nil end,
     HideUIPanel = noop,
+    IsShiftKeyDown = function() return false end,
 }
 local saved = {}
 for k in pairs(GLOBALS) do saved[k] = _G[k] end
@@ -44,7 +45,8 @@ local function Fresh()
     H.loadAddonFile("Core/Settings.lua", ns)
     H.loadAddonFile("Core/IconPrefs.lua", ns)
     H.loadAddonFile("Core/QuestieToggles.lua", ns)
-    ns.db = ns.Settings.Load(nil)
+    H.loadAddonFile("Core/Profiles.lua", ns)
+    ns.db = ns.Profiles.Init(ns.Settings.Load(nil))
     ns.Shell = { Apply = noop, ResetPosition = noop, nativeSize = 140 }
     ns.Far = { SetMaxZoom = noop, ApplyArrowSize = noop, Recenter = noop }
     ns.Routes = { Refresh = noop }

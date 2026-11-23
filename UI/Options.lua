@@ -331,6 +331,89 @@ BUILDERS[5] = { "Behaviour", function(p)
         "Capped at the furthest zoom on the Map tab.")
 end }
 
+BUILDERS[6] = { "Profiles", function(p)
+    local P = ns.Profiles
+    local message = W.Note(p.content, "")
+
+    local function Say(ok, err)
+        message:SetText(ok and "" or ("|cffff5555" .. tostring(err) .. "|r"))
+    end
+    -- Runs a change to the live settings and puts the result to work.
+    local function Change(fn, ...)
+        local nativeWas = ns.db.nativeIcons
+        local ok, err = fn(ns.db, ...)
+        Say(ok, err)
+        if ok then P.Reapply(nativeWas) end
+        return ok, err
+    end
+
+    p:Header("Profiles")
+    p:Note("A profile holds every setting and icon group. The map's position stays as it is.")
+    local current = W.Note(p.content, "")
+    p:Place(current, 4, 20)
+    p.onRefresh[#p.onRefresh + 1] = function()
+        current:SetText("Current profile: |cffffffff" .. ns.db.profile .. "|r")
+    end
+
+    local name = W.Input(p.content, 200, nil, "A name for a new or imported profile.")
+    p:Place(name, 10, 26)
+    local y = p.y
+    local new = W.Button(p.content, "New from current", 130, function()
+        if Change(P.New, name:GetText()) then name:SetText("") end
+    end, "Copies the current settings into a new profile and switches to it.")
+    new:SetPoint("TOPLEFT", p.content, "TOPLEFT", 4, y)
+    local reset = W.Button(p.content, "Reset to defaults", 130, function()
+        Change(P.Reset)
+    end, "Puts the current profile back to the default settings.")
+    reset:SetPoint("LEFT", new, "RIGHT", 6, 0)
+    p.y = y - 30
+
+    p:Header("Share")
+    p:Note("Export, then copy the text (Ctrl+C). To import, paste a string here and press Import.")
+    local box = W.Input(p.content, CONTENT_WIDTH - 20, nil)
+    p:Place(box, 10, 26)
+    y = p.y
+    local export = W.Button(p.content, "Export", 100, function()
+        box:SetText(P.Export(ns.db))
+        box:SetFocus()
+        box:HighlightText()
+        Say(true)
+    end, "The current profile as text you can paste anywhere.")
+    export:SetPoint("TOPLEFT", p.content, "TOPLEFT", 4, y)
+    local import = W.Button(p.content, "Import", 100, function()
+        local ok, result = Change(P.Import, box:GetText(), name:GetText())
+        if ok then
+            box:SetText("")
+            message:SetText("|cff55ff55Imported as " .. result .. "|r")
+        end
+    end, "Adds the pasted profile under the name above (or \"Imported\") and switches to it.")
+    import:SetPoint("LEFT", export, "RIGHT", 6, 0)
+    p.y = y - 28
+    p:Place(message, 4, 20)
+    message:SetWidth(CONTENT_WIDTH - 10)
+
+    p:Header("Your profiles")
+    p:Note("Tick one to switch to it. Shift-click a profile that isn't in use to delete it.")
+    p:DynamicList(function()
+        local out = {}
+        for _, n in ipairs(P.List(ns.db)) do
+            out[#out + 1] = {
+                label = n,
+                checked = function() return n == ns.db.profile end,
+                toggle = function()
+                    if IsShiftKeyDown() and n ~= ns.db.profile then
+                        Say(P.Delete(ns.db, n))
+                    else
+                        Change(P.Switch, n)
+                    end
+                    Options.Refresh()
+                end,
+            }
+        end
+        return out
+    end)
+end }
+
 local function ShowPage(i)
     current = i
     for j, p in ipairs(pages) do

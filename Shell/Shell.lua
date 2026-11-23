@@ -234,15 +234,19 @@ events:RegisterEvent("CVAR_UPDATE")
 events:RegisterEvent("PLAYER_REGEN_ENABLED")
 events:RegisterEvent("MODIFIER_STATE_CHANGED")
 events:RegisterEvent("EDIT_MODE_LAYOUTS_UPDATED")
+events:RegisterEvent("PLAYER_LOGOUT")
 events:SetScript("OnEvent", function(_, event, arg1)
     if event == "ADDON_LOADED" then
         if arg1 == ns.name then
             ns.db = ns.Settings.Load(FarZoomMinimapDB)
+            if ns.Profiles then ns.Profiles.Init(ns.db) end
             FarZoomMinimapDB = ns.db
             events:UnregisterEvent("ADDON_LOADED")
         end
     elseif event == "PLAYER_LOGIN" then
         Shell.Build()
+    elseif event == "PLAYER_LOGOUT" then
+        if ns.Profiles and ns.db then ns.Profiles.Save(ns.db) end
     elseif not root then
         return
     elseif event == "MODIFIER_STATE_CHANGED" then

@@ -26,9 +26,10 @@ The full design, with decisions, risks and the test plan, is in [docs/design.md]
 - Zone name bar above the map and a bottom bar with coordinates, zoom distance and a clock
 - Square, movable (Alt + drag) and resizable from its corner, with a lock
 - Questie's icon switches in our own settings window, plus player arrow size and route line width
+- Settings profiles, with export and import strings for sharing
 - Settings window, minimap button and addon compartment entry
 
-Planned: optional rotation, profiles, Edit Mode support.
+Planned: optional rotation, Edit Mode support.
 
 ## Roadmap
 
