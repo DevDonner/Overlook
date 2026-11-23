@@ -269,6 +269,47 @@ BUILDERS[2] = { "Icons", function(p)
         function(on) ns.db.questAreas = on; Areas() end },
         "The game's blue shading where quest objectives are, on the far map.")
     p:Check("Only tracked quests", "questAreaTracked", "Only quests on your objective tracker.", Areas)
+    -- Fill colour: a swatch that opens the game's colour wheel, and a button back to the game's blue.
+    local GAME_BLUE = { 56 / 255, 108 / 255, 248 / 255 }
+    local function Current()
+        local r, g, b
+        if ns.Areas then r, g, b = ns.Areas.Channels(ns.db.questAreaColor) end
+        if r then return r, g, b end
+        return GAME_BLUE[1], GAME_BLUE[2], GAME_BLUE[3]
+    end
+    local swatch
+    local function SetColor(value)
+        ns.db.questAreaColor = value
+        swatch.color:SetColorTexture(Current())
+        Areas()
+    end
+    swatch = W.Button(p.content, "Area colour", 120, function()
+        local cpf = _G.ColorPickerFrame
+        if not (cpf and ns.Areas) then return end
+        local before = ns.db.questAreaColor
+        local r, g, b = Current()
+        local function Picked() SetColor(ns.Areas.Hex(cpf:GetColorRGB())) end
+        local function Cancel() SetColor(before) end
+        if cpf.SetupColorPickerAndShow then
+            cpf:SetupColorPickerAndShow({ r = r, g = g, b = b, hasOpacity = false,
+                swatchFunc = Picked, cancelFunc = Cancel })
+        else
+            cpf.hasOpacity, cpf.func, cpf.cancelFunc = false, Picked, Cancel
+            cpf.previousValues = { r = r, g = g, b = b }
+            cpf:SetColorRGB(r, g, b)
+            cpf:Hide()
+            cpf:Show()
+        end
+    end, "Opens the colour wheel for the areas' fill.")
+    swatch.color = swatch:CreateTexture(nil, "OVERLAY")
+    swatch.color:SetSize(16, 16)
+    swatch.color:SetPoint("LEFT", swatch, "RIGHT", 8, 0)
+    swatch.color:SetColorTexture(Current())
+    local reset = W.Button(p.content, "Default blue", 100, function() SetColor("") end,
+        "Back to the game's own quest-area blue.")
+    reset:SetPoint("LEFT", swatch.color, "RIGHT", 8, 0)
+    p:Place(swatch, 4, 30)
+    p.onRefresh[#p.onRefresh + 1] = function() swatch.color:SetColorTexture(Current()) end
     p:Slider("Area fill", "questAreaFill", 0.05, Percent, nil, Areas)
     p:Slider("Area border", "questAreaBorder", 0.05, Percent, nil, Areas)
 

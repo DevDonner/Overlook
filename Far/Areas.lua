@@ -21,8 +21,31 @@ ns.Areas = Areas
 local CHECK_EVERY = 0.5   -- seconds between looks at which zones are in view
 local CONTINENT = 2       -- Enum.UIMapType
 local ZONE = 3
--- A lighter blue than the game's fill (ours: a flat RGB 146, 174, 251; the game's is 56, 108, 248).
-local FILL = "Interface\\AddOns\\FarZoomMinimap\\Media\\QuestAreaFill"
+-- The fill: the game's own blue by default. The widget takes a texture, not a colour, so a colour
+-- picked in the settings (questAreaColor, "rrggbb") is drawn with the nearest of 216 flat textures
+-- (Media/AreaColors/cRGB.tga, six shades per channel).
+local FILL = "Interface\\WorldMap\\UI-QuestBlob-Inside"
+local PALETTE = "Interface\\AddOns\\FarZoomMinimap\\Media\\AreaColors\\c%d%d%d"
+
+-- "rrggbb" from 0-1 channels. Pure.
+function Areas.Hex(r, g, b)
+    local function C(v) return math.max(0, math.min(255, math.floor(v * 255 + 0.5))) end
+    return string.format("%02x%02x%02x", C(r), C(g), C(b))
+end
+
+-- 0-1 channels from "rrggbb", or nil. Pure.
+function Areas.Channels(hex)
+    if type(hex) ~= "string" or not hex:match("^%x%x%x%x%x%x$") then return nil end
+    return tonumber(hex:sub(1, 2), 16) / 255, tonumber(hex:sub(3, 4), 16) / 255, tonumber(hex:sub(5, 6), 16) / 255
+end
+
+-- The fill texture for a picked colour (nil or "" is the game's blue). Pure.
+function Areas.FillTexture(hex)
+    local r, g, b = Areas.Channels(hex)
+    if not r then return FILL end
+    local function L(v) return math.floor(v * 5 + 0.5) end
+    return string.format(PALETTE, L(r), L(g), L(b))
+end
 local BORDER = "Interface\\WorldMap\\UI-QuestBlob-Outside"
 
 
@@ -179,7 +202,6 @@ local function Frame(set, mapID)
     f = made
     f:SetFrameLevel(set.holder and level + 1 or level)
     if f.EnableMouse then f:EnableMouse(false) end
-    pcall(f.SetFillTexture, f, FILL)
     pcall(f.SetBorderTexture, f, BORDER)
     pcall(f.SetBorderScalar, f, 1)
     -- Overlapping areas merge into one shape instead of stacking into solid blue.
@@ -296,6 +318,7 @@ end
 
 local function Paint(f, mapID, ids)
     pcall(f.DrawNone, f)
+    pcall(f.SetFillTexture, f, Areas.FillTexture(ns.db.questAreaColor))
     pcall(f.SetFillAlpha, f, math.floor((ns.db.questAreaFill or 0.25) * 255 + 0.5))
     pcall(f.SetBorderAlpha, f, math.floor((ns.db.questAreaBorder or 0.5) * 255 + 0.5))
     for _, id in ipairs(ids) do

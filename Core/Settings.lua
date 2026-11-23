@@ -27,6 +27,7 @@ Settings.DEFAULTS = {
     questAreaFill = 0.25, -- their fill opacity (several quests' areas merge into one shape)
     questAreaBorder = 0.5, -- their border opacity
     questAreaTracked = false, -- only quests on the objective tracker
+    questAreaColor = "",  -- their fill colour, "rrggbb"; "" is the game's own blue
     -- Bars: zone name above the map, coordinates / far radius / clock below it.
     topBar = true,
     topBarInside = false, -- over the map's top edge instead of above it

@@ -257,4 +257,16 @@ H.test("round map: each zone drawn once per strip, hidden while a zoom moves", f
     H.eq(Areas.ShownFrames(), 1, "square again: one frame")
 end)
 
+H.test("colour: the game's blue by default, else the nearest palette texture", function()
+    H.truthy(Areas.FillTexture("") :find("UI%-QuestBlob%-Inside"), "default: the game's blue")
+    H.truthy(Areas.FillTexture(nil):find("UI%-QuestBlob%-Inside"))
+    H.truthy(Areas.FillTexture("zzzzzz"):find("UI%-QuestBlob%-Inside"), "junk: the game's blue")
+    H.truthy(Areas.FillTexture("ff0000"):find("AreaColors.c500$"))
+    H.truthy(Areas.FillTexture("80b0ff"):find("AreaColors.c335$"), "rounded to the nearest shade")
+    H.eq(Areas.Hex(1, 0.5, 0), "ff8000")
+    local r, g, b = Areas.Channels("ff8000")
+    H.near(r, 1, 1e-9); H.near(g, 128 / 255, 1e-9); H.eq(b, 0)
+    H.eq(Areas.Hex(Areas.Channels("3a6cf8")), "3a6cf8", "round trip")
+end)
+
 for k, v in pairs(saved) do _G[k] = v end
