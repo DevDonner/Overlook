@@ -10,8 +10,8 @@
 --  * The game's clock button (TimeManagerClockButton). The game's zone header is the bars' own
 --    hideZoneHeader setting.
 --  * The game's own "Player Minimap Coordinates" option (Options > Interface). It lives in the
---    client, not in any UI file, so its CVar is found by name at run time: every CVar whose name
---    has both "minimap" and "coord" in it. Switching it to 0 is what unticking the box does.
+--    client, not in any UI file, and the client won't list its CVars, so it's found in the game's
+--    settings window by its label and switched through the same setting object as its checkbox.
 -- To cover another addon, add an entry to Overrides.PROVIDERS.
 local _, ns = ...
 
@@ -92,67 +92,95 @@ end
 
 local NOTHING = {}
 
--- The CVars that are the game's minimap-coordinates option, from a list of CVar names. Pure.
-function Overrides.MinimapCoordCVars(names)
-    local out = {}
-    for _, name in ipairs(names) do
-        local l = type(name) == "string" and name:lower() or ""
-        local option = l:find("tenth", 1, true) or l:find("precision", 1, true) or l:find("decimal", 1, true)
-        if l:find("minimap", 1, true) and l:find("coord", 1, true) and not option then out[#out + 1] = name end
-    end
-    table.sort(out)
-    return out
+-- Whether a game option's label is the minimap-coordinates switch ("Player Minimap Coordinates"),
+-- not the precision option next to it ("Coordinates in Tenths"). Pure.
+function Overrides.IsMinimapCoordLabel(label)
+    local l = type(label) == "string" and label:lower() or ""
+    if l:find("tenth", 1, true) or l:find("precision", 1, true) or l:find("decimal", 1, true) then return false end
+    return l:find("minimap", 1, true) ~= nil and l:find("coord", 1, true) ~= nil
 end
 
--- Every CVar name the client knows (empty if it won't list them).
-local function AllCVars()
-    local names = {}
-    local console = _G.C_Console
-    if not (console and console.GetAllCommands) then return names end
-    local ok, list = pcall(console.GetAllCommands)
-    if not ok or type(list) ~= "table" then return names end
-    for _, c in ipairs(list) do
-        -- commandType 0 is a CVar (Enum.ConsoleCommandType.Cvar)
-        if type(c) == "table" and type(c.command) == "string" and (c.commandType == nil or c.commandType == 0) then
-            names[#names + 1] = c.command
+-- Calls fn(label, setting) for every option in the game's settings window (Options > Game and
+-- AddOns), through the same setting objects its checkboxes use. The client won't list its CVars,
+-- so this is how its own options are found: by the label the player sees.
+local function EachGameSetting(fn)
+    local panel = _G.SettingsPanel
+    if not (panel and panel.GetAllCategories and panel.GetLayout) then return end
+    local seen = {}
+    local function Walk(cat)
+        if type(cat) ~= "table" or seen[cat] then return end
+        seen[cat] = true
+        local okL, layout = pcall(panel.GetLayout, panel, cat)
+        local okI, inits = false, nil
+        if okL and type(layout) == "table" and layout.GetInitializers then
+            okI, inits = pcall(layout.GetInitializers, layout)
+        end
+        if okI and type(inits) == "table" then
+            for _, init in ipairs(inits) do
+                local okD, data = pcall(function() return init.GetData and init:GetData() or init.data end)
+                local setting = okD and type(data) == "table" and data.setting
+                if type(setting) == "table" and setting.GetValue and setting.SetValue then
+                    local label = data.name
+                    if type(label) ~= "string" and setting.GetName then
+                        local okN, n = pcall(setting.GetName, setting)
+                        label = okN and n or nil
+                    end
+                    if type(label) == "string" then fn(label, setting) end
+                end
+            end
+        end
+        local okS, subs = pcall(function() return cat:GetSubcategories() end)
+        if okS and type(subs) == "table" then
+            for _, sub in ipairs(subs) do Walk(sub) end
         end
     end
-    return names
-end
-Overrides.AllCVars = AllCVars
-
-local coordCVars -- found once per session
-local function GameCoordMap()
-    if not coordCVars then
-        coordCVars = {}
-        for _, name in ipairs(Overrides.MinimapCoordCVars(AllCVars())) do
-            coordCVars[#coordCVars + 1] = { "coords", name, "0" }
-        end
+    local ok, cats = pcall(panel.GetAllCategories, panel)
+    if ok and type(cats) == "table" then
+        for _, cat in ipairs(cats) do Walk(cat) end
     end
-    return coordCVars
+end
+Overrides.EachGameSetting = EachGameSetting
+
+-- The game's minimap-coordinates option(s), found once (retried until the window has them).
+local gameSettings -- [label] = setting
+local function GameCoordSettings()
+    if gameSettings then return gameSettings end
+    local found = {}
+    EachGameSetting(function(label, setting)
+        if Overrides.IsMinimapCoordLabel(label) then found[label] = setting end
+    end)
+    if next(found) then gameSettings = found end
+    return found
 end
 
--- The game's CVars as a provider: a table of their current values, written back after Sync.
-local cvarValues = {}
-local function GameCVars()
-    for k in pairs(cvarValues) do cvarValues[k] = nil end
-    for _, spec in ipairs(GameCoordMap()) do
-        local ok, v = pcall(GetCVar, spec[2])
-        -- Only on/off settings: never touch a position or anything else by mistake.
-        if ok and (v == "0" or v == "1") then cvarValues[spec[2]] = v end
+-- The game's options as a provider: their current values (on/off ones only), written back
+-- through the setting objects after Sync, exactly as clicking the checkbox would.
+local gameValues = {}
+local function GameOptions()
+    for k in pairs(gameValues) do gameValues[k] = nil end
+    for label, setting in pairs(GameCoordSettings()) do
+        local ok, v = pcall(setting.GetValue, setting)
+        if ok and type(v) == "boolean" then gameValues[label] = v end
     end
-    return cvarValues
+    return gameValues
+end
+
+local function GameMap()
+    local map = {}
+    for label in pairs(GameCoordSettings()) do map[#map + 1] = { "coords", label, false } end
+    return map
 end
 
 -- name: the addon's folder (also the prefix of what we remember); settings() -> its settings
 -- table or nil; active(settings): whether its feature is on at all; refresh() redraws it.
 Overrides.PROVIDERS = {
     {
-        name = "game", settings = GameCVars,
+        name = "game", settings = GameOptions,
         refresh = function()
-            for name, v in pairs(cvarValues) do
-                local ok, now = pcall(GetCVar, name)
-                if ok and now ~= v then pcall(SetCVar, name, v) end
+            for label, setting in pairs(GameCoordSettings()) do
+                local v = gameValues[label]
+                local ok, now = pcall(setting.GetValue, setting)
+                if v ~= nil and ok and now ~= v then pcall(setting.SetValue, setting, v) end
             end
         end,
     },
@@ -198,7 +226,7 @@ function Overrides.Apply()
         if s then
             -- Feature off in that addon: nothing of it shows, so only give back what we took.
             local want = (not prov.active or prov.active(s)) and covered or NOTHING
-            local map = prov.map or GameCoordMap()
+            local map = prov.map or GameMap()
             if Overrides.Sync(s, want, ns.db.overridden, map, prov.name .. ".") then
                 pcall(prov.refresh)
             end
@@ -220,24 +248,22 @@ events:SetScript("OnEvent", function(_, event)
     end
 end)
 
-ns.RegisterCommand("cvars", "list the game's settings (CVars) whose name has this text, e.g. /fzm cvars coord", function(arg)
+ns.RegisterCommand("options", "list the game's own options whose label has this text, e.g. /fzm options coord", function(arg)
     local text = (arg or ""):lower()
     if text == "" then
-        ns.Print("usage: /fzm cvars coord")
+        ns.Print("usage: /fzm options coord")
         return
     end
-    local names, n = AllCVars(), 0
-    if #names == 0 then ns.Print("this client won't list its CVars") return end
-    table.sort(names)
-    for _, name in ipairs(names) do
-        if name:lower():find(text, 1, true) then
-            local ok, v = pcall(GetCVar, name)
-            ns.Printf("  %s = %s", name, ok and tostring(v) or "?")
+    local n = 0
+    EachGameSetting(function(label, setting)
+        if label:lower():find(text, 1, true) then
+            local okV, v = pcall(setting.GetValue, setting)
+            local okN, var = pcall(function() return setting.GetVariable and setting:GetVariable() end)
+            ns.Printf("  %s = %s  (%s)", label, okV and tostring(v) or "?", okN and tostring(var) or "?")
             n = n + 1
         end
-    end
-    ns.Printf("%d CVar(s) with \"%s\"; the minimap coordinates option: %s", n, text,
-        #GameCoordMap() > 0 and GameCoordMap()[1][2] or "not found")
+    end)
+    ns.Printf("%d option(s) with \"%s\"", n, text)
 end)
 
 ns.RegisterCommand("overrides", "show what the bars switched off in other addons and the game", function()

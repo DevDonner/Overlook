@@ -92,6 +92,32 @@ local function Header()
     return c and (c.ZoneTextButton or _G.MinimapZoneTextButton), c and c.BorderTop
 end
 
+-- The game's buttons above the minimap: calendar, tracking (the magnifier) and the addon
+-- compartment (the number). Hidden with alpha and no mouse rather than Hide(), which the game's
+-- own layout code would undo.
+local function GameButtons()
+    local c = _G.MinimapCluster or {}
+    local out = {}
+    for _, f in ipairs({ _G.GameTimeFrame, _G.AddonCompartmentFrame, c.Tracking, c.TrackingFrame,
+        _G.MiniMapTracking, _G.MiniMapTrackingButton }) do
+        if type(f) == "table" and f.SetAlpha then out[#out + 1] = f end
+    end
+    return out
+end
+
+local buttonsHidden = false
+local function SyncButtons()
+    local want = ns.db.hideGameButtons == true
+    if want == buttonsHidden then return end
+    buttonsHidden = want
+    for _, f in ipairs(GameButtons()) do
+        f:SetAlpha(want and 0 or 1)
+        for _, part in ipairs({ f, f.Button }) do
+            if type(part) == "table" and part.EnableMouse then part:EnableMouse(not want) end
+        end
+    end
+end
+
 local function SyncHeader()
     local want = ns.db.topBar and ns.db.hideZoneHeader
     if want == headerHidden then return end
@@ -150,6 +176,7 @@ function Bars.Apply()
     root:SetClampRectInsets(0, 0, up, -down)
 
     SyncHeader()
+    SyncButtons()
     if ns.Overrides then ns.Overrides.Apply() end
     if ns.Far and ns.Far.PlaceRecenter then ns.Far.PlaceRecenter() end
     UpdateZone()

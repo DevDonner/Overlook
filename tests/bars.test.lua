@@ -66,7 +66,9 @@ local GLOBALS = {
     GetZoneText = function() return "The Barrens" end,
     GetZonePVPInfo = function() return "contested" end,
     date = function(f) return f == "%H" and "13" or "07" end,
-    MinimapCluster = { ZoneTextButton = Obj(), BorderTop = Obj() },
+    MinimapCluster = { ZoneTextButton = Obj(), BorderTop = Obj(), Tracking = Obj() },
+    GameTimeFrame = Obj(),
+    AddonCompartmentFrame = Obj(),
 }
 for k in pairs(GLOBALS) do saved[k] = _G[k] end
 
@@ -100,6 +102,17 @@ H.test("bars: inside, or switched off, the clamp rect is the map's own", functio
     ns.db.topBar = false
     B.Apply()
     H.eq(GLOBALS.MinimapCluster.ZoneTextButton.alpha, 1, "the game's header comes back")
+end)
+
+H.test("bars: the game's calendar, tracking and addon buttons hide, and come back", function()
+    Fresh()
+    H.eq(GLOBALS.GameTimeFrame.alpha, 0)
+    H.eq(GLOBALS.AddonCompartmentFrame.alpha, 0)
+    H.eq(GLOBALS.MinimapCluster.Tracking.alpha, 0)
+    ns.db.hideGameButtons = false
+    B.Apply()
+    H.eq(GLOBALS.GameTimeFrame.alpha, 1)
+    H.eq(GLOBALS.MinimapCluster.Tracking.alpha, 1)
 end)
 
 for k in pairs(GLOBALS) do _G[k] = saved[k] end

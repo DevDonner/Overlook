@@ -71,17 +71,18 @@ H.test("EnhanceQoL: time, coordinates, zone and subzone switched off and back", 
     for k, v in pairs(eq) do H.eq(v, true, k) end
 end)
 
-H.test("game option: found by name, switched to 0 and back", function()
-    local names = O.MinimapCoordCVars({ "showMinimapCoordinates", "mapCoordinates", "rotateMinimap",
-        "MINIMAPCOORDSTENTHS", "coordinatesInTenths", 7 })
-    H.eq(#names, 1, "the tenths option isn't the display switch")
-    H.eq(names[1], "showMinimapCoordinates")
-    local values, remembered = { showMinimapCoordinates = "1" }, {}
-    local map = { { "coords", "showMinimapCoordinates", "0" } }
+H.test("game option: found by its label, switched off and back", function()
+    H.eq(O.IsMinimapCoordLabel("Player Minimap Coordinates"), true)
+    H.eq(O.IsMinimapCoordLabel("Coordinates in Tenths"), false)
+    H.eq(O.IsMinimapCoordLabel("Player Map Coordinates"), false)
+    H.eq(O.IsMinimapCoordLabel("Minimap coordinates in tenths"), false)
+    H.eq(O.IsMinimapCoordLabel(nil), false)
+    local values, remembered = { ["Player Minimap Coordinates"] = true }, {}
+    local map = { { "coords", "Player Minimap Coordinates", false } }
     O.Sync(values, O.Covered(DB()), remembered, map, "game.")
-    H.eq(values.showMinimapCoordinates, "0")
+    H.eq(values["Player Minimap Coordinates"], false)
     O.Sync(values, {}, remembered, map, "game.")
-    H.eq(values.showMinimapCoordinates, "1")
+    H.eq(values["Player Minimap Coordinates"], true)
 end)
 
 H.test("every provider covers only what our bars can show", function()

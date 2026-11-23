@@ -25,7 +25,7 @@ read_globals = {
     "hooksecurefunc", "IsAltKeyDown", "IsMouseButtonDown", "IsControlKeyDown", "MinimapCluster",
     "UISpecialFrames", "HideUIPanel", "IsIndoors", "IsShiftKeyDown", "CreateVector2D", "UnitExists",
     "GetCVar", "SetCVar", "GetNumTrackingTypes", "GetTrackingInfo", "SetTracking",
-    "IsMounted", "GetMinimapZoneText", "GetZoneText", "GetZonePVPInfo", "ToggleWorldMap", "date", "GetGameTime", "C_Console",
+    "IsMounted", "GetMinimapZoneText", "GetZoneText", "GetZonePVPInfo", "ToggleWorldMap", "date", "GetGameTime",
     -- Other addons
     "LibStub", "QuestieLoader",
 }

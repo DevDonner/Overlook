@@ -318,6 +318,10 @@ BUILDERS[4] = { "Bars", function(p)
         "While our bars show a clock, coordinates or the zone, the same from the game (its clock and zone header), EllesmereUI's minimap and EnhanceQoL's minimap stats is switched off in their own settings. Untick (or turn our bar off) to get them back. /fzm overrides lists what was switched off.",
         Apply)
 
+    p:Check("Hide the game's buttons above the map", "hideGameButtons",
+        "The calendar, the tracking button (magnifier) and the addon compartment (the number). Our minimap button still opens these settings.",
+        Apply)
+
     p:Header("Style")
     p:Slider("Text size", "barFont", 1, function(v) return v .. " px" end, nil, Apply)
     p:Slider("Background opacity", "barAlpha", 0.05, Percent, nil, Apply)
