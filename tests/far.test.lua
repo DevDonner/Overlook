@@ -254,25 +254,26 @@ H.test("Alt+wheel with no levels here zooms as usual", function()
     H.eq(Far.IsActive(), false)
 end)
 
--- A three-level cave around the default player spot: each level a 128 yd image under the one
--- above, so looking deeper hides the levels above.
+-- A three-level cave around the default player spot: two images on the top level, one on each
+-- level below.
 local function OneCave()
     ns.CaveData = {
         wmo = { [5] = {
-            { 1, 3, -64, -64, 501, 0, 0, 256, 256 },
-            { 2, 3, -64, -64, 502, 0, 0, 256, 256 },
-            { 3, 3, -64, -64, 503, 0, 0, 256, 256 },
+            { 1, -64, -64, 501, 0, 0, 256, 256 },
+            { 1, -64, 64, 504, 0, 0, 256, 256 },
+            { 2, -64, -64, 502, 0, 0, 256, 256 },
+            { 3, -64, -64, 503, 0, 0, 256, 256 },
         } },
         [0] = { { 5, -8949, -132, 0, -9013, -8885, -196, -68 } },
     }
 end
 
-H.test("indoors in a cave, the far view draws all its levels from the top", function()
+H.test("indoors in a cave, the far view draws its top level only", function()
     OneCave()
     indoors = true
     GoFar()
     H.truthy(ns.Caves.IsDrawing())
-    H.eq(ns.Caves.ShownTiles(), 3)
+    H.eq(ns.Caves.ShownTiles(), 2, "the top level's two images, not the levels below")
     H.eq(ns.Caves.Level(), 1)
 end)
 
@@ -298,11 +299,11 @@ H.test("Alt+wheel down goes a level deeper and wraps back to the top on the last
     GoFar()
     alt = true
     Wheel(-1)
-    H.eq(ns.Caves.Level(), 2); H.eq(ns.Caves.ShownTiles(), 2, "the top level hides")
+    H.eq(ns.Caves.Level(), 2); H.eq(ns.Caves.ShownTiles(), 1, "only level 2")
     Wheel(-1, 0.1)
     H.eq(ns.Caves.Level(), 3); H.eq(ns.Caves.ShownTiles(), 1)
     Wheel(-1, 0.1)
-    H.eq(ns.Caves.Level(), 1, "past the bottom: the top again"); H.eq(ns.Caves.ShownTiles(), 3)
+    H.eq(ns.Caves.Level(), 1, "past the bottom: the top again"); H.eq(ns.Caves.ShownTiles(), 2)
     Wheel(1, 0.1)
     H.eq(ns.Caves.Level(), 3, "up from the top: round to the bottom")
     H.truthy(Far.IsActive(), "level changes never zoom")
@@ -341,7 +342,7 @@ H.test("in a cave the cave's own images win over an underground city map", funct
     GoFar()
     Frame(0.6)
     H.eq(ns.FarArt.DrawnMap(), nil)
-    H.eq(ns.Caves.ShownTiles(), 3)
+    H.eq(ns.Caves.ShownTiles(), 2)
 end)
 
 H.test("leaving far mode hides the map art", function()

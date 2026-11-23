@@ -4,7 +4,7 @@ native minimap does indoors.
 
 Runs on the developer's machine against a local game install (read-only, game closed or open):
     python tools/map-data/caves.py "C:/Program Files (x86)/World of Warcraft" > Data/Caves.lua
-Needs Pillow (pip install pillow) to decode the images; the output only holds file IDs and numbers.
+The output only holds file IDs and numbers.
 
 Where the data comes from:
   * WMOMinimapTexture.db2: per WMO (MOHD wmoID), per group: blocks (BlockX, BlockY) -> image file ID.
@@ -16,7 +16,6 @@ image rows run down along local -Y; block (bx, by) starts at the group's boundin
 128 yards per block step. A placement turns local (X, Y) into world (north, west) by the angle
 MODF rot.y - 180 degrees, about the placement's position.
 """
-import io
 import math
 import os
 import struct
@@ -31,9 +30,7 @@ from db2 import read_wdc5  # noqa: E402
 WMO_MINIMAP_TEXTURE_DB2 = 1323241
 CONTINENTS = {0: 775971, 1: 782779}  # instance -> WDT file ID (Azeroth, Kalimdor)
 HALF = 32 * 1600 / 3                  # 17066.67: world origin offset of ADT placement space
-CELL = 2.0                            # yards per cell when comparing footprints for levels
-MIN_OVERLAP_CELLS = 6
-FLOOR_STEP = 3.0                      # yards a group's floor must sit above another to be "above"
+FLOOR_GAP = 10.0                      # yards between floor heights that start a new level
 
 
 def build_key(install):
@@ -47,11 +44,12 @@ def build_key(install):
     raise SystemExit("no active wowf build in .build.info")
 
 
-def image(c, fd):
-    from PIL import Image
-    im = Image.open(io.BytesIO(c.read_fdid(fd)))
-    im.load()
-    return im.convert("RGBA")
+def image_size(c, fd):
+    """Width and height of a BLP image (from its header)."""
+    b = c.read_fdid(fd)
+    if b[:4] != b"BLP2":
+        raise ValueError("not a BLP2 image: %d" % fd)
+    return struct.unpack_from("<II", b, 12)
 
 
 def wmo_groups(c, fd):
@@ -63,49 +61,20 @@ def wmo_groups(c, fd):
     return wmoid, boxes
 
 
-def footprint(im, w, h, bx, by, minX, minY):
-    """Cells (local yards / CELL) the image covers with something drawn."""
-    a = im.getchannel("A").load()
-    cells = set()
-    step = int(CELL * 2)
-    for row in range(step // 2, h, step):
-        for col in range(step // 2, w, step):
-            if a[col, row] > 32:
-                x = minX + (bx * 256 + col) / 2
-                y = minY + (by * 256 + (h - row)) / 2
-                cells.add((math.floor(x / CELL), math.floor(y / CELL)))
-    return cells
+def levels(floors):
+    """floors: {group: floor height (bounding-box bottom, local yards)} -> {group: level}.
 
-
-def levels(groups):
-    """groups: {g: (floorZ, cells)} -> {g: (level, bottom)}.
-
-    level 1 is the top. A group sits under another when their footprints overlap and its floor
-    is lower; its level is one more than the deepest group above it. bottom is the deepest level
-    found under a group (itself included): hiding it can only reveal levels down to that.
+    Level 1 is the top. Groups are taken from the highest floor down; a gap of FLOOR_GAP or more
+    to the next floor starts a new level, so a ramp of small steps stays one level.
     """
-    order = sorted(groups, key=lambda g: -groups[g][0])
-    above = defaultdict(list)
-    for i, a in enumerate(order):
-        for b in order[i + 1:]:
-            za, ca = groups[a]
-            zb, cb = groups[b]
-            if za - zb < FLOOR_STEP:
-                continue
-            n = len(ca & cb)
-            if n >= max(MIN_OVERLAP_CELLS, 0.08 * min(len(ca), len(cb))):
-                above[b].append(a)
-    level = {}
-    for g in order:  # top first, so everything above g already has its level
-        level[g] = 1 + max((level[a] for a in above[g]), default=0)
-    below = defaultdict(list)
-    for b, tops in above.items():
-        for a in tops:
-            below[a].append(b)
-    bottom = {}
-    for g in sorted(order, key=lambda g: -level[g]):  # deepest first
-        bottom[g] = max([level[g]] + [bottom[b] for b in below[g]])
-    return {g: (level[g], bottom[g]) for g in groups}
+    order = sorted(floors, key=lambda g: -floors[g])
+    level, out, prev = 1, {}, None
+    for g in order:
+        if prev is not None and prev - floors[g] >= FLOOR_GAP:
+            level += 1
+        out[g] = level
+        prev = floors[g]
+    return out
 
 
 def main():
@@ -164,35 +133,33 @@ def main():
             if g >= len(boxes):
                 continue
             minX, minY, minZ = boxes[g][0:3]
-            cells, tiles = set(), []
+            tiles = []
             for bx, by, tfd in sorted(blocks):
                 if not c.has(tfd):
                     continue
-                im = image(c, tfd)
-                w, h = im.size
-                cells |= footprint(im, w, h, bx, by, minX, minY)
+                w, h = image_size(c, tfd)
                 tiles.append((tfd, bx, by, w, h))
             if tiles:
-                groups[g] = (minZ, cells)
+                groups[g] = minZ
                 info[g] = (minX, minY, tiles)
         if not groups:
             continue
         lv = levels(groups)
-        wmos[fd] = [(lv[g][0], lv[g][1]) + info[g] for g in sorted(groups)]
+        wmos[fd] = [(lv[g],) + info[g] for g in sorted(groups)]
         if i % 200 == 0:
             print("  %d / %d WMOs" % (i, len(used)), file=log)
 
     out = sys.stdout
     out.write("-- Generated by tools/map-data/caves.py from build %s; regenerate rather than edit.\n" % version)
     out.write("-- Caves and building interiors: the native minimap's indoor images and where they sit.\n")
-    out.write("--  wmo[file ID] = { group, ... }, group = { level, bottom, minX, minY, file, bx, by, w, h, ... }\n")
-    out.write("--    (level 1 is the top; local yards; w, h in px at 2 px per yard; 128 yards per block)\n")
+    out.write("--  wmo[file ID] = { group, ... }, group = { level, minX, minY, file, bx, by, w, h, ... }\n")
+    out.write("--    (level 1 is the top floor; local yards; w, h in px at 2 px per yard; 128 yards per block)\n")
     out.write("--  [instance] = { { wmo, north, west, yaw, nMin, nMax, wMin, wMax [, scale] }, ... }\n\n")
     out.write("local _, ns = ...\n\nns.CaveData = {\n\twmo = {\n")
     for fd in sorted(wmos):
         out.write("\t\t[%d] = {\n" % fd)
-        for lvl, bottom, minX, minY, tiles in wmos[fd]:
-            parts = ["%d, %d, %.1f, %.1f" % (lvl, bottom, minX, minY)]
+        for lvl, minX, minY, tiles in wmos[fd]:
+            parts = ["%d, %.1f, %.1f" % (lvl, minX, minY)]
             parts += ["%d, %d, %d, %d, %d" % t for t in tiles]
             out.write("\t\t\t{ %s },\n" % ", ".join(parts))
         out.write("\t\t},\n")

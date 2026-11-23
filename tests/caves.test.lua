@@ -9,8 +9,8 @@ local C = ns.CaveMath
 -- Wailing Caverns' outer cave as placed on Kalimdor, and two of its groups.
 local WAILING = { 109550, -928.7, -2095.2, 0.1047, -874.0, -513.7, -2423.8, -1955.7 }
 local GROUPS = {
-    { 1, 1, 122.5, -64.6, 213137, 0, 0, 256, 256 },
-    { 1, 1, 162.1, -337.3, 213150, 0, 0, 256, 256, 213151, 0, 1, 256, 256 },
+    { 3, 122.5, -64.6, 213137, 0, 0, 256, 256 },
+    { 5, 162.1, -337.3, 213150, 0, 0, 256, 256, 213151, 0, 1, 256, 256 },
 }
 
 H.test("pick: the cave whose bounds hold the player", function()
@@ -34,6 +34,7 @@ H.test("quads: one per image, centred where the image's middle lands on the worl
     local q = C.Quads(WAILING, GROUPS)
     H.eq(#q, 3)
     H.eq(q[1].file, 213137)
+    H.eq(q[1].level, 3); H.eq(q[3].level, 5, "every image carries its group's level")
     -- Local centre (186.5, -0.6), turned by 6 degrees about the placement.
     H.near(q[1].north, -928.7 + 186.5 * math.cos(0.1047) + 0.6 * math.sin(0.1047), 0.01)
     H.near(q[1].west, -2095.2 + 186.5 * math.sin(0.1047) - 0.6 * math.cos(0.1047), 0.01)
@@ -42,29 +43,22 @@ H.test("quads: one per image, centred where the image's middle lands on the worl
 end)
 
 H.test("quads: a second block sits 128 yards further along local Y", function()
-    local q = C.Quads({ 1, 0, 0, 0, 0, 0, 0, 0 }, { { 1, 1, 0, 0, 7, 0, 0, 256, 256, 8, 0, 1, 256, 256 } })
+    local q = C.Quads({ 1, 0, 0, 0, 0, 0, 0, 0 }, { { 1, 0, 0, 7, 0, 0, 256, 256, 8, 0, 1, 256, 256 } })
     H.near(q[1].north, 64, 1e-9); H.near(q[1].west, 64, 1e-9)
     H.near(q[2].north, 64, 1e-9); H.near(q[2].west, 192, 1e-9, "local +Y is west at no turn")
 end)
 
 H.test("quads: non-square images and scaled placements", function()
-    local q = C.Quads({ 1, 0, 0, 0, 0, 0, 0, 0, 2 }, { { 1, 1, 10, 20, 7, 0, 0, 128, 64 } })
+    local q = C.Quads({ 1, 0, 0, 0, 0, 0, 0, 0, 2 }, { { 1, 10, 20, 7, 0, 0, 128, 64 } })
     H.near(q[1].width, 128, 1e-9, "64 yd wide, doubled")
     H.near(q[1].height, 64, 1e-9)
     H.near(q[1].north, (10 + 32) * 2, 1e-9); H.near(q[1].west, (20 + 16) * 2, 1e-9)
 end)
 
 H.test("levels: the count is the deepest level", function()
-    H.eq(C.LevelCount(GROUPS), 1)
-    H.eq(C.LevelCount({ { 1, 3 }, { 3, 3 }, { 2, 3 } }), 3)
-end)
-
-H.test("levels: at level 2 the top level hides where it covers something, and stays where it doesn't", function()
-    H.eq(C.Shown(1, 2, 1), true, "everything shows at the top")
-    H.eq(C.Shown(1, 2, 2), false, "a ledge over level 2 hides")
-    H.eq(C.Shown(1, 1, 2), true, "a side room over nothing stays")
-    H.eq(C.Shown(2, 2, 2), true)
-    H.eq(C.Shown(1, 3, 3), false, "a top that covers level 3 hides there too")
+    H.eq(C.LevelCount(GROUPS), 5)
+    H.eq(C.LevelCount({ { 1 }, { 3 }, { 2 } }), 3)
+    H.eq(C.LevelCount({}), 1)
 end)
 
 H.test("wheel: down goes deeper and wraps to the top past the bottom; up goes the other way", function()
@@ -82,13 +76,6 @@ H.test("generated data: the spot checked in game is in Wailing Caverns, with its
     H.truthy(p, "a cave there")
     H.eq(p[1], 109550, "wailingcaverns.wmo")
     H.eq(#C.Quads(p, data.wmo[p[1]]), 19)
-    H.eq(C.LevelCount(data.wmo[p[1]]), 2)
+    H.eq(C.LevelCount(data.wmo[p[1]]), 5, "by floor height: the eye ledge alone on top")
     H.eq(C.Pick(data[1], -806.8, -2026.2 + 2000, data.wmo), nil, "open Barrens")
-end)
-
-H.test("draw order: the top level is drawn last, within the texture sublevels", function()
-    H.truthy(C.Sublevel(1, 3) > C.Sublevel(2, 3))
-    H.truthy(C.Sublevel(2, 3) > C.Sublevel(3, 3))
-    H.eq(C.Sublevel(3, 3), 2, "above the dim layer (sublevel 1)")
-    H.eq(C.Sublevel(1, 20), 7, "never past the top sublevel")
 end)

@@ -1,7 +1,8 @@
--- Caves on the far view. Indoors in a cave (or mine, or building), the far view draws the cave's
--- own minimap images over the terrain, which only shows the surface there, and dims the terrain
--- around it. It sits on the far canvas like the tiles, so panning and zooming work the same.
--- Levels: the view starts at the top level; Alt+wheel moves through them (Far/Far.lua).
+-- Caves on the far view. Indoors in a cave (or mine, or building), the far view draws one level
+-- of the cave's own minimap images and hides the terrain, which only shows the surface there,
+-- like the native minimap indoors. It sits on the far canvas like the tiles, so panning and
+-- zooming work the same. The view starts at the top level; Alt+wheel moves through the levels
+-- (Far/Far.lua).
 -- The maths is in Core/CaveMath.lua and the data in Data/Caves.lua (tools/map-data/caves.py).
 local _, ns = ...
 
@@ -11,9 +12,8 @@ local Caves = {}
 ns.Caves = Caves
 
 local CHECK_EVERY = 0.25 -- seconds between looks at which cave the player is in
-local DIM = 0.55         -- how much the terrain around a drawn cave is darkened
 
-local canvas, view, dim, label
+local canvas, view, cover, label
 local textures, shown = {}, 0
 local placement          -- the placed cave the player is in, or nil
 local quads = {}         -- CaveMath.Quads for it
@@ -31,28 +31,27 @@ end
 local function Hide()
     for i = 1, shown do textures[i]:Hide() end
     shown = 0
-    if dim then dim:Hide() end
+    if cover then cover:Hide() end
     if label then label:Hide() end
 end
 
 local function Draw()
     Hide()
     if not (layout and placement and caveInst == layout.inst) then return end
-    dim:Show()
+    cover:Show()
     local n = 0
     for _, q in ipairs(quads) do
-        if C.Shown(q.level, q.bottom, at) then
+        if q.level == at then
             n = n + 1
             local tex = textures[n]
             if not tex then
-                tex = canvas:CreateTexture(nil, "ARTWORK")
+                tex = canvas:CreateTexture(nil, "ARTWORK", nil, 2) -- above the cover
                 if tex.SetSnapToPixelGrid then
                     tex:SetSnapToPixelGrid(false)
                     tex:SetTexelSnappingBias(0)
                 end
                 textures[n] = tex
             end
-            tex:SetDrawLayer("ARTWORK", C.Sublevel(q.level, count))
             tex:SetTexture(q.file)
             local x, y = G.WorldToPixel(q.north, q.west, layout.n, layout.w, layout.ppy)
             tex:ClearAllPoints()
@@ -131,11 +130,12 @@ function Caves.ShownTiles() return shown end
 
 function Caves.Build(canvasFrame, viewFrame, level)
     canvas, view = canvasFrame, viewFrame
-    -- Darkens the terrain under and around the cave (above the tiles, below the cave images).
-    dim = canvas:CreateTexture(nil, "ARTWORK", nil, 1)
-    dim:SetAllPoints(view)
-    dim:SetColorTexture(0, 0, 0, DIM)
-    dim:Hide()
+    -- Hides the terrain while a cave is drawn (above the tiles, below the cave images), in the
+    -- far view's own background colour.
+    cover = canvas:CreateTexture(nil, "ARTWORK", nil, 1)
+    cover:SetAllPoints(view)
+    cover:SetColorTexture(0.06, 0.07, 0.09, 1)
+    cover:Hide()
     local top = CreateFrame("Frame", nil, view)
     top:SetAllPoints(view)
     top:SetFrameLevel(level)
