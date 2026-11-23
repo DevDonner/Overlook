@@ -189,4 +189,35 @@ H.test("a client without the widget: no frames, no errors", function()
     H.eq(#POIs(), 0)
 end)
 
+H.test("round map strips: fill the circle top to bottom, none past its edge", function()
+    local r = 100
+    local rows = Areas.Strips(r, 6)
+    H.eq(#rows, 9)
+    for _, row in ipairs(rows) do
+        H.truthy(row.top > row.bottom)
+        local far = math.max(math.abs(row.top), math.abs(row.bottom))
+        H.truthy(row.half * row.half + far * far <= r * r + 1e-9, "a corner is inside the circle")
+    end
+    table.sort(rows, function(a, b) return a.top > b.top end)
+    for i = 2, #rows do H.near(rows[i].top, rows[i - 1].bottom, 1e-9, "no gaps between rows") end
+    H.truthy(rows[1].top > 0.95 * r, "reaches near the top")
+end)
+
+H.test("round map: each zone drawn once per strip, hidden while a zoom moves", function()
+    ns.db.round = true
+    local canvas = Widget("Frame")
+    canvas.GetParent = function() return Widget("Frame") end
+    Areas.Build(canvas, 5)
+    Areas.SetLayout(1, 0, -1000, 0.1)
+    Areas.Update(1, -1000, -1000, 300, false)
+    H.eq(Areas.ShownFrames(), 9, "one zone in view, nine strips")
+    Areas.Update(1.01, -1000, -1000, 300, true)
+    H.eq(Areas.ShownFrames(), 0, "zooming: hidden")
+    Areas.Update(1.02, -1000, -1000, 300, false)
+    H.eq(Areas.ShownFrames(), 9, "settled: back")
+    ns.db.round = false
+    Areas.Refresh()
+    H.eq(Areas.ShownFrames(), 1, "square again: one frame")
+end)
+
 for k, v in pairs(saved) do _G[k] = v end

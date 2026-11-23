@@ -3,6 +3,12 @@
 -- sized to that map, so each zone in view gets one, stretched over the zone's world rectangle on
 -- the far canvas. Panning and zooming then move it like the tiles.
 --
+-- On a round map the widget can't be masked (it has no mask setting; only a frame's rectangle can
+-- clip it), so each zone frame is drawn once per row of a stack of clipping strips that fill the
+-- circle. Each strip is as wide as the circle at its outer edge: areas can stop a little short of
+-- the rim, never past it. That's several draws per zone, so while a zoom is moving on the round
+-- map the areas hide and redraw once it settles.
+--
 -- Settings: questAreas (on/off), questAreaFill / questAreaBorder (opacity), questAreaTracked
 -- (only quests on the objective tracker).
 local _, ns = ...
@@ -18,13 +24,18 @@ local ZONE = 3
 local FILL = "Interface\\WorldMap\\UI-QuestBlob-Inside"
 local BORDER = "Interface\\WorldMap\\UI-QuestBlob-Outside"
 
-local canvas, level
-local frames = {}         -- [mapID] = QuestPOIFrame
+local ROUND_STEPS = 6      -- strips on the round map: 2 * (ROUND_STEPS - 2) + 1
+
+local canvas, view, level
+-- Sets of zone frames: [0] for the square map (on the canvas, clipped by the view), [1..] the round
+-- map's strips. { clip = clipping frame or nil, frames = { [mapID] = QuestPOIFrame } }
+local sets = {}
+local zooming = false     -- a zoom is moving (the round map's strips wait for it to settle)
 local zones = {}          -- [instance] = { { mapID, top, left, bottom, right }, ... }
 local layout              -- { inst, n, w, ppy } while far mode is drawing
 local visible = {}        -- [mapID] = true for zones in view
 local generation = 1      -- bumped when the quest log or a setting changes; frames repaint
-local painted = {}        -- [mapID] = the generation that frame was last painted at
+local painted = setmetatable({}, { __mode = "k" }) -- [frame] = the generation it was last painted at
 local nextCheck = 0
 local supported           -- nil: not tried yet; false: this client has no QuestPOIFrame
 
@@ -59,10 +70,52 @@ local function ZonesOf(inst)
     return list
 end
 
-local function Frame(mapID)
-    local f = frames[mapID]
+-- The round map's strips, as rows from the centre: { top, bottom, half } in px (y up, from the
+-- centre; half = half the width). Equal angle steps; each row as wide as the circle at its outer
+-- edge, so nothing in it is past the circle. The thin cap past the last row is left out. Pure.
+function Areas.Strips(r, steps)
+    local step = math.pi / 2 / steps
+    local function Y(k) return r * math.sin(k * step) end
+    local function Half(k) return r * math.cos(k * step) end
+    local out = { { top = Y(1), bottom = -Y(1), half = Half(1) } }
+    for k = 1, steps - 2 do
+        out[#out + 1] = { top = Y(k + 1), bottom = Y(k), half = Half(k + 1) }
+        out[#out + 1] = { top = -Y(k), bottom = -Y(k + 1), half = Half(k + 1) }
+    end
+    return out
+end
+
+local function IsRound() return ns.db.round == true end
+
+-- The sets in use: the square map's one, or the round map's strips (placed for the map's size).
+local function ActiveSets()
+    if not (IsRound() and view) then
+        sets[0] = sets[0] or { frames = {} }
+        return { sets[0] }
+    end
+    local out = {}
+    for i, row in ipairs(Areas.Strips(ns.db.size / 2, ROUND_STEPS)) do
+        local set = sets[i]
+        if not set then
+            local clip = CreateFrame("Frame", nil, canvas)
+            clip:SetFrameLevel(level)
+            if clip.SetClipsChildren then clip:SetClipsChildren(true) end
+            set = { clip = clip, frames = {} }
+            sets[i] = set
+        end
+        set.clip:ClearAllPoints()
+        set.clip:SetPoint("TOPLEFT", view, "CENTER", -row.half, row.top)
+        set.clip:SetSize(2 * row.half, row.top - row.bottom)
+        set.clip:Show()
+        out[#out + 1] = set
+    end
+    return out
+end
+
+local function Frame(set, mapID)
+    local f = set.frames[mapID]
     if f or supported == false then return f end
-    local ok, made = pcall(CreateFrame, "QuestPOIFrame", nil, canvas)
+    local ok, made = pcall(CreateFrame, "QuestPOIFrame", nil, set.clip or canvas)
     if not ok or not made or not made.SetMapID then
         supported = false
         return nil
@@ -78,7 +131,7 @@ local function Frame(mapID)
     pcall(f.EnableMerging, f, true)
     pcall(f.EnableSmoothing, f, true)
     f:SetMapID(mapID)
-    frames[mapID] = f
+    set.frames[mapID] = f
     return f
 end
 
@@ -206,6 +259,7 @@ end
 
 local function Showing()
     return layout ~= nil and ns.db.questAreas ~= false and not (ns.Caves and ns.Caves.IsDrawing())
+        and not (zooming and IsRound())
 end
 local wasShowing = false
 
@@ -216,36 +270,56 @@ local function Draw()
     local show, keep = Showing(), {}
     wasShowing = show
     local ids -- worked out the first time a frame needs painting
+    local usedSets = {}
     if show then
-        for _, z in ipairs(list) do
-            if visible[z.mapID] then
-                local f = frames[z.mapID] or Frame(z.mapID)
-                if f then
-                    Place(f, z)
-                    if painted[z.mapID] ~= generation then
-                        if not ids then
-                            UpdateOwners()
-                            ids = QuestsToDraw()
+        for _, set in ipairs(ActiveSets()) do
+            usedSets[set] = true
+            for _, z in ipairs(list) do
+                if visible[z.mapID] then
+                    local f = set.frames[z.mapID] or Frame(set, z.mapID)
+                    if f then
+                        Place(f, z)
+                        if painted[f] ~= generation then
+                            if not ids then
+                                UpdateOwners()
+                                ids = QuestsToDraw()
+                            end
+                            Paint(f, z.mapID, ids)
+                            painted[f] = generation
                         end
-                        Paint(f, z.mapID, ids)
-                        painted[z.mapID] = generation
+                        f:Show()
+                        keep[f] = true
                     end
-                    f:Show()
-                    keep[z.mapID] = true
                 end
             end
         end
     end
-    for id, f in pairs(frames) do
-        if not keep[id] then f:Hide() end
+    for _, set in pairs(sets) do
+        for _, f in pairs(set.frames) do
+            if not keep[f] then f:Hide() end
+        end
+        if set.clip and not usedSets[set] then set.clip:Hide() end
     end
 end
 
 local resized = false -- the frames changed size: redraw them next frame, once the size has applied
 
--- Far mode calls this every frame with the view's centre and radius (yards).
-function Areas.Update(now, north, west, radius)
-    if resized and layout then
+-- Far mode calls this every frame with the view's centre and radius (yards), and whether a zoom
+-- is moving.
+function Areas.Update(now, north, west, radius, isZooming)
+    isZooming = isZooming == true
+    if isZooming ~= zooming then
+        zooming = isZooming
+        if IsRound() then
+            -- Hidden while the zoom moves; drawn fresh for the new size once it settles.
+            if not zooming then
+                generation = generation + 1
+                resized = false
+            end
+            Draw()
+        end
+    end
+    if resized and layout and Showing() then
         -- Like the world map's quest areas: drawn for the frame's size, so redrawn after a zoom.
         resized = false
         generation = generation + 1
@@ -264,8 +338,13 @@ function Areas.Update(now, north, west, radius)
     -- Which zone draws a quest depends on which zones are in view: repaint them all.
     if changed then generation = generation + 1 end
     if Showing() ~= wasShowing then changed = true end -- a cave started or ended
-    for id in pairs(visible) do
-        if painted[id] ~= generation then changed = true end
+    if Showing() then
+        for _, set in ipairs(ActiveSets()) do
+            for id in pairs(visible) do
+                local f = set.frames[id]
+                if not f or painted[f] ~= generation then changed = true end
+            end
+        end
     end
     if changed then Draw() end
 end
@@ -291,12 +370,15 @@ end
 
 function Areas.ShownFrames()
     local n = 0
-    for _, f in pairs(frames) do if f:IsShown() then n = n + 1 end end
+    for _, set in pairs(sets) do
+        for _, f in pairs(set.frames) do if f:IsShown() then n = n + 1 end end
+    end
     return n
 end
 
 function Areas.Build(canvasFrame, frameLevel)
     canvas, level = canvasFrame, frameLevel
+    view = canvas.GetParent and canvas:GetParent() or nil
     local events = CreateFrame("Frame")
     for _, e in ipairs({ "QUEST_LOG_UPDATE", "QUEST_POI_UPDATE", "QUEST_WATCH_LIST_CHANGED" }) do
         pcall(events.RegisterEvent, events, e)

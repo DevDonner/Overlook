@@ -284,7 +284,7 @@ local function OnUpdate()
     canvas:SetPoint("CENTER", view, "CENTER", (cW - originW) * ppy, (originN - cN) * ppy)
     arrow:SetPoint("CENTER", view, "CENTER", (cW - w) * ppy, (n - cN) * ppy)
 
-    if ns.Areas then ns.Areas.Update(GetTime(), cN, cW, radius) end
+    if ns.Areas then ns.Areas.Update(GetTime(), cN, cW, radius, radius ~= target) end
     if ns.Pings then ns.Pings.Update(GetTime()) end
     -- Before SetLayout, so a zoom (or the first frame in far mode) places icons for this view.
     if ns.Mirror then ns.Mirror.SetView(cN, cW, ns.db.size / 2, zoomed) end
