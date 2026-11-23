@@ -23,6 +23,7 @@ read_globals = {
     "UnitName", "UnitPosition", "issecretvalue", "UnitClass", "UnitIsUnit", "UnitIsConnected",
     "hooksecurefunc", "IsAltKeyDown", "IsMouseButtonDown", "IsControlKeyDown", "MinimapCluster",
     "UISpecialFrames", "HideUIPanel",
+    "GetCVar", "SetCVar", "GetNumTrackingTypes", "GetTrackingInfo", "SetTracking",
     -- Other addons
     "LibStub", "QuestieLoader",
 }

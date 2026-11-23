@@ -19,6 +19,7 @@ Settings.DEFAULTS = {
     smoothZoom = true,    -- tween far-zoom steps
     routes = true,        -- Questie's NPC routes on the far map
     partyDots = true,     -- party and raid members on the far map
+    nativeIcons = false,  -- the game's own quest and town icons (Questie draws them instead)
 }
 
 function Settings.ClampSize(n)
@@ -46,6 +47,8 @@ function Settings.Load(saved)
     if type(db.icons) ~= "table" then db.icons = {} end
     -- LibDBIcon's saved state for the minimap button ({ hide, minimapPos }); same reason.
     if type(db.minimapButton) ~= "table" then db.minimapButton = {} end
+    -- Names of the game's tracking entries NativeIcons switched off, to switch back on; same reason.
+    if type(db.nativeOff) ~= "table" then db.nativeOff = {} end
     if type(db.x) ~= "number" or type(db.y) ~= "number" then
         db.x, db.y = nil, nil
     end

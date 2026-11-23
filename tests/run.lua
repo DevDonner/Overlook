@@ -12,6 +12,7 @@ local FILES = {
     "tests/mirror.test.lua",
     "tests/iconprefs.test.lua",
     "tests/layout.test.lua",
+    "tests/nativeicons.test.lua",
 }
 
 for _, file in ipairs(FILES) do

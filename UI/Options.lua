@@ -174,6 +174,11 @@ local function Build()
             if ns.Party then ns.Party.Refresh() end
         end, "Class-coloured dots; faded when someone is offline."), 0, y)
     y = y - 26
+    controls.native = Place(W.Check(content, "Game's own quest and town icons",
+        function() return ns.db.nativeIcons == true end,
+        function(on) ns.NativeIcons.SetShown(on) end,
+        "Off: only Questie's icons, so turn-ins and town services aren't drawn twice. The game's own icons only show at native zoom. Find Herbs and other tracking spells are left alone."), 0, y)
+    y = y - 26
     controls.button = Place(W.Check(content, "Minimap button",
         function() return not ns.db.minimapButton.hide end,
         function(on) Options.SetButtonShown(on) end), 0, y)

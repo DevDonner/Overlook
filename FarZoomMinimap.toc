@@ -17,6 +17,7 @@ Core\Zoom.lua
 Core\IconPrefs.lua
 Core\Layout.lua
 Core\PinSources.lua
+Core\NativeIcons.lua
 Data\MinimapTiles.lua
 Shell\Shell.lua
 Shell\Grip.lua
