@@ -23,80 +23,7 @@ local CONTINENT = 2       -- Enum.UIMapType
 local ZONE = 3
 local canvas, view, level
 
--- The fill: the game's own blue by default. The widget takes a texture, not a colour, so a colour
--- picked in the settings (questAreaColor, "rrggbb") is drawn with the nearest of 216 flat textures
--- (Media/AreaColors/cRGB.blp, six shades per channel). Found in game: the widget draws any addon
--- file given by path as the green missing-texture fill (BLP or TGA, with or without extension),
--- but takes its file ID: a texture of ours loads the file, and the widget gets that ID. Addon files
--- have negative IDs, and after a full client restart the client reads them back as their unsigned
--- 32-bit value (2^32 - 8323 = 4294958973), sometimes as text: given that, the widget draws green
--- too, so the ID is turned back into the negative number (as Pins/Mirror.lua does for icons).
--- Until an ID is known the areas are painted in the game's blue, never by path.
 local FILL = "Interface\\WorldMap\\UI-QuestBlob-Inside"
-local PALETTE = "Interface\\AddOns\\FarZoomMinimap\\Media\\AreaColors\\c%d%d%d"
-
--- "rrggbb" from 0-1 channels. Pure.
-function Areas.Hex(r, g, b)
-    local function C(v) return math.max(0, math.min(255, math.floor(v * 255 + 0.5))) end
-    return string.format("%02x%02x%02x", C(r), C(g), C(b))
-end
-
--- 0-1 channels from "rrggbb", or nil. Pure.
-function Areas.Channels(hex)
-    if type(hex) ~= "string" or not hex:match("^%x%x%x%x%x%x$") then return nil end
-    return tonumber(hex:sub(1, 2), 16) / 255, tonumber(hex:sub(3, 4), 16) / 255, tonumber(hex:sub(5, 6), 16) / 255
-end
-
-local probe            -- loads palette files (a 1 px texture, on screen but invisible)
-local probePath
-local fileIDs = {}     -- [path] = file ID
-local lastRawID        -- for /fzm areas: what the client read back
-
-local INT_MAX, UINT_RANGE = 2147483647, 4294967296
-
--- A file ID as the client reads it back (a number, possibly unsigned, or the number as text) as the
--- signed number the widget takes; nil if it isn't one. Pure.
-function Areas.SignedFileID(raw)
-    local id = raw
-    if type(id) == "string" and id:match("^%-?%d+$") then id = tonumber(id) end
-    if type(id) ~= "number" or id == 0 or id ~= math.floor(id) then return nil end
-    if id > INT_MAX then id = id - UINT_RANGE end
-    return id
-end
-local RETRY, TRIES = 0.2, 25
-local retrying = false
-
--- The file ID for a palette file, or nil while it's still loading.
-local function AsFileID(path)
-    if fileIDs[path] then return fileIDs[path] end
-    if not probe then
-        local holder = CreateFrame("Frame", nil, UIParent)
-        holder:SetSize(1, 1)
-        holder:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", 0, 0)
-        probe = holder:CreateTexture(nil, "BACKGROUND")
-        probe:SetAllPoints(holder)
-        probe:SetAlpha(0.01)
-    end
-    if not probe.GetTextureFileID then return nil end
-    if probePath ~= path then
-        probe:SetTexture(path)
-        probePath = path
-    end
-    local ok, raw = pcall(probe.GetTextureFileID, probe)
-    lastRawID = ok and raw or nil
-    local id = ok and Areas.SignedFileID(raw) or nil
-    if id then fileIDs[path] = id end
-    return id
-end
-
--- The fill texture for a picked colour (nil or "" is the game's blue). Pure.
-function Areas.FillTexture(hex)
-    local r, g, b = Areas.Channels(hex)
-    if not r then return FILL end
-    local function L(v) return math.floor(v * 5 + 0.5) end
-    return string.format(PALETTE, L(r), L(g), L(b)) .. ".blp"
-end
-
 local BORDER = "Interface\\WorldMap\\UI-QuestBlob-Outside"
 
 -- Sets of zone frames: [0] for the square map (on the canvas, clipped by the view), [1..] the round
@@ -248,6 +175,7 @@ local function Frame(set, mapID)
     f = made
     f:SetFrameLevel(set.holder and level + 1 or level)
     if f.EnableMouse then f:EnableMouse(false) end
+    pcall(f.SetFillTexture, f, FILL)
     pcall(f.SetBorderTexture, f, BORDER)
     pcall(f.SetBorderScalar, f, 1)
     -- Overlapping areas merge into one shape instead of stacking into solid blue.
@@ -364,15 +292,6 @@ end
 
 local function Paint(f, mapID, ids)
     pcall(f.DrawNone, f)
-    local fill = Areas.FillTexture(ns.db.questAreaColor)
-    if fill ~= FILL then
-        fill = AsFileID(fill)
-        if not fill then
-            fill = FILL -- the picked colour is still loading: the game's blue for now
-            Areas.RetryColor()
-        end
-    end
-    pcall(f.SetFillTexture, f, fill)
     pcall(f.SetFillAlpha, f, math.floor((ns.db.questAreaFill or 0.25) * 255 + 0.5))
     pcall(f.SetBorderAlpha, f, math.floor((ns.db.questAreaBorder or 0.5) * 255 + 0.5))
     for _, id in ipairs(ids) do
@@ -501,31 +420,8 @@ function Areas.SetLayout(inst, n, w, ppy)
     Draw()
 end
 
--- Repaints once the picked colour's file has loaded (checked every RETRY seconds, a few times).
-function Areas.RetryColor(tries)
-    if retrying and not tries then return end
-    retrying = true
-    tries = tries or TRIES
-    C_Timer.After(RETRY, function()
-        local path = Areas.FillTexture(ns.db.questAreaColor)
-        if path == FILL or AsFileID(path) or tries <= 1 then
-            retrying = false
-            Areas.Refresh()
-        else
-            Areas.RetryColor(tries - 1)
-        end
-    end)
-end
-
--- Starts loading the picked colour's file before it's needed (settings, login).
-function Areas.Preload()
-    local path = Areas.FillTexture(ns.db.questAreaColor)
-    if path ~= FILL then AsFileID(path) end
-end
-
 -- Redraws after a settings change.
 function Areas.Refresh()
-    Areas.Preload()
     generation = generation + 1
     Draw()
 end
@@ -541,7 +437,6 @@ end
 function Areas.Build(canvasFrame, frameLevel)
     canvas, level = canvasFrame, frameLevel
     view = canvas.GetParent and canvas:GetParent() or nil
-    Areas.Preload()
     root = view and view.GetParent and view:GetParent() or view
     local events = CreateFrame("Frame")
     for _, e in ipairs({ "QUEST_LOG_UPDATE", "QUEST_POI_UPDATE", "QUEST_WATCH_LIST_CHANGED" }) do
@@ -555,12 +450,6 @@ end
 
 ns.RegisterCommand("areas", "show the quest areas the far view draws", function()
     local tracked = TrackedQuests()
-    local path = Areas.FillTexture(ns.db.questAreaColor)
-    if path ~= FILL then
-        local id = AsFileID(path)
-        ns.Printf("colour %s: %s  read back %s  given %s", ns.db.questAreaColor, path,
-            tostring(lastRawID), tostring(id or "(not yet: the game's blue)"))
-    end
     ns.Printf("quest areas %s  widget %s  zones on this continent %d  shown %d",
         ns.db.questAreas ~= false and "on" or "off",
         supported == nil and "not tried" or (supported and "yes" or "missing"),
