@@ -485,17 +485,19 @@ local function OnViewClick(button)
     end
 end
 
--- Below the map's bottom-right corner, or above it when the map sits in the lower half of the
--- screen (so it stays on screen).
+-- Inside the map's bottom-right corner, above the bottom bar when that bar sits over the map.
+local RECENTER_INSET = 6
 local function PlaceRecenter()
+    if not recenter then return end
     local root = recenter:GetParent()
+    local up = ns.Bars and ns.Bars.InsideBottomHeight() or 0
     recenter:ClearAllPoints()
-    if (ns.db.y or 0) >= 0 then
-        recenter:SetPoint("TOPRIGHT", root, "BOTTOMRIGHT", 0, -4)
-    else
-        recenter:SetPoint("BOTTOMRIGHT", root, "TOPRIGHT", 0, 4)
-    end
+    recenter:SetPoint("BOTTOMRIGHT", root, "BOTTOMRIGHT", -RECENTER_INSET, RECENTER_INSET + up)
+    local font = math.max(9, (ns.db.barFont or 11) - 1)
+    recenter.label:SetFont("Fonts\\FRIZQT__.TTF", font, "")
+    recenter:SetSize(recenter.label:GetStringWidth() + 16, font + 10)
 end
+Far.PlaceRecenter = PlaceRecenter
 
 ----------------------------------------------------------------------------------------------------
 -- Dragging. In far mode the view takes the mouse. On the native minimap a drag that moves more
@@ -687,9 +689,26 @@ function Far.Build(root, level)
     end
 
     -- Shown while panned.
-    recenter = CreateFrame("Button", nil, root, "UIPanelButtonTemplate")
-    recenter:SetSize(76, 20)
-    recenter:SetText("Recenter")
+    -- Shown while panned: a flat chip in the bars' style.
+    recenter = CreateFrame("Button", nil, root, "BackdropTemplate")
+    recenter:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+    recenter:SetBackdropColor(0.05, 0.06, 0.08, 0.85)
+    recenter:SetBackdropBorderColor(0, 0, 0, 1)
+    recenter.label = recenter:CreateFontString(nil, "OVERLAY")
+    recenter.label:SetFont("Fonts\\FRIZQT__.TTF", 10, "")
+    recenter.label:SetShadowOffset(1, -1)
+    recenter.label:SetShadowColor(0, 0, 0, 0.9)
+    recenter.label:SetPoint("CENTER")
+    recenter.label:SetText("Recenter")
+    recenter.label:SetTextColor(0.92, 0.92, 0.92)
+    recenter:SetScript("OnEnter", function(self)
+        self:SetBackdropBorderColor(1, 0.82, 0, 1)
+        self.label:SetTextColor(1, 0.82, 0)
+    end)
+    recenter:SetScript("OnLeave", function(self)
+        self:SetBackdropBorderColor(0, 0, 0, 1)
+        self.label:SetTextColor(0.92, 0.92, 0.92)
+    end)
     recenter:SetFrameLevel(level + 30)
     recenter:SetScript("OnClick", Far.Recenter)
     recenter:SetScript("OnShow", PlaceRecenter)

@@ -122,6 +122,12 @@ local function Place(bar, edge, inside, height)
     end
 end
 
+-- How much of the map's bottom edge the bottom bar covers (0 when it sits outside or is off).
+function Bars.InsideBottomHeight()
+    if not (ns.db.bottomBar and ns.db.bottomBarInside) then return 0 end
+    return ns.db.barFont + 2 * PAD - 2
+end
+
 -- Re-applies every bar setting. The shell calls it after each layout pass.
 function Bars.Apply()
     if not root then return end
@@ -145,6 +151,7 @@ function Bars.Apply()
 
     SyncHeader()
     if ns.Overrides then ns.Overrides.Apply() end
+    if ns.Far and ns.Far.PlaceRecenter then ns.Far.PlaceRecenter() end
     UpdateZone()
     UpdateBottom()
 end
