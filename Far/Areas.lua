@@ -139,13 +139,58 @@ local function AllQuests(tracked)
 end
 Areas.AllQuests = AllQuests
 
-local function Paint(f)
+-- Each quest drawn by one zone only. Zone maps overlap at their edges, and a quest near a border
+-- is on both maps: drawn by both frames, the overlap came out twice as dark.
+-- onMaps: { [zone mapID] = { { questID, mapID, x, y }, ... } } (C_QuestLog.GetQuestsOnMap for
+-- each zone in view). A quest goes to the zone its marker belongs to, else to the zone where its
+-- marker is nearest the middle. Returns { [questID] = zone mapID }. Pure.
+function Areas.Assign(onMaps)
+    local owner, best = {}, {}
+    for zone, quests in pairs(onMaps) do
+        for _, q in ipairs(quests) do
+            local id = q.questID
+            if type(id) == "number" then
+                local score
+                if q.mapID == zone then
+                    score = -1 -- its own zone always wins
+                else
+                    local dx, dy = (tonumber(q.x) or 0.5) - 0.5, (tonumber(q.y) or 0.5) - 0.5
+                    score = dx * dx + dy * dy
+                end
+                if best[id] == nil or score < best[id] or (score == best[id] and zone < owner[id]) then
+                    best[id], owner[id] = score, zone
+                end
+            end
+        end
+    end
+    return owner
+end
+
+local owners = {} -- [questID] = the zone in view that draws it
+
+local function UpdateOwners()
+    local log = _G.C_QuestLog
+    local onMaps = {}
+    if log and log.GetQuestsOnMap then
+        for id in pairs(visible) do
+            local ok, list = pcall(log.GetQuestsOnMap, id)
+            if ok and type(list) == "table" then onMaps[id] = list end
+        end
+    end
+    owners = Areas.Assign(onMaps)
+end
+
+local function Paint(f, mapID)
     pcall(f.DrawNone, f)
     pcall(f.SetFillAlpha, f, math.floor((ns.db.questAreaFill or 0.5) * 255 + 0.5))
     pcall(f.SetBorderAlpha, f, math.floor((ns.db.questAreaBorder or 0.75) * 255 + 0.5))
     local tracked = TrackedQuests()
     local ids = ns.db.questAreaTracked and tracked or AllQuests(tracked)
-    for _, id in ipairs(ids) do pcall(f.DrawBlob, f, id, true) end
+    for _, id in ipairs(ids) do
+        -- A quest no zone in view lists has no marker: left to every frame, as before.
+        local owner = owners[id]
+        if owner == nil or owner == mapID then pcall(f.DrawBlob, f, id, true) end
+    end
 end
 
 local function Place(f, z)
@@ -164,6 +209,7 @@ end
 local function Draw()
     local list = layout and ZonesOf(layout.inst) or {}
     local show, keep = Showing(), {}
+    if show then UpdateOwners() end
     if show then
         for _, z in ipairs(list) do
             if visible[z.mapID] then
@@ -171,7 +217,7 @@ local function Draw()
                 if f then
                     Place(f, z)
                     if painted[z.mapID] ~= generation then
-                        Paint(f)
+                        Paint(f, z.mapID)
                         painted[z.mapID] = generation
                     end
                     f:Show()
@@ -205,6 +251,8 @@ function Areas.Update(now, north, west, radius)
             changed = true
         end
     end
+    -- Which zone draws a quest depends on which zones are in view: repaint them all.
+    if changed then generation = generation + 1 end
     for id in pairs(visible) do
         if painted[id] ~= generation then changed = true end
     end

@@ -111,6 +111,31 @@ H.test("all quests: Questie's list too (it has quests under collapsed headers), 
     H.eq(ids[6], 500)
 end)
 
+H.test("assign: a quest on two overlapping zone maps is drawn by one zone only", function()
+    local owner = Areas.Assign({
+        [1413] = { { questID = 7, mapID = 1413, x = 0.95, y = 0.5 }, { questID = 8, mapID = 1440, x = 0.1, y = 0.5 } },
+        [1411] = { { questID = 7, mapID = 1413, x = 0.02, y = 0.5 }, { questID = 8, mapID = 1440, x = 0.45, y = 0.5 } },
+    })
+    H.eq(owner[7], 1413, "its own zone wins even near the edge")
+    H.eq(owner[8], 1411, "otherwise the zone where it's nearest the middle")
+end)
+
+H.test("each frame draws only the quests it owns", function()
+    _G.C_QuestLog.GetQuestsOnMap = function(map)
+        if map == 1413 then return { { questID = 202, mapID = 1413, x = 0.5, y = 0.5 }, { questID = 203, mapID = 1411, x = 0.9, y = 0.5 } } end
+        return { { questID = 202, mapID = 1413, x = 0.05, y = 0.5 }, { questID = 203, mapID = 1411, x = 0.5, y = 0.5 } }
+    end
+    Areas.SetLayout(1, 0, -1000, 0.1)
+    Areas.Update(1, 0, -1900, 300) -- both zones in view
+    local per = {}
+    for _, c in ipairs(calls) do
+        if c[1] == "DrawBlob" then per[c[2]] = (per[c[2]] or 0) + 1 end
+    end
+    H.eq(per[202], 1, "drawn once, not by both zones")
+    H.eq(per[203], 1)
+    _G.C_QuestLog.GetQuestsOnMap = nil
+end)
+
 H.test("a zoom redraws the areas on the next frame", function()
     Areas.SetLayout(1, 0, -1000, 0.1)
     Areas.Update(1, -1000, -1000, 300)
