@@ -27,9 +27,11 @@ local canvas, view, level
 -- picked in the settings (questAreaColor, "rrggbb") is drawn with the nearest of 216 flat textures
 -- (Media/AreaColors/cRGB.blp, six shades per channel). Found in game: the widget draws any addon
 -- file given by path as the green missing-texture fill (BLP or TGA, with or without extension),
--- but takes its file ID: a texture of ours loads the file, and the widget gets that ID. The ID only
--- comes once the file has loaded, a moment after it's set: until then the areas are painted in the
--- game's blue (never by path, which is green) and tried again shortly.
+-- but takes its file ID: a texture of ours loads the file, and the widget gets that ID. Addon files
+-- have negative IDs, and after a full client restart the client reads them back as their unsigned
+-- 32-bit value (2^32 - 8323 = 4294958973), sometimes as text: given that, the widget draws green
+-- too, so the ID is turned back into the negative number (as Pins/Mirror.lua does for icons).
+-- Until an ID is known the areas are painted in the game's blue, never by path.
 local FILL = "Interface\\WorldMap\\UI-QuestBlob-Inside"
 local PALETTE = "Interface\\AddOns\\FarZoomMinimap\\Media\\AreaColors\\c%d%d%d"
 
@@ -48,6 +50,19 @@ end
 local probe            -- loads palette files (a 1 px texture, on screen but invisible)
 local probePath
 local fileIDs = {}     -- [path] = file ID
+local lastRawID        -- for /fzm areas: what the client read back
+
+local INT_MAX, UINT_RANGE = 2147483647, 4294967296
+
+-- A file ID as the client reads it back (a number, possibly unsigned, or the number as text) as the
+-- signed number the widget takes; nil if it isn't one. Pure.
+function Areas.SignedFileID(raw)
+    local id = raw
+    if type(id) == "string" and id:match("^%-?%d+$") then id = tonumber(id) end
+    if type(id) ~= "number" or id == 0 or id ~= math.floor(id) then return nil end
+    if id > INT_MAX then id = id - UINT_RANGE end
+    return id
+end
 local RETRY, TRIES = 0.2, 25
 local retrying = false
 
@@ -67,12 +82,11 @@ local function AsFileID(path)
         probe:SetTexture(path)
         probePath = path
     end
-    local ok, id = pcall(probe.GetTextureFileID, probe)
-    if ok and type(id) == "number" and id ~= 0 then
-        fileIDs[path] = id
-        return id
-    end
-    return nil
+    local ok, raw = pcall(probe.GetTextureFileID, probe)
+    lastRawID = ok and raw or nil
+    local id = ok and Areas.SignedFileID(raw) or nil
+    if id then fileIDs[path] = id end
+    return id
 end
 
 -- The fill texture for a picked colour (nil or "" is the game's blue). Pure.
@@ -541,6 +555,12 @@ end
 
 ns.RegisterCommand("areas", "show the quest areas the far view draws", function()
     local tracked = TrackedQuests()
+    local path = Areas.FillTexture(ns.db.questAreaColor)
+    if path ~= FILL then
+        local id = AsFileID(path)
+        ns.Printf("colour %s: %s  read back %s  given %s", ns.db.questAreaColor, path,
+            tostring(lastRawID), tostring(id or "(not yet: the game's blue)"))
+    end
     ns.Printf("quest areas %s  widget %s  zones on this continent %d  shown %d",
         ns.db.questAreas ~= false and "on" or "off",
         supported == nil and "not tried" or (supported and "yes" or "missing"),

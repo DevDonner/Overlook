@@ -298,4 +298,37 @@ H.test("colour: painted in the game's blue until the picked colour's ID is ready
     for k, v in pairs(kept) do _G[k] = v end
 end)
 
+H.test("file IDs: read back unsigned or as text after a restart, given to the widget signed", function()
+    H.eq(Areas.SignedFileID(-8323), -8323)
+    H.eq(Areas.SignedFileID(4294958973), -8323, "unsigned 32-bit")
+    H.eq(Areas.SignedFileID("4294958973"), -8323, "as text")
+    H.eq(Areas.SignedFileID("-8323"), -8323)
+    H.eq(Areas.SignedFileID(136235), 136235, "a game file: unchanged")
+    H.eq(Areas.SignedFileID(0), nil)
+    H.eq(Areas.SignedFileID(nil), nil)
+    H.eq(Areas.SignedFileID("Interface\\AddOns\\x.blp"), nil, "a path isn't an ID")
+end)
+
+H.test("colour: an unsigned read-back reaches the widget as the signed ID", function()
+    local probe = { SetAllPoints = noop, SetAlpha = noop, SetTexture = noop,
+        GetTextureFileID = function() return 4294958973 end }
+    local kept = { UIParent = _G.UIParent, C_Timer = _G.C_Timer }
+    _G.UIParent = Widget("Frame")
+    _G.C_Timer = { After = noop }
+    local make = _G.CreateFrame
+    _G.CreateFrame = function(...)
+        local f = make(...)
+        f.CreateTexture = function() return probe end
+        return f
+    end
+    ns.db.questAreaColor = "80b0ff"
+    Areas.SetLayout(1, 0, -1000, 0.1)
+    Areas.Update(1, -1000, -1000, 300)
+    local last
+    for _, c in ipairs(calls) do if c[1] == "SetFillTexture" then last = c[2] end end
+    H.eq(last, -8323)
+    _G.CreateFrame = make
+    for k, v in pairs(kept) do _G[k] = v end
+end)
+
 for k, v in pairs(saved) do _G[k] = v end
