@@ -1,5 +1,9 @@
 # Overlook
 
+## Unreleased
+
+- Undercity draws on the far map. The game counts Undercity as outdoors, so before this fix the far map showed the Tirisfal surface there.
+
 ## 1.0.0
 
 First release, for WoW Forever (1.60.1). Requires Questie.

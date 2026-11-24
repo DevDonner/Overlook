@@ -215,13 +215,13 @@ H.test("in a dungeon, with no UnitPosition, far mode starts from the map and dra
     H.eq(ns.FarArt.ShownTiles(), 4)
 end)
 
-H.test("indoors in Undercity the city's map is drawn; outdoors only the terrain", function()
-    best, indoors = 1458, true
+H.test("in Undercity the city's map is drawn, though the game calls it outdoors; off it only the terrain", function()
+    best, indoors = 1458, false
     GoFar()
     Frame(0.6)
     H.eq(ns.FarArt.DrawnMap(), 1458)
     H.eq(ns.FarArt.ShownTiles(), 4)
-    indoors = false
+    best = 1420 -- up in Tirisfal
     Frame(0.6)
     H.eq(ns.FarArt.DrawnMap(), nil)
     H.eq(ns.FarArt.ShownTiles(), 0)
@@ -334,6 +334,17 @@ H.test("a new cave, or leaving far mode, starts back at the stack", function()
     alt = false
     GoFar()
     H.eq(ns.Caves.Level(), 1)
+end)
+
+H.test("on an underground map the cave is drawn though the game says outdoors (Undercity)", function()
+    OneCave()
+    indoors, best = false, 1458
+    GoFar()
+    H.truthy(ns.Caves.IsDrawing())
+    H.eq(ns.Caves.ShownTiles(), 4)
+    best = 1420 -- back up in Tirisfal
+    Frame(0.3)
+    H.eq(ns.Caves.ShownTiles(), 0)
 end)
 
 H.test("in a cave the cave's own images win over an underground city map", function()

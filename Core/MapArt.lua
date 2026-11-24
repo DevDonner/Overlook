@@ -10,7 +10,8 @@ ns.MapArt = MapArt
 MapArt.ZONE, MapArt.DUNGEON, MapArt.MICRO = 3, 4, 5
 
 -- Maps that lie under the terrain at their own place on the continent. The terrain there shows
--- the surface, so indoors there the map art replaces it. 1458: Undercity.
+-- the surface, so there the map art replaces it, indoors or not (the game calls much of
+-- Undercity outdoors; the map is only the player's best map once inside). 1458: Undercity.
 MapArt.UNDERGROUND = { [1458] = true }
 
 -- The map's world rectangle: instance, then north and west of its top-left corner and of its
@@ -61,7 +62,8 @@ function MapArt.Choose(s)
     if not s.best or not s.hasArt then return nil end
     if not s.terrain then return s.best end -- a dungeon: its map is all there is
     if s.cave then return nil end
-    if s.indoors and (MapArt.UNDERGROUND[s.best] or s.mapType == MapArt.DUNGEON or s.mapType == MapArt.MICRO) then
+    if MapArt.UNDERGROUND[s.best] then return s.best end
+    if s.indoors and ( s.mapType == MapArt.DUNGEON or s.mapType == MapArt.MICRO) then
         return s.best
     end
     return nil

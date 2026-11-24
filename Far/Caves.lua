@@ -94,13 +94,29 @@ local function SetPlacement(p, inst)
     Draw()
 end
 
+-- The player's map, or nil.
+local function BestMap()
+    local api = _G.C_Map
+    local best = api and api.GetBestMapForUnit and api.GetBestMapForUnit("player")
+    if best and not ns.IsSecret(best) then return best end
+end
+
+-- Whether the player is inside, where the terrain only shows the surface: indoors, or on an
+-- underground map. The game calls Undercity outdoors (it can be ridden through), so IsIndoors
+-- alone misses it.
+local function Inside()
+    if IsIndoors and IsIndoors() then return true end
+    local best = BestMap()
+    return best ~= nil and ns.MapArt ~= nil and ns.MapArt.UNDERGROUND[best] == true
+end
+
 -- Far mode calls this every frame with the player's position; it looks for the cave the player
--- is in every CHECK_EVERY seconds. Indoors only: outdoors the terrain is the right picture.
+-- is in every CHECK_EVERY seconds. Inside only: outdoors the terrain is the right picture.
 function Caves.Update(now, inst, north, west)
     if now < nextCheck then return end
     nextCheck = now + CHECK_EVERY
     local p
-    if IsIndoors and IsIndoors() then
+    if Inside() then
         local list, wmo = Data(inst)
         p = C.Pick(list, north, west, wmo)
     end
@@ -164,8 +180,9 @@ if ns.RegisterCommand then
         local north, west, _, inst = UnitPosition("player")
         local list, wmo = Data(inst)
         local p = north and C.Pick(list, north, west, wmo)
-        ns.Printf("indoors %s  caves on this continent %d  cave here %s",
-            tostring(IsIndoors and IsIndoors()), list and #list or 0, p and ns.Show(p[1]) or "none")
+        ns.Printf("indoors %s  map %s  inside %s  caves on this continent %d  cave here %s",
+            tostring(IsIndoors and IsIndoors()), tostring(BestMap()), tostring(Inside()),
+            list and #list or 0, p and tostring(p[1]) or "none")
         if p then
             ns.Printf("images %d  levels %d  looking at %d  drawn %d", #C.Quads(p, wmo[p[1]]),
                 C.LevelCount(wmo[p[1]]), at, shown)

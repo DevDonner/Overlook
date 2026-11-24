@@ -74,6 +74,10 @@ H.test("which map: indoors, only underground maps and dungeon-like maps replace 
         "an inn in Elwynn keeps the terrain")
 end)
 
+H.test("which map: an underground map is drawn even where the game says outdoors (Undercity)", function()
+    H.eq(A.Choose({ best = 1458, hasArt = true, terrain = true, indoors = false, mapType = A.ZONE }), 1458)
+end)
+
 H.test("which map: where a cave's own images are drawn, underground maps stand aside", function()
     H.eq(A.Choose({ best = 1458, hasArt = true, terrain = true, indoors = true, mapType = A.ZONE, cave = true }), nil)
     H.eq(A.Choose({ best = 100, hasArt = true, terrain = false, cave = true }), 100, "a dungeon still draws its map")
