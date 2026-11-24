@@ -1,6 +1,5 @@
 <!-- The CurseForge project description: paste into the project's Description (Markdown).
-     Screenshots: upload them to the project's Images tab, then replace each SCREENSHOT_URL_... below
-     with the image's link (right-click the uploaded image, copy image address). -->
+     The screenshots live in the project's Images gallery, not in the text. -->
 
 # Overlook
 
@@ -12,10 +11,6 @@ I wanted a minimap that could zoom out seamlessly while still working with Quest
 
 I can even see quest turn-ins from across the continent, right on my minimap.
 
-![The minimap in its default position](SCREENSHOT_URL_DEFAULT)
-
-*Right where your minimap always is, until you scroll.*
-
 ## Why Questie is required
 
 Questie knows where every quest objective, turn-in, available quest, trainer, flight master and mailbox is. Overlook is what lets you see all of that from far away.
@@ -25,18 +20,6 @@ The game's own minimap only shows icons in a small circle around you. Zoom out w
 No Questie means no icons to show, so Questie is a required dependency.
 
 **Requires [Questie](https://www.curseforge.com/wow/addons/questie).**
-
-![Zoomed out: quest objectives and turn-ins across the zone](SCREENSHOT_URL_ZOOMED_OUT)
-
-*Scroll out past the old limit. Every objective, turn-in and available quest stays on the map.*
-
-![Panned away from the player to scout another area](SCREENSHOT_URL_PANNED)
-
-*Drag to look anywhere. Middle-click or double-click snaps back to you.*
-
-![A cave with its levels stacked](SCREENSHOT_URL_CAVES)
-
-*Caves show every level at once. Alt + wheel peels off the top level, one at a time.*
 
 ## Features
 
