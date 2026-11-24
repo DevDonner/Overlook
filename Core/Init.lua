@@ -5,7 +5,10 @@ ns.name = ADDON
 -- The Overlook logo (Media/Logo.tga, 128 px): minimap button, compartment, settings and welcome.
 ns.LOGO = "Interface\\AddOns\\" .. tostring(ADDON) .. "\\Media\\Logo.tga"
 
-local PREFIX = "|cff4fc3f7Overlook|r "
+-- OverlookDev is the dev build: the repo linked into AddOns under a second TOC (OverlookDev.toc).
+ns.DEV = ADDON == "OverlookDev"
+
+local PREFIX = ns.DEV and "|cff4fc3f7Overlook|r |cffff9900Dev|r " or "|cff4fc3f7Overlook|r "
 
 function ns.Print(msg)
     print(PREFIX .. tostring(msg))
@@ -61,4 +64,17 @@ SlashCmdList.OVERLOOK = function(msg)
         return
     end
     cmd.fn(rest)
+end
+
+-- The live release and the dev build share every global name (OverlookDB, frames, /overlook),
+-- so with both enabled they fight. The dev build says so at login.
+if ns.DEV and CreateFrame then
+    local watch = CreateFrame("Frame")
+    watch:RegisterEvent("PLAYER_LOGIN")
+    watch:SetScript("OnEvent", function()
+        local addons = _G.C_AddOns
+        if addons and addons.IsAddOnLoaded and addons.IsAddOnLoaded("Overlook") then
+            ns.Print("|cffff5555Overlook and Overlook Dev Build are both enabled.|r Disable one in the AddOns list and reload.")
+        end
+    end)
 end

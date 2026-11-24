@@ -21,3 +21,4 @@ ignore:
   - tools
   - sc_inputs
   - CHANGELOG.md
+  - OverlookDev.toc

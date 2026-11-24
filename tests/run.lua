@@ -28,6 +28,7 @@ local FILES = {
     "tests/buttons.test.lua",
     "tests/options.test.lua",
     "tests/welcome.test.lua",
+    "tests/devtoc.test.lua",
 }
 
 for _, file in ipairs(FILES) do
