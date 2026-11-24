@@ -1,6 +1,6 @@
 # Overlook
 
-## Unreleased
+## 1.0.1
 
 - Undercity draws on the far map. The game counts Undercity as outdoors, so before this fix the far map showed the Tirisfal surface there.
 
