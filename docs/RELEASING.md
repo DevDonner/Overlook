@@ -4,6 +4,9 @@ Two builds come from each version tag, both packaged from `.pkgmeta`:
 
 - **CurseForge** packages the tag itself (the project's automatic packaging: "package any new
   tagged commits it sees when the code is pushed"), and uses `CHANGELOG.md` as the changelog.
+  It hears about pushes through a webhook on the GitHub repo (Settings → Webhooks, push events,
+  `https://www.curseforge.com/api/projects/1826936/package?token=…` with a CurseForge API token).
+  Without it nothing reaches CurseForge. Pushes to `main` without a tag go up as alpha files.
 - **GitHub Releases**: `.github/workflows/release.yml` runs the tests and attaches the same zip.
   It has no CurseForge key on purpose, so nothing is uploaded twice.
 
