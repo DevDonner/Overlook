@@ -30,7 +30,8 @@ local SMALL = 0.25                       -- a drawing is at most this part of th
 local RAISE = 25                         -- furniture's level above the view's
 
 -- The game's own frames on the Minimap, by name; and Questie (mirrored, in its own group frame).
-local SKIP_NAMES = { "^Minimap", "^MiniMap", "^GameTime", "^QueueStatus", "^ExpansionLanding",
+-- HybridMinimap: the game's map in cities with floors (Leatrix Plus makes its mask a white square).
+local SKIP_NAMES = { "^Minimap", "^MiniMap", "^HybridMinimap", "^GameTime", "^QueueStatus", "^ExpansionLanding",
     "^AddonCompartment", "^TimeManager", "^Overlook", "^Questie", "^HereBeDragons" }
 local SKIP_KEYS = { "ZoomIn", "ZoomOut", "ZoomHitArea" } -- the Minimap's own parts, by key
 

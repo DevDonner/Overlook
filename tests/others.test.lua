@@ -43,6 +43,10 @@ H.test("kind: ours, pins, hidden or see-through things are left alone", function
     H.eq(Kind({ alpha = 0 }), "skip")
 end)
 
+H.test("names: the game's hybrid minimap is the game's", function()
+    H.eq(O.SkipName("HybridMinimap"), true)
+end)
+
 H.test("names: the game's, Questie's and ours are skipped, other addons' aren't", function()
     H.eq(O.SkipName("MinimapZoomIn"), true)
     H.eq(O.SkipName("QuestieFrameGroup"), true)
@@ -177,11 +181,17 @@ local function World(dbOver)
     W.route = Frame("Frame", nil, 500, 400, 200, 200, { regions = { W.line } })
     W.fill = Region("Texture", 500, 400, 12, 12, { file = "Interface\\Buttons\\WHITE8X8" })
     W.box = Frame("Frame", nil, 500, 400, 12, 12, { regions = { W.fill } })
+    -- The game's hybrid minimap (cities with floors): its canvas of map pieces, and the mask
+    -- Leatrix Plus turns into a white square.
+    W.tile = Region("Texture", 500, 400, 40, 40, { file = 5012345 })
+    W.mask = Region("Texture", 500, 400, 45, 45, { file = 130871 })
+    W.canvas = Frame("Frame", nil, 500, 400, 200, 200, { regions = { W.tile, W.mask } })
+    W.hybrid = Frame("Frame", "HybridMinimap", 500, 400, 200, 200, { children = { W.canvas } })
 
     local kept = {}
     for _, k in ipairs(GLOBALS) do kept[k] = _G[k] end
     local minimap = Frame("Frame", "Minimap", 500, 400, 200, 200, { children = {
-        W.walk, W.border, W.button, W.zone, W.pin, W.questie, W.blocker, W.rare, W.route, W.box } })
+        W.walk, W.border, W.button, W.zone, W.pin, W.questie, W.blocker, W.rare, W.route, W.box, W.hybrid } })
     minimap.GetWidth = function() return 200 end
     _G.Minimap = minimap
     _G.CreateFrame = function()
@@ -251,6 +261,16 @@ H.test("far map: no white squares: route lines and plain fills aren't copied, no
     local n = 0
     for _ in pairs(Others._copies) do n = n + 1 end
     H.eq(n, 3, "only the two dots and the rare pin")
+    Restore()
+end)
+
+H.test("far map: no white box around the player from the game's hybrid minimap (Leatrix Plus)", function()
+    local _, Others, Restore = World()
+    Far(Others)
+    H.eq(CopyOf(Others, W.tile), nil, "a map piece")
+    H.eq(CopyOf(Others, W.mask), nil, "the mask")
+    H.eq(Others._lifted[W.hybrid], nil, "not kept showing either")
+    H.eq(Others._lifted[W.canvas], nil)
     Restore()
 end)
 
