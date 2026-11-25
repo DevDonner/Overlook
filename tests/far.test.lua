@@ -25,6 +25,7 @@ local function NewObj()
     o.GetCenter = function() return 0, 0 end
     o.IsMouseOver = function() return false end
     o.GetParent = function() return NewObj() end
+    o.GetStringWidth = function() return 40 end
     return setmetatable(o, {
         __index = function(_, k)
             if type(k) == "string" and k:match("^%u") then return noop end
@@ -140,8 +141,19 @@ H.test("far mode hides the native minimap and shows the far view", function()
     H.eq(view.shown, true)
 end)
 
+H.test("the Recenter chip is placed for the square map, the round one and a hosted round one", function()
+    ns.Shell = { nativeSize = 140 }
+    Far.PlaceRecenter()
+    ns.db.round = true
+    Far.PlaceRecenter()
+    ns.db.round = false
+    ns.Host.owner, ns.Host.round = "EllesmereUI", true
+    Far.OnShellApplied()
+    ns.Host.owner = nil
+end)
+
 H.test("handing back gives the Minimap its own alpha again (a host may keep it faded)", function()
-    Minimap.alpha = 0.6
+    _G.Minimap.alpha = 0.6
     GoFar()
     H.eq(Minimap.alpha, 0)
     HandBack()

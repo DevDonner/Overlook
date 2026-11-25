@@ -66,7 +66,7 @@ local function Obj()
     o.IsMouseEnabled = function() return false end
     o.SetFrameStrata = function(self, s) self.strata = s end
     o.GetFrameStrata = function(self) return self.strata or "LOW" end
-    o.SetBackdropBorderColor = function(self, r, g, b, a) self.edgeAlpha = a end
+    o.SetBackdropBorderColor = function(self, _, _, _, a) self.edgeAlpha = a end
     return setmetatable(o, { __index = function(_, k) if type(k) == "string" and k:match("^%u") then return noop end end })
 end
 

@@ -343,12 +343,12 @@ BUILDERS[4] = { "Layout", function(p)
         prev = b
     end
     p.y = y - 30
-    local current = W.Note(p.content, "")
-    p:Place(current, 4, 18)
+    local presetNote = W.Note(p.content, "")
+    p:Place(presetNote, 4, 18)
     p.onRefresh[#p.onRefresh + 1] = function()
         local names = { full = "Full", compact = "Compact", maponly = "Map only" }
         local now = S.CurrentPreset(ns.db)
-        current:SetText(now and ("Now: " .. names[now]) or "Now: your own mix")
+        presetNote:SetText(now and ("Now: " .. names[now]) or "Now: your own mix")
     end
 
     p:Header("Top bar")

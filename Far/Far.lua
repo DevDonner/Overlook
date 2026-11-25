@@ -523,7 +523,7 @@ local function PlaceRecenter()
     local root = recenter:GetParent()
     local up = ns.Bars and ns.Bars.InsideBottomHeight() or 0
     recenter:ClearAllPoints()
-    if IsRound() then
+    if ns.Host.IsRound() then
         recenter:SetPoint("BOTTOM", root, "BOTTOM", 0, RECENTER_INSET + 4)
     else
         recenter:SetPoint("BOTTOMRIGHT", root, "BOTTOMRIGHT", -RECENTER_INSET, RECENTER_INSET + up)
