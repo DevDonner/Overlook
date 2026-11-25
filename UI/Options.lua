@@ -305,6 +305,10 @@ BUILDERS[1] = { "Map", function(p)
         function(v) ns.Far.SetMaxZoom(v) end,
         "How far out the mouse wheel can zoom, in yards from the centre to the edge. "
             .. "/overlook far shows how long the last zoom took to fill in."), 4, 46)
+    p:Check("No limit: zoom out to whole continents", "worldZoom",
+        "The wheel zooms out until both continents show, and you can drag across the sea to the other one. "
+            .. "Every map tile is loaded at the furthest zoom, so it's heavy on memory and the first zoom-out takes a moment.",
+        function() ns.Far.SetMaxZoom(ns.db.maxFarZoom) end)
     p:Check("Round map", "round", "A round map instead of a square one. Rotation (Behaviour tab) needs the round map.",
         function() ns.Shell.Apply(); Options.Refresh() end)
     p:Check("Lock size (hide the resize grip)", "locked", "Alt+drag still moves the map when it's locked.")

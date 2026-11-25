@@ -4,6 +4,8 @@ local H = ...
 
 local function noop() end
 
+local textures = {} -- every texture made, newest last
+
 -- A stub frame or texture: unknown methods are no-ops; the state these tests read is real.
 local function NewObj()
     local o = { shown = true, alpha = 1, mouse = true, scripts = {} }
@@ -18,7 +20,12 @@ local function NewObj()
     o.SetScript = function(self, k, f) self.scripts[k] = f end
     o.GetScript = function(self, k) return self.scripts[k] end
     o.HookScript = noop
-    o.CreateTexture = function() return NewObj() end
+    o.CreateTexture = function()
+        local t = NewObj()
+        textures[#textures + 1] = t
+        return t
+    end
+    o.SetPoint = function(self, _, _, _, x, y) self.px, self.py = x, y end
     o.CreateFontString = function() return NewObj() end
     o.SetTexture = function(self, f) self.file = f end
     o.GetEffectiveScale = function() return 1 end
@@ -98,6 +105,7 @@ local function Fresh()
     local made = {}
     _G.CreateFrame = function() local f = NewObj(); made[#made + 1] = f; return f end
     H.loadAddonFile("Core/Geometry.lua", ns)
+    H.loadAddonFile("Core/World.lua", ns)
     H.loadAddonFile("Core/Settings.lua", ns)
     H.loadAddonFile("Core/Host.lua", ns)
     H.loadAddonFile("Core/Zoom.lua", ns)
@@ -455,6 +463,84 @@ H.test("far mode tells the icon layer where the view is every frame", function()
         end
     end
     H.truthy(n >= 1)
+end)
+
+
+----------------------------------------------------------------------------------------------------
+-- The world: the other continent beside this one, and zooming out to see it all
+
+-- Two small continents: 0 in columns 30-35 (the player stands in it), 1 in columns 30-35 of its
+-- own grid. In the world, 1 sits west of 0 with the sea between.
+local function TwoContinents()
+    local G = ns.Geometry
+    ns.MapMinimap[0], ns.MapMinimap[1] = {}, {}
+    for c = 30, 35 do
+        for r = 30, 35 do
+            ns.MapMinimap[0][G.TileKey(c, r)] = 1000 + G.TileKey(c, r)
+            ns.MapMinimap[1][G.TileKey(c, r)] = 2000000 + G.TileKey(c, r)
+        end
+    end
+    -- The player in the middle of continent 0.
+    local n, w = G.TileToWorld(33, 33)
+    pos = { n, w, 0 }
+end
+
+local function Shown(fromContinent)
+    local out = {}
+    for _, t in ipairs(textures) do
+        if t.shown and type(t.file) == "number" then
+            local mine = (t.file >= 2000000) == (fromContinent == 1)
+            if mine and t.file >= 1000 then out[#out + 1] = t end
+        end
+    end
+    return out
+end
+
+H.test("no limit: the wheel's furthest zoom becomes the whole world", function()
+    TwoContinents()
+    H.eq(Far.MaxZoom(), 2000, "the setting")
+    ns.db.worldZoom = true
+    H.eq(Far.MaxZoom(), math.max(ns.World.Reach(), 2000))
+    H.truthy(Far.MaxZoom() > 2000)
+end)
+
+H.test("zoomed out to the world: both continents' tiles, the other one to the west", function()
+    TwoContinents()
+    ns.db.worldZoom = true
+    for i = #textures, 1, -1 do textures[i] = nil end
+    GoFar()
+    Far.ZoomTo(Far.MaxZoom())
+    for _ = 1, 40 do Frame() end -- tiles load a budget per frame
+    local home, other = Shown(0), Shown(1)
+    H.eq(#home, 36, "all of this continent")
+    H.eq(#other, 36, "all of the other")
+    local westmostHome = math.huge
+    for _, t in ipairs(home) do westmostHome = math.min(westmostHome, t.px) end
+    for _, t in ipairs(other) do
+        H.truthy(t.px < westmostHome, "the other continent is west (left) of this one")
+    end
+end)
+
+H.test("with the normal limit only this continent is in view", function()
+    TwoContinents()
+    for i = #textures, 1, -1 do textures[i] = nil end
+    GoFar()
+    Far.ZoomTo(2000)
+    for _ = 1, 40 do Frame() end
+    H.truthy(#Shown(0) > 0)
+    H.eq(#Shown(1), 0, "the other continent is out of view, so none of its tiles load")
+end)
+
+H.test("turning no limit off pulls the view back in", function()
+    TwoContinents()
+    ns.db.worldZoom = true
+    GoFar()
+    Far.ZoomTo(Far.MaxZoom())
+    Frame()
+    ns.db.worldZoom = false
+    Far.SetMaxZoom(ns.db.maxFarZoom)
+    Frame()
+    H.eq(Far.Radius(), 2000)
 end)
 
 for k in pairs(GLOBALS) do _G[k] = saved[k] end

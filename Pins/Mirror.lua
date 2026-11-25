@@ -325,12 +325,23 @@ local function InReach(x, y)
     return not reach or (math.abs(x - vx) <= reach and math.abs(y - vy) <= reach)
 end
 
+-- Yards to add to a point on continent inst to draw it on the far map (the player's continent,
+-- or one beside it in the world: Core/World.lua); nil when it isn't drawn.
+local function Shift(inst)
+    if inst == layout.inst then return 0, 0 end
+    if inst == nil or not ns.World then return nil end
+    return ns.World.Shift(layout.inst, inst)
+end
+Mirror.Shift = function(inst) return layout and Shift(inst) end
+
 local function Place(p)
-    if not layout or p.hidden or p.userHidden or p.inst ~= layout.inst or p.nTex == 0 then
+    local dn, dw
+    if layout and not (p.hidden or p.userHidden) and p.nTex ~= 0 then dn, dw = Shift(p.inst) end
+    if not dn then
         Hide(p)
         return
     end
-    local x, y = G.WorldToPixel(p.n, p.w, layout.n, layout.w, layout.ppy)
+    local x, y = G.WorldToPixel(p.n + dn, p.w + dw, layout.n, layout.w, layout.ppy)
     p.x, p.y = x, y
     if not InReach(x, y) then
         Hide(p)

@@ -141,8 +141,13 @@ local function DrawFar()
     local size = Size()
     if layout and On() then
         for _, place in ipairs(Places()) do
-            if place.inst == layout.inst then
-                local x, y = G.WorldToPixel(place.n, place.w, layout.n, layout.w, layout.ppy)
+            local dn, dw = 0, 0
+            if place.inst ~= layout.inst then
+                dn, dw = nil, nil
+                if ns.World then dn, dw = ns.World.Shift(layout.inst, place.inst) end
+            end
+            if dn then
+                local x, y = G.WorldToPixel(place.n + dn, place.w + dw, layout.n, layout.w, layout.ppy)
                 n = n + 1
                 local p = farPins[n]
                 if not p then

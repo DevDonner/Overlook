@@ -8,10 +8,12 @@
 --  * canvas - unscaled layer; its CENTER is the fixed origin (where far mode started on this
 --             continent). Each frame one SetPoint moves it under the player.
 --  * tiles  - pooled textures placed relative to the canvas; re-placed only when the zoom changes.
+--             One layer of them per continent in view: the player's, and the others beside it
+--             (Core/World.lua), shifted into the player's continent's coordinates.
 local _, ns = ...
 
 local G, Zoom = ns.Geometry, ns.Zoom
-local abs, max = math.abs, math.max
+local abs, max, floor = math.abs, math.max, math.floor
 
 local Far = {}
 ns.Far = Far
@@ -32,7 +34,9 @@ local instance, tileSet, originN, originW
 local active, pool = {}, {}      -- active[key] = texture, or false when the tile has no art
 local loadStart, loadCount       -- GetTime() and tiles added since the current fill began
 local lastLoad                   -- { seconds, tiles, radius } of the last fill, for /overlook far
-local c0, c1, r0, r1             -- the tile range on screen
+local layers = {}                -- continents drawn: { inst, set, dn, dw }, the player's first
+local ranges = {}                -- [layer] = { colMin, colMax, rowMin, rowMax } on screen, or false
+local LAYER_KEYS = 4096          -- active's keys: layer * LAYER_KEYS + the tile's key (< 4096)
 local layoutDirty, tilesPending = false, false
 local lastFacing
 local anchorN, anchorW           -- world point the view is pinned to after a pan; nil = follows the player
@@ -95,6 +99,27 @@ local function TilesFor(inst)
     if ns.FarArt and ns.FarArt.HasMapFor(inst) then return NO_TERRAIN end
 end
 
+-- The continents to draw: the player's, then the ones beside it in the world.
+local function SetLayers(inst, set)
+    for i = #layers, 1, -1 do layers[i] = nil end
+    layers[1] = { inst = inst, set = set, dn = 0, dw = 0 }
+    if set == NO_TERRAIN or not ns.World then return end
+    for _, other in ipairs(ns.World.Neighbours(inst)) do
+        local s = ns.MapMinimap and ns.MapMinimap[other.inst]
+        if s then layers[#layers + 1] = { inst = other.inst, set = s, dn = other.dn, dw = other.dw } end
+    end
+end
+
+-- The furthest zoom: the setting, or the whole world with "no limit" on.
+local function MaxZoom()
+    if ns.db.worldZoom and ns.World then
+        local r = ns.World.Reach()
+        if r then return max(r, ns.db.maxFarZoom) end
+    end
+    return ns.db.maxFarZoom
+end
+Far.MaxZoom = MaxZoom
+
 local function NativeRadius()
     local r = C_Minimap and C_Minimap.GetViewRadius and C_Minimap.GetViewRadius()
     if Usable(r) and type(r) == "number" and r > 0 then return r end
@@ -131,13 +156,14 @@ end
 
 local function ReleaseAll()
     for key in pairs(active) do ReleaseTile(key) end
-    c0, c1, r0, r1 = nil, nil, nil, nil
+    for k in pairs(ranges) do ranges[k] = nil end
     tilesPending = false
 end
 
 local function PlaceTile(t, key, ppy)
-    local n, w = G.TileToWorld(G.KeyToTile(key))
-    local x, y = G.WorldToPixel(n, w, originN, originW, ppy)
+    local layer = layers[floor(key / LAYER_KEYS)]
+    local n, w = G.TileToWorld(G.KeyToTile(key % LAYER_KEYS))
+    local x, y = G.WorldToPixel(n + layer.dn, w + layer.dw, originN, originW, ppy)
     local s = TILE * ppy
     t:ClearAllPoints()
     t:SetPoint("TOPLEFT", canvas, "CENTER", x, y)
@@ -153,23 +179,58 @@ end
 local missing, distance = {}, {}
 local function ByDistance(a, b) return distance[a] < distance[b] end
 
+-- A continent's tile range on screen for a view of radius r yards around (n, w), in the player's
+-- continent's coordinates: colMin, colMax, rowMin, rowMax; nil when the view misses its grid.
+local HALF = G.GRID / 2 * TILE
+local function LayerRange(layer, n, w, r)
+    local ln, lw = n - layer.dn, w - layer.dw
+    if lw - r >= HALF or lw + r <= -HALF or ln - r >= HALF or ln + r <= -HALF then return nil end
+    return G.VisibleTiles(ln, lw, r)
+end
+
+-- Works out each continent's range on screen; true when one changed.
+local function UpdateRanges(n, w, r)
+    local changed = false
+    for i, layer in ipairs(layers) do
+        local a0, a1, b0, b1 = LayerRange(layer, n, w, r)
+        local was = ranges[i]
+        if a0 then
+            if not was or was[1] ~= a0 or was[2] ~= a1 or was[3] ~= b0 or was[4] ~= b1 then
+                ranges[i] = { a0, a1, b0, b1 }
+                changed = true
+            end
+        elseif was ~= false then
+            ranges[i] = false
+            changed = true
+        end
+    end
+    return changed
+end
+
 -- Drops tiles that left the range and adds missing ones, nearest first, a budget per frame so a
 -- big zoom-out never stalls a frame (#28).
-local function UpdateTiles(a0, a1, b0, b1, n, w, ppy)
+local function UpdateTiles(n, w, ppy)
     for key in pairs(active) do
-        local col, row = G.KeyToTile(key)
-        if col < a0 or col > a1 or row < b0 or row > b1 then ReleaseTile(key) end
+        local range = ranges[floor(key / LAYER_KEYS)]
+        local col, row = G.KeyToTile(key % LAYER_KEYS)
+        if not range or col < range[1] or col > range[2] or row < range[3] or row > range[4] then
+            ReleaseTile(key)
+        end
     end
-    c0, c1, r0, r1 = a0, a1, b0, b1
 
-    local pc, pr = G.WorldToTile(n, w)
     for i = #missing, 1, -1 do missing[i] = nil end
-    for col = a0, a1 do
-        for row = b0, b1 do
-            local key = G.TileKey(col, row)
-            if active[key] == nil then
-                missing[#missing + 1] = key
-                distance[key] = max(abs(col - pc), abs(row - pr))
+    for i, layer in ipairs(layers) do
+        local range = ranges[i]
+        if range then
+            local pc, pr = G.WorldToTile(n - layer.dn, w - layer.dw)
+            for col = range[1], range[2] do
+                for row = range[3], range[4] do
+                    local key = i * LAYER_KEYS + G.TileKey(col, row)
+                    if active[key] == nil then
+                        missing[#missing + 1] = key
+                        distance[key] = max(abs(col - pc), abs(row - pr))
+                    end
+                end
             end
         end
     end
@@ -180,7 +241,7 @@ local function UpdateTiles(a0, a1, b0, b1, n, w, ppy)
     local added = 0
     for i = 1, #missing do
         local key = missing[i]
-        local fid = tileSet[key]
+        local fid = layers[floor(key / LAYER_KEYS)].set[key % LAYER_KEYS]
         if fid then
             if added >= budget then
                 tilesPending = true
@@ -232,6 +293,7 @@ local function OnUpdate()
         end
         ReleaseAll()
         instance, tileSet, originN, originW = inst, set, n, w
+        SetLayers(inst, set)
         ClearAnchor()
         layoutDirty = true
     end
@@ -268,10 +330,19 @@ local function OnUpdate()
             end
             if drag.moved then
                 -- Dragging right shows more of the west: the centre moves west (west grows).
-                -- Pinned to a world point, kept within reach of the player.
-                local limit = 2 * ns.db.maxFarZoom
-                anchorW = w + math.max(-limit, math.min(limit, drag.w + dx / ppy - w))
-                anchorN = n + math.max(-limit, math.min(limit, drag.n - dy / ppy - n))
+                -- Pinned to a world point: anywhere over the world's land (across the sea to
+                -- the next continent), else within reach of the player.
+                local wantW, wantN = drag.w + dx / ppy, drag.n - dy / ppy
+                local nMin, nMax, wMin, wMax
+                if ns.World and tileSet ~= NO_TERRAIN then nMin, nMax, wMin, wMax = ns.World.Bounds(instance) end
+                if nMin then
+                    anchorW = math.max(wMin, math.min(wMax, wantW))
+                    anchorN = math.max(nMin, math.min(nMax, wantN))
+                else
+                    local limit = 2 * MaxZoom()
+                    anchorW = w + math.max(-limit, math.min(limit, wantW - w))
+                    anchorN = n + math.max(-limit, math.min(limit, wantN - n))
+                end
             end
         end
     end
@@ -302,10 +373,8 @@ local function OnUpdate()
         if ns.Pings then ns.Pings.SetLayout(instance, originN, originW, ppy) end
         if ns.Others then ns.Others.SetLayout(instance, originN, originW, ppy, Zoom.Shrink(radius, nativeMax)) end
     end
-    local a0, a1, b0, b1 = G.VisibleTiles(cN, cW, radius)
-    if zoomed or tilesPending or a0 ~= c0 or a1 ~= c1 or b0 ~= r0 or b1 ~= r1 then
-        UpdateTiles(a0, a1, b0, b1, cN, cW, ppy)
-    end
+    local moved = UpdateRanges(cN, cW, radius)
+    if zoomed or tilesPending or moved then UpdateTiles(cN, cW, ppy) end
 
     -- Hover: party dots sit above the icons, so a dot under the cursor wins.
     if view:IsMouseOver() and CursorInside() and not (drag and drag.moved) then
@@ -361,7 +430,7 @@ end
 
 -- Starts a new zoom step from wherever the view is now. delta follows the wheel: > 0 is in.
 function Far.Step(delta, fine)
-    local r, leave = Zoom.FarStep(target, delta, fine, nativeMax, ns.db.maxFarZoom, IsPanned())
+    local r, leave = Zoom.FarStep(target, delta, fine, nativeMax, MaxZoom(), IsPanned())
     tweenFrom, target, tweenStart, leaving = radius, r, GetTime(), leave
 end
 
@@ -375,13 +444,15 @@ function Far.Enter(fine, zoomOut)
     local set = n and TilesFor(inst)
     if not set then return false end
 
+    local same = false
     if coverStart then
         -- Back out during the hand-back fade: keep the tiles if still on the same continent.
-        local same = inst == instance
+        same = inst == instance
         EndCover(same)
     end
     nativeMax = NativeRadius()
     mode = "far"
+    if not (same and instance == inst) then SetLayers(inst, set) end
     instance, tileSet, originN, originW = inst, set, n, w
     radius, target, leaving = nativeMax, nativeMax, false
     layoutDirty, lastFacing = true, nil
@@ -452,8 +523,8 @@ end
 -- Sets the far-zoom limit, pulling the view in if it's further out.
 function Far.SetMaxZoom(yards)
     ns.db.maxFarZoom = ns.Settings.ClampMaxFar(yards)
-    if mode == "far" and target > ns.db.maxFarZoom then
-        tweenFrom, target, tweenStart = radius, ns.db.maxFarZoom, GetTime()
+    if mode == "far" and target > MaxZoom() then
+        tweenFrom, target, tweenStart = radius, MaxZoom(), GetTime()
     end
 end
 
@@ -472,7 +543,7 @@ end
 -- Zooms the far view to `yards` (capped at the furthest zoom), entering far mode if needed.
 -- Returns false where there's no far map, or the radius is inside the native minimap's.
 function Far.ZoomTo(yards)
-    yards = math.min(yards, ns.db.maxFarZoom)
+    yards = math.min(yards, MaxZoom())
     if mode ~= "far" then
         if yards <= NativeRadius() * 1.0001 then return false end
         if not Far.Enter(false, false) then return false end
@@ -841,8 +912,9 @@ ns.RegisterCommand("far", "show far-zoom state", function()
     for _, t in pairs(active) do if t then n = n + 1 end end
     ns.Printf("mode %s  radius %s yd (target %s)  native max %.1f yd  max %d yd",
         mode, radius and string.format("%.0f", radius) or "-", target and string.format("%.0f", target) or "-",
-        nativeMax, ns.db.maxFarZoom)
-    ns.Printf("tiles shown %d  pooled %d  instance %s  pending %s", n, #pool, ns.Show(instance), tostring(tilesPending))
+        nativeMax, MaxZoom())
+    ns.Printf("tiles shown %d  pooled %d  instance %s  continents %d  pending %s", n, #pool, ns.Show(instance),
+        #layers, tostring(tilesPending))
     if lastLoad then
         ns.Printf("last fill: %d tiles in %.2f s (at %.0f yd)", lastLoad[2], lastLoad[1], lastLoad[3] or 0)
     end

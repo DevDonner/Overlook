@@ -89,13 +89,18 @@ local function Draw()
         local thick = Thickness()
         local minSq = MIN_SEGMENT_PX * MIN_SEGMENT_PX
         for _, route in ipairs(routes) do
-            if route.instanceId == nil or route.instanceId == layout.inst then
+            local dn, dw = 0, 0
+            if route.instanceId ~= nil and route.instanceId ~= layout.inst then
+                dn, dw = nil, nil
+                if ns.World then dn, dw = ns.World.Shift(layout.inst, route.instanceId) end
+            end
+            if dn then
                 local world = route.world
                 local lastX, lastY
                 for i = 1, #world do
                     local pt = world[i]
                     -- HBD world yards: x runs west, y runs north.
-                    local x, y = G.WorldToPixel(pt.y, pt.x, layout.n, layout.w, layout.ppy)
+                    local x, y = G.WorldToPixel(pt.y + dn, pt.x + dw, layout.n, layout.w, layout.ppy)
                     if not lastX then
                         lastX, lastY = x, y
                     else
