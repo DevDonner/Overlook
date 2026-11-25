@@ -101,6 +101,23 @@ function Others.Owner(name, path, addons)
     return "Other addons"
 end
 
+-- Plain fills: no picture of their own, just a colour (RareScanner draws its minimap route with
+-- WHITE8X8 lines). Copied as a texture they become solid squares, so they never are.
+local FILLS = { "white8x8", "chatframebackground", "ui%-tooltip%-background", "^solid" }
+
+-- Whether a region's picture can be copied onto the far map. kind: its GetObjectType() ("Line" and
+-- "MaskTexture" can't: a line has no shape as a texture); path: its file path or texture, if any.
+function Others.Copyable(kind, path)
+    if kind ~= "Texture" then return false end
+    if type(path) == "string" then
+        local l = path:lower()
+        for _, p in ipairs(FILLS) do
+            if l:find(p) then return false end
+        end
+    end
+    return true
+end
+
 function Others.Key(owner)
     return IconPrefs.DrawnKey(owner)
 end
@@ -255,7 +272,9 @@ local function CopyLook(dst, src)
         dst:SetAtlas(atlas)
     else
         local tex = ns.Mirror and ns.Mirror.ResolveTexture and ns.Mirror.ResolveTexture(src, src) or src:GetTexture()
-        if not tex or not pcall(dst.SetTexture, dst, tex) then return false end
+        -- No picture (a colour fill) or a plain fill: it would show as a solid square.
+        if not tex or not Others.Copyable("Texture", type(tex) == "string" and tex or nil) then return false end
+        if not pcall(dst.SetTexture, dst, tex) then return false end
         dst:SetTexCoord(src:GetTexCoord())
     end
     local r, g, b, a = src:GetVertexColor()
@@ -346,18 +365,26 @@ local function Scan()
     end
 
     -- A frame's pictures that are drawings (all of them for a drawing frame; in a container, only
-    -- the small ones on the map). Copied when capturing; returns how many there are either way.
+    -- the small ones on the map). Copied when capturing and copyable; returns how many there are
+    -- either way. Lines count as drawings (a route: the frame isn't furniture) but are never copied.
     local function Textures(frame, owner, smallOnly)
         local n = 0
         for _, r in ipairs({ frame:GetRegions() }) do
-            if r:IsObjectType("Texture") and Shown(r) then
+            local kind = r.GetObjectType and r:GetObjectType()
+            if kind == "Line" and Shown(r) then
+                n = n + 1
+            elseif kind == "Texture" and Shown(r) then
                 local x, y, w, h = Rect(r, mScale)
                 if x then
                     local inside = math.abs(x - mx) < mw / 2 and math.abs(y - my) < mh / 2
                     if not smallOnly or Others.SmallInside(w, h, inside, mw) then
                         n = n + 1
-                        if capture then
-                            local path = r.GetTextureFilePath and r:GetTextureFilePath()
+                        local path = r.GetTextureFilePath and r:GetTextureFilePath()
+                        if path == nil then
+                            local t = r:GetTexture()
+                            if type(t) == "string" then path = t end
+                        end
+                        if capture and Others.Copyable(kind, path) then
                             Drawing(r, owner or Others.Owner(nil, path, AddonNames()))
                         end
                     end

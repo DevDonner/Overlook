@@ -1,5 +1,9 @@
 # Overlook
 
+## 1.1.1
+
+- Fixed: zooming out could show white squares around the player. Other addons' route lines on the minimap (RareScanner's, to a rare) were copied onto the far map as solid squares. Only real pictures are copied now; lines and plain colour fills never are.
+
 ## 1.1.0
 
 Plays nicely with other minimap addons, and the map can have all the room it's given.

@@ -79,6 +79,18 @@ H.test("world offset: undoes a rotating minimap (Factoruide's own forward maths)
     end
 end)
 
+H.test("copyable: real pictures only; never lines, masks or plain fills", function()
+    H.eq(O.Copyable("Texture", "Interface\\COMMON\\Indicator-Gray"), true)
+    H.eq(O.Copyable("Texture", 136235), true, "a file id")
+    H.eq(O.Copyable("Texture", nil), true, "(CopyLook still needs a picture)")
+    H.eq(O.Copyable("Line", "Interface\\COMMON\\Indicator-Gray"), false, "a route line")
+    H.eq(O.Copyable("MaskTexture", nil), false)
+    H.eq(O.Copyable("Texture", "Interface\\Buttons\\WHITE8X8"), false, "RareScanner's route texture")
+    H.eq(O.Copyable("Texture", "Interface\\BUTTONS\\white8x8"), false)
+    H.eq(O.Copyable("Texture", "Interface\\ChatFrame\\ChatFrameBackground"), false)
+    H.eq(O.Copyable("Texture", "Interface\\Tooltips\\UI-Tooltip-Background"), false)
+end)
+
 H.test("owner: from a texture's addon folder, the frame's name, or 'Other addons'", function()
     local addons = { "Factoruide_Guide", "RareScanner", "TomTom" }
     H.eq(O.Owner(nil, "Interface\\AddOns\\ForeverFinds\\Media\\pin.blp", addons), "ForeverFinds")
@@ -100,6 +112,7 @@ local function Region(kind, x, y, w, h, extra)
     r.IsShown = function(self) return self.shown end
     r.GetAlpha = function(self) return self.alpha end
     r.IsObjectType = function(self, t) return self.kind == t or (t == "Frame" and self.kind == "Button") end
+    r.GetObjectType = function(self) return self.kind end
     r.GetText = function(self) return self.text end
     r.GetTexture = function(self) return self.file end
     r.GetTextureFilePath = function(self) return self.file end
@@ -158,11 +171,17 @@ local function World(dbOver)
     W.blocker = Frame("Frame", nil, 500, 400, 200, 200, { mouse = true })
     W.rare = Frame("Frame", "ZzzPin", 460, 380, 16, 16, { regions = {
         Region("Texture", 460, 380, 16, 16, { file = "Interface\\AddOns\\RareThing\\icon.blp" }) } })
+    -- RareScanner's route: an unnamed frame over the map holding short white lines from the player,
+    -- and a hand-made white box (a plain fill) near the player.
+    W.line = Region("Line", 505, 402, 10, 4, { file = "Interface\\Buttons\\WHITE8X8" })
+    W.route = Frame("Frame", nil, 500, 400, 200, 200, { regions = { W.line } })
+    W.fill = Region("Texture", 500, 400, 12, 12, { file = "Interface\\Buttons\\WHITE8X8" })
+    W.box = Frame("Frame", nil, 500, 400, 12, 12, { regions = { W.fill } })
 
     local kept = {}
     for _, k in ipairs(GLOBALS) do kept[k] = _G[k] end
     local minimap = Frame("Frame", "Minimap", 500, 400, 200, 200, { children = {
-        W.walk, W.border, W.button, W.zone, W.pin, W.questie, W.blocker, W.rare } })
+        W.walk, W.border, W.button, W.zone, W.pin, W.questie, W.blocker, W.rare, W.route, W.box } })
     minimap.GetWidth = function() return 200 end
     _G.Minimap = minimap
     _G.CreateFrame = function()
@@ -220,6 +239,18 @@ H.test("far map: drawings are copied, furniture kept, the rest left alone", func
     end
     H.eq(W.button.ignore, true, "shows despite the Minimap's alpha 0")
     H.eq(W.button.level, 3025, "above the far view")
+    Restore()
+end)
+
+H.test("far map: no white squares: route lines and plain fills aren't copied, nor shown at native scale", function()
+    local _, Others, Restore = World()
+    Far(Others)
+    H.eq(CopyOf(Others, W.line), nil, "a route line")
+    H.eq(CopyOf(Others, W.fill), nil, "a white box")
+    H.eq(Others._lifted[W.route], nil, "the route's frame stays under the far view")
+    local n = 0
+    for _ in pairs(Others._copies) do n = n + 1 end
+    H.eq(n, 3, "only the two dots and the rare pin")
     Restore()
 end)
 
