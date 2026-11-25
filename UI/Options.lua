@@ -46,7 +46,64 @@ local function NewPage(parent, title)
     return p
 end
 
-function Page:Place(widget, x, height)
+-- Flow pages (Page:Flow) lay themselves out again on every refresh: a row whose "when" says no,
+-- or that sits in a closed fold, takes no room. Other pages place each row once.
+function Page:Flow()
+    self.flow, self.items = true, {}
+end
+
+-- Rows added from here on show only while fn() is true (nil: always).
+function Page:When(fn)
+    self.when = fn
+end
+
+local function Visible(item)
+    if item.fold and not item.fold.open then return false end
+    return not item.when or item.when() and true or false
+end
+
+function Page:Reflow()
+    local y = -4
+    for _, it in ipairs(self.items) do
+        local show = Visible(it)
+        it.widget:SetShown(show)
+        if show then
+            if it.gap and y < -10 then y = y - it.gap end
+            it.widget:ClearAllPoints()
+            it.widget:SetPoint("TOPLEFT", self.content, "TOPLEFT", it.x, y)
+            y = y - it.height
+        end
+    end
+    self.content:SetHeight(-y + 20)
+end
+
+-- A fold: rows added until EndFold show only while it's open.
+function Page:Fold(text)
+    local fold
+    fold = W.Fold(self.content, text, function(open)
+        fold.open = open
+        self:Reflow()
+    end)
+    self.items[#self.items + 1] = { widget = fold, x = 0, height = 24, gap = 10, when = self.when }
+    self.fold = fold
+    return fold
+end
+
+function Page:EndFold()
+    self.fold = nil
+end
+
+-- A pick-one row (W.Choice).
+function Page:Choice(label, choices, get, set, tip)
+    return self:Add(W.Choice(self.content, label, choices, get, set, tip), 0, 26)
+end
+
+function Page:Place(widget, x, height, gap)
+    if self.flow then
+        self.items[#self.items + 1] = { widget = widget, x = x, height = height, gap = gap,
+            when = self.when, fold = self.fold }
+        return widget
+    end
     widget:ClearAllPoints()
     widget:SetPoint("TOPLEFT", self.content, "TOPLEFT", x, self.y)
     self.y = self.y - height
@@ -55,14 +112,16 @@ function Page:Place(widget, x, height)
 end
 
 function Page:Header(text)
+    if self.flow then return self:Place(W.Header(self.content, text), 0, 26, 8) end
     if self.y < -10 then self.y = self.y - 8 end
     return self:Place(W.Header(self.content, text), 0, 26)
 end
 
-function Page:Note(text)
+-- lines: how many lines the note takes (1 if not given).
+function Page:Note(text, lines)
     local n = W.Note(self.content, text)
     n:SetWidth(CONTENT_WIDTH - 10)
-    return self:Place(n, 4, 18)
+    return self:Place(n, 4, 4 + 14 * (lines or 1))
 end
 
 function Page:Add(control, x, height)
@@ -103,6 +162,7 @@ end
 function Page:Refresh()
     for _, c in ipairs(self.controls) do c.Refresh() end
     for _, fn in ipairs(self.onRefresh) do fn() end
+    if self.flow then self:Reflow() end
 end
 
 local function Percent(v) return string.format("%d%%", v * 100 + 0.5) end
@@ -325,123 +385,138 @@ BUILDERS[3] = { "Questie", function(p)
 end }
 
 BUILDERS[4] = { "Layout", function(p)
-    local function Apply() if ns.Bars then ns.Bars.Apply() end end
     local S = ns.Settings
-
-    p:Header("Quick layouts")
-    p:Note("Full: bars above and below. Compact: the zone name over the map, buttons in a column at its side, no bottom bar, so the map fills the height. Map only: no bars, no buttons.")
-    p.y = p.y - 14 -- (the note takes two lines)
-    local y = p.y
-    local prev
-    for _, e in ipairs({ { "full", "Full" }, { "compact", "Compact" }, { "maponly", "Map only" } }) do
-        local b = W.Button(p.content, e[2], 100, function()
-            S.ApplyPreset(ns.db, e[1])
-            Apply()
-            Options.Refresh()
-        end)
-        if prev then b:SetPoint("LEFT", prev, "RIGHT", 6, 0) else b:SetPoint("TOPLEFT", p.content, "TOPLEFT", 4, y) end
-        prev = b
+    p:Flow()
+    -- Every change: put it to work, then redraw the page (rows come and go with the choices).
+    local function Apply()
+        if ns.Bars then ns.Bars.Apply() end
+        Options.Refresh()
     end
-    p.y = y - 30
-    local presetNote = W.Note(p.content, "")
-    p:Place(presetNote, 4, 18)
-    p.onRefresh[#p.onRefresh + 1] = function()
-        local names = { full = "Full", compact = "Compact", maponly = "Map only" }
-        local now = S.CurrentPreset(ns.db)
-        presetNote:SetText(now and ("Now: " .. names[now]) or "Now: your own mix")
+    local function Set(key) return function(v) ns.db[key] = v; Apply() end end
+    local function Is(key, value) return function() return ns.db[key] == value end end
+    local function Round() return ns.Host and ns.Host.IsRound() or ns.db.round == true end
+    -- Whether any of our buttons sit in the side column now.
+    local function ColumnUsed()
+        if not ns.Bars or not ns.Bars.ButtonSpots then return ns.db.buttonSpot == "side" end
+        for _, spot in pairs(ns.Bars.ButtonSpots(ns.db, Round())) do
+            if spot == "side" then return true end
+        end
+        return false
     end
-
-    p:Header("Top bar")
-    p:Check("Show the zone name", "topBar", "Click it to open the world map.", Apply)
-    local topInside = p:Check("Over the map's top edge instead of above it (square map)", "topBarInside",
-        "Takes no room above the map.", Apply)
-    p:Check("Add the zone after the subzone", "topBarZone", nil, Apply)
-    p:Check("Colour by PvP status", "topBarPvP", "Green friendly, red hostile, orange contested, blue sanctuary.", Apply)
-
-    p:Header("Bottom bar")
-    p:Check("Show the bottom bar", "bottomBar", nil, Apply)
-    local bottomInside = p:Check("Over the map instead of below it (square map)", "bottomBarInside", nil, Apply)
-    -- The round map has its own layout under the circle: these two don't apply there.
-    p.onRefresh[#p.onRefresh + 1] = function()
-        for _, c in ipairs({ topInside, bottomInside }) do
-            if c and c.SetEnabled then
-                c:SetEnabled(ns.db.round ~= true)
-                if c.label then c.label:SetFontObject(ns.db.round and "GameFontDisable" or "GameFontHighlight") end
-            end
+    -- A bar's places: above / on / off the square map; shown / off under the round one.
+    local function BarChoices(outsideWord)
+        return function()
+            if Round() then return { { "outside", "Under the map" }, { "off", "Off" } } end
+            return { { "outside", outsideWord }, { "inside", "On the map" }, { "off", "Off" } }
         end
     end
-    p:Check("Coordinates", "barCoords", nil, Apply)
+
+    p:Header("Layout")
+    p:Choice("Layout", { { "full", "Full" }, { "compact", "Compact" }, { "maponly", "Map only" } },
+        function() return S.CurrentPreset(ns.db) end,
+        function(v) S.ApplyPreset(ns.db, v); Apply() end,
+        "Full: the zone name above the map and the info bar below it.\nCompact: the zone name on the map, buttons in a column at its side, no info bar.\nMap only: just the map.")
+    p:When(function() return S.CurrentPreset(ns.db) == nil end)
+    p:Note("Your own mix: the choices below don't match one of these.")
+    p:When(nil)
+
+    p:Header("Around the map")
+    p:Choice("Zone name", BarChoices("Above the map"), function() return S.BarPlace(ns.db, "top") end,
+        function(v) S.SetBarPlace(ns.db, "top", v); Apply() end, "Click it to open the world map.")
+    p:Choice("Info bar", BarChoices("Below the map"), function() return S.BarPlace(ns.db, "bottom") end,
+        function(v) S.SetBarPlace(ns.db, "bottom", v); Apply() end, "Coordinates, the far-zoom distance and the clock.")
+    p:Choice("Buttons", { { "bars", "On the bars" }, { "side", "Side column" }, { "none", "Off" } },
+        function() return ns.db.buttonSpot end, Set("buttonSpot"),
+        "Our calendar and addons buttons, and the arrow that opens the minimap-buttons panel.\nOn the bars: a bar that's off puts its buttons in the side column.")
+    p:When(ColumnUsed)
+    p:Choice("Column side", { { "left", "Left" }, { "right", "Right" } }, function() return ns.db.buttonSide end,
+        Set("buttonSide"))
+    p:When(function() return ColumnUsed() and not Round() end)
+    p:Choice("Column", { { "inside", "On the map" }, { "outside", "Outside the map" } },
+        function() return ns.db.buttonColumn end, Set("buttonColumn"),
+        "On the map: over its edge, taking no room. Outside: against the edge, leaving the whole map clear.")
+    p:When(function() return ns.db.buttonSpot ~= "none" end)
+    p:Check("Gather other addons' minimap buttons", "collectButtons",
+        "Their buttons go into a panel opened by our arrow button. Untick to give them back.", Apply)
+    p:When(nil)
+
+    p:Fold("Advanced")
+    p:When(function() return ns.db.topBar end)
+    p:Check("Zone name: add the zone after the subzone", "topBarZone", nil, Apply)
+    p:Check("Zone name: colour by PvP status", "topBarPvP", "Green friendly, red hostile, orange contested, blue sanctuary.", Apply)
+    p:When(function() return ns.db.bottomBar end)
+    p:Check("Info bar: coordinates", "barCoords", nil, Apply)
+    p:When(function() return ns.db.bottomBar and ns.db.barCoords end)
     p:Slider("Coordinate decimals", "coordDecimals", 1, function(v) return tostring(v) end, nil, Apply)
-    p:Check("Far zoom distance", "barZoom", "How far the view reaches from the centre, while zoomed out.", Apply)
-    p:Check("Clock", "barClock", "Your computer's time.", Apply)
+    p:When(function() return ns.db.bottomBar end)
+    p:Check("Info bar: far-zoom distance", "barZoom", "How far the view reaches from the centre, while zoomed out.", Apply)
+    p:Check("Info bar: clock", "barClock", nil, Apply)
+    p:When(function() return ns.db.bottomBar and ns.db.barClock end)
     p:Check("24-hour clock", "clock24", nil, Apply)
-    p:Check("Realm time", "clockServer", "The realm's time instead of your computer's.", Apply)
-
-    p:Header("Buttons")
-    local function Spot(value, label, tip)
-        p:Check(label, { function() return ns.db.buttonSpot == value end,
-            function() ns.db.buttonSpot = value; Apply(); Options.Refresh() end }, tip)
-    end
-    Spot("bars", "On the bars", "The calendar and addons buttons on the top bar, the minimap-buttons arrow on the bottom bar. A bar that's off puts its buttons in the side column.")
-    Spot("side", "In a column at the map's side", "A slim column inside the map's edge (beside the round map), so the bars can go.")
-    Spot("none", "No buttons", "None of ours; other addons' minimap buttons are left where they are.")
-    p:Check("Column on the right", { function() return ns.db.buttonSide == "right" end,
-        function(on) ns.db.buttonSide = on and "right" or "left"; Apply() end })
-    p:Check("Calendar and addons buttons", "barButtons",
-        "Our buttons for the game's calendar and addon compartment.", Apply)
-    p:Check("Gather other addons' minimap buttons into a panel", "collectButtons",
-        "Other addons' minimap buttons go into a panel opened by our arrow button. Off: they're given back straight away. Never while MinimapButtonButton is loaded or another addon hosts the map (Addons tab).",
-        Apply)
-    p:Slider("Buttons per row", "buttonsPerRow", 1, function(v) return tostring(v) end, nil, Apply)
-
-    p:Header("Style")
+    p:Check("Realm time instead of your computer's", "clockServer", nil, Apply)
+    p:When(function() return ns.db.buttonSpot ~= "none" end)
+    p:Check("Calendar and addons buttons", "barButtons", "Our buttons for the game's calendar and addon compartment.", Apply)
+    p:When(function() return ns.db.buttonSpot ~= "none" and ns.db.collectButtons end)
+    p:Slider("Minimap buttons per row", "buttonsPerRow", 1, function(v) return tostring(v) end, nil, Apply)
+    p:When(nil)
     p:Slider("Text size", "barFont", 1, function(v) return v .. " px" end, nil, Apply)
-    p:Slider("Background opacity", "barAlpha", 0.05, Percent, "0% leaves just the text over the map.", Apply)
+    p:Slider("Bar background", "barAlpha", 0.05, Percent, "0% leaves just the text over the map.", Apply)
+    p:EndFold()
 end }
 
 BUILDERS[5] = { "Addons", function(p)
-    local function Apply() if ns.Bars then ns.Bars.Apply() end end
-    local function Others() if ns.Others then ns.Others.Refresh() end end
+    p:Flow()
+    local function Apply()
+        if ns.Bars then ns.Bars.Apply() end
+        Options.Refresh()
+    end
+    local function Others()
+        if ns.Others then ns.Others.Refresh() end
+        Options.Refresh()
+    end
+    local function Hosted() return ns.Host and ns.Host.owner ~= nil end
+    local function OtherMap() return ns.Host and (ns.Host.owner or ns.Host.Known()) end
 
-    p:Header("Sharing the minimap")
+    p:Header("Other addons")
     local status = W.Note(p.content, "")
     status:SetWidth(CONTENT_WIDTH - 10)
-    p:Place(status, 4, 32)
-    p.onRefresh[#p.onRefresh + 1] = function()
-        local H = ns.Host
-        local known = H and H.Known()
-        if H and H.owner then
-            status:SetText("|cff55ff55" .. H.owner .. " hosts the map.|r Its size, place, border, buttons and zone text are its own; Overlook adds the far zoom inside it.")
-        elseif known then
-            status:SetText(known .. " is loaded, but Overlook has the map (hosting is off below).")
-        else
-            status:SetText("No other minimap addon is in charge of the map: it's Overlook's.")
-        end
-    end
-    p:Check("Fit inside another minimap addon's map", { function() return ns.db.hostOthers ~= false end,
+    p:Place(status, 4, 34)
+    -- Only when there's another minimap addon to work with (or hosting was switched off).
+    p:When(function() return OtherMap() or ns.db.hostOthers == false end)
+    local host = p:Check("Work inside the other addon's map", { function() return ns.db.hostOthers ~= false end,
         function(on) ns.Shell.SetHostOthers(on); Options.Refresh() end },
-        "With EllesmereUI's minimap (or another addon that keeps the minimap for itself), Overlook leaves the map to it and works inside it. Off: Overlook takes the map over.")
+        "On: the other minimap addon keeps its map, buttons and zone name, and Overlook adds far zoom to it.\nOff: Overlook takes the map over.")
+    p:When(nil)
+    p.onRefresh[#p.onRefresh + 1] = function()
+        local name = OtherMap()
+        if Hosted() then
+            status:SetText("|cff55ff55Overlook is working inside " .. name .. "'s map.|r Its size, place, look, buttons and zone name are its own.")
+        elseif name then
+            status:SetText(name .. " is running, but Overlook has the map.")
+        else
+            status:SetText("No other minimap addon is running.")
+        end
+        host.label:SetText(name and name ~= "another addon" and ("Work inside " .. name .. "'s map")
+            or "Work inside another minimap addon's map")
+    end
+    p:Check("Show other addons' map markers when zoomed out", "captureOthers",
+        "Markers other addons draw on the minimap (routes, item and rare finders) are copied onto the zoomed-out map. Each addon gets a group on the Icons tab.",
+        Others)
+
+    p:Fold("Advanced")
+    p:Check("Keep other addons' buttons and text when zoomed out", "keepOthersVisible",
+        "Other addons' buttons, text and borders on the minimap stay showing on the zoomed-out map.", Others)
+    p:Check("Turn off other clocks, coordinates and zone names while ours show", "replaceOthers",
+        "The game's, EllesmereUI's and EnhanceQoL's, switched off in their own settings while our bars show the same. /overlook overrides lists them.",
+        Apply)
+    p:Check("Hide the game's zone name above the minimap", "hideZoneHeader", "While our zone name shows.", Apply)
+    p:Check("Hide the game's calendar and tracking buttons", "hideGameButtons", "While our own buttons show.", Apply)
+    p:When(function() return not Hosted() end)
     p:Check("Tell other addons the map's shape", { function() return ns.db.claimShape ~= false end,
         function(on) ns.db.claimShape = on; ns.Shell.Apply() end },
-        "Answers GetMinimapShape for our map, so pins near the edge sit right on the square map. Off: whatever another addon answers stands. Never while another addon hosts the map.")
-
-    p:Header("Their text and buttons")
-    p:Check("Turn off what our bars replace", "replaceOthers",
-        "While our bars show a clock, coordinates or the zone, the same from the game, EllesmereUI's minimap and EnhanceQoL's minimap stats is switched off in their own settings. Off (or our bar off): theirs come back. /overlook overrides lists what was switched off.",
-        Apply)
-    p:Check("Hide the game's own zone header", "hideZoneHeader",
-        "The zone name the game shows above the minimap, while our top bar is on.", Apply)
-    p:Check("Hide the game's buttons above the map", "hideGameButtons",
-        "The calendar, the tracking button (magnifier) and the addon compartment (the number), while our own calendar and addons buttons are showing.",
-        Apply)
-
-    p:Header("On the far map")
-    p:Check("Keep their buttons, text and borders showing", "keepOthersVisible",
-        "Other addons' things on the minimap (EllesmereUI's zone text and buttons, minimap buttons) stay over the far map instead of disappearing when you zoom out.",
-        Others)
-    p:Check("Copy their drawings onto the far map", "captureOthers",
-        "Pictures other addons draw straight onto the minimap (route dots, item and rare finders) are copied to their place on the far map. Each addon gets a group in the Icons tab to hide or resize. /overlook others shows what was found.",
-        Others)
+        "So other addons' pins sit right at the edge of the square map. Untick if another addon should answer instead.")
+    p:When(nil)
+    p:EndFold()
 end }
 
 BUILDERS[6] = { "Behaviour", function(p)
@@ -563,6 +638,8 @@ BUILDERS[7] = { "Profiles", function(p)
     end)
 end }
 
+Options._pages = pages -- for the offline tests
+
 local function ShowPage(i)
     current = i
     for j, p in ipairs(pages) do
@@ -572,6 +649,7 @@ local function ShowPage(i)
     end
     pages[i]:Refresh()
 end
+Options._showPage = ShowPage -- for the offline tests
 
 -- Other files add tabs: Options.AddTab(title, builder(page)). Call before the window is built.
 function Options.AddTab(title, builder)

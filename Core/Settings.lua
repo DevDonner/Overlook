@@ -56,6 +56,7 @@ Settings.DEFAULTS = {
     -- column inside the map's left or right edge, so the bars can go), or "none".
     buttonSpot = "bars",
     buttonSide = "left",
+    buttonColumn = "inside", -- the side column over the map's edge, or "outside" against it (square map)
     -- Living with other addons (Core/Host.lua, Pins/Others.lua).
     hostOthers = true,     -- another addon owns the minimap frame (EllesmereUI): fit inside its map
     claimShape = true,     -- answer GetMinimapShape for the map, so pins sit right on the square
@@ -91,7 +92,24 @@ Settings.RANGES = {
 Settings.CHOICES = {
     buttonSpot = { bars = true, side = true, none = true },
     buttonSide = { left = true, right = true },
+    buttonColumn = { inside = true, outside = true },
 }
+
+-- The settings window's pick-one rows for the bars, over the two settings each bar has:
+-- "outside" (above / below the map), "inside" (over its edge) or "off". Pure.
+local BAR_KEYS = { top = { "topBar", "topBarInside" }, bottom = { "bottomBar", "bottomBarInside" } }
+
+function Settings.BarPlace(db, which)
+    local k = BAR_KEYS[which]
+    if not db[k[1]] then return "off" end
+    return db[k[2]] and "inside" or "outside"
+end
+
+function Settings.SetBarPlace(db, which, place)
+    local k = BAR_KEYS[which]
+    db[k[1]] = place ~= "off"
+    if place ~= "off" then db[k[2]] = place == "inside" end
+end
 
 -- Layouts the settings window offers as one click. Each sets only the keys it lists.
 --  full:    the bars above and below the map, the buttons on them (the defaults).

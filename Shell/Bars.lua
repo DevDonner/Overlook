@@ -324,12 +324,27 @@ local function BuildButtons()
     if ns.Buttons then ns.Buttons.Build(minimapButtons) end
 end
 
--- The side column: a slim strip inside the map's left or right edge (below the top bar when that
--- sits over the map), or just outside the circle on the round map. The buttons stack down it.
+-- Whether the side column sits outside the map: chosen on the square map, always on the round one.
+local function ColumnOutside()
+    return Round() or ns.db.buttonColumn == "outside"
+end
+Bars.ColumnOutside = ColumnOutside
+
+-- The side column: a slim strip at the map's left or right edge, over the map (below the top bar
+-- when that sits over the map) or outside it, its edge on the map's; just outside the circle on
+-- the round map. The buttons stack down it.
 local function PlaceSide(n)
     side:ClearAllPoints()
     side:SetSize(SIDE_W, 4 + n * SIDE_STEP)
     local left = ns.db.buttonSide ~= "right"
+    if not Round() and ColumnOutside() then
+        if left then
+            side:SetPoint("TOPRIGHT", root, "TOPLEFT", 1, 0) -- the two 1 px edges merge
+        else
+            side:SetPoint("TOPLEFT", root, "TOPRIGHT", -1, 0)
+        end
+        return
+    end
     if Round() then
         if left then
             side:SetPoint("TOPRIGHT", root, "TOPLEFT", -GAP, 0)
@@ -489,6 +504,13 @@ local function PlaceRound(height)
     return 0
 end
 
+-- Left and right clamp-rect insets that keep a side column outside the map on screen too.
+local function SideClamp(width)
+    if not (side:IsShown() and ColumnOutside()) then return 0, 0 end
+    if ns.db.buttonSide == "right" then return 0, width end
+    return -width, 0
+end
+
 -- How much of the map's bottom edge the bottom bar covers (0 when it sits outside or is off).
 function Bars.InsideBottomHeight()
     if Round() then return 0 end
@@ -515,10 +537,8 @@ function Bars.Apply()
         bottom:SetShown(false)
         SyncBarButtons()
         local down = PlaceRound(height)
-        -- The side column sits outside the circle: kept on screen too.
-        local out = side:IsShown() and -(SIDE_W + GAP) or 0
-        local left = ns.db.buttonSide ~= "right"
-        root:SetClampRectInsets(left and out or 0, left and 0 or -out, 0, -down)
+        local l, r = SideClamp(SIDE_W + GAP)
+        root:SetClampRectInsets(l, r, 0, -down)
     else
         for _, pill in ipairs({ namePill, buttonPill, coordPill, clockPill, zoomPill }) do pill:SetShown(false) end
         Place(top, "TOP", ns.db.topBarInside, height)
@@ -528,8 +548,9 @@ function Bars.Apply()
         -- Keep outside bars on screen too.
         local up = (ns.db.topBar and not ns.db.topBarInside) and height - 1 or 0
         local down = (ns.db.bottomBar and not ns.db.bottomBarInside) and height - 1 or 0
-        root:SetClampRectInsets(0, 0, up, -down)
         SyncBarButtons()
+        local l, r = SideClamp(SIDE_W - 1)
+        root:SetClampRectInsets(l, r, up, -down)
     end
     if ns.Overrides then ns.Overrides.Apply() end
     if ns.Far and ns.Far.PlaceRecenter then ns.Far.PlaceRecenter() end

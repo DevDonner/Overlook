@@ -310,10 +310,13 @@ end
 Buttons.Scan = Scan
 
 -- Where the panel opens, next to the button that opened it. Pure: spot is where that button sits
--- (Bars.ButtonSpots), side the column's side. Returns point, relativePoint, x, y.
-function Buttons.PanelAnchor(spot, side)
+-- (Bars.ButtonSpots), side the column's side, outside whether the column sits outside the map (the
+-- panel then opens away from the map, else over it). Returns point, relativePoint, x, y.
+function Buttons.PanelAnchor(spot, side, outside)
     if spot == "side" then
-        if side == "right" then return "TOPRIGHT", "TOPLEFT", -2, 0 end
+        local right = side == "right"
+        if outside then right = not right end
+        if right then return "TOPRIGHT", "TOPLEFT", -2, 0 end
         return "TOPLEFT", "TOPRIGHT", 2, 0
     elseif spot == "pill" then
         return "BOTTOMRIGHT", "TOPRIGHT", 0, 2
@@ -323,7 +326,8 @@ end
 
 local function PlacePanel()
     local host = trigger:GetParent()
-    local point, rel, x, y = Buttons.PanelAnchor(trigger.spot, ns.db and ns.db.buttonSide)
+    local outside = ns.Bars and ns.Bars.ColumnOutside and ns.Bars.ColumnOutside()
+    local point, rel, x, y = Buttons.PanelAnchor(trigger.spot, ns.db and ns.db.buttonSide, outside)
     panel:ClearAllPoints()
     panel:SetPoint(point, host, rel, x, y)
 end

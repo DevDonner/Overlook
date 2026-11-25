@@ -29,7 +29,7 @@ The full design, with decisions, risks and the test plan, is in [docs/design.md]
 - Drag to pan, with a Recenter button; a panned map stays put while you move
 - Zooms out when you mount and comes back when you dismount (adjustable)
 - Zone name bar above the map (or over its top edge) and a bottom bar with coordinates, zoom distance and a clock
-- Compact layouts: buttons in a slim column at the map's side, or nothing but the map, so it fills the height it's given
+- Compact layouts: buttons in a slim column at the map's left or right edge (on the map or outside it), or nothing but the map, so it fills the height it's given
 - Square or round, movable (Alt + drag) and resizable from its corner, with a lock
 - Questie's icon switches in our own settings window, plus player arrow size and route line width
 - Settings profiles, with export and import strings for sharing

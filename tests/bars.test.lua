@@ -316,6 +316,25 @@ H.test("side column: outside the circle on the round map, and kept on screen", f
     H.truthy(root.clamp[1] < 0, "the clamp rect grows left for it")
 end)
 
+H.test("side column outside the map: against its left edge, and kept on screen", function()
+    local side = FreshSide({ buttonSpot = "side", buttonColumn = "outside" })
+    H.eq(side.points[1][1], "TOPRIGHT"); H.eq(side.points[1][3], "TOPLEFT")
+    H.eq(side.points[1][4], 1, "the two edges merge")
+    H.truthy(root.clamp[1] < 0, "the clamp rect grows left")
+    H.eq(root.clamp[2], 0)
+end)
+
+H.test("side column outside the map on the right", function()
+    local side = FreshSide({ buttonSpot = "side", buttonColumn = "outside", buttonSide = "right" })
+    H.eq(side.points[1][1], "TOPLEFT"); H.eq(side.points[1][3], "TOPRIGHT")
+    H.truthy(root.clamp[2] > 0, "the clamp rect grows right"); H.eq(root.clamp[1], 0)
+end)
+
+H.test("side column on the map: the clamp rect is the map's own", function()
+    FreshSide({ buttonSpot = "side" })
+    H.eq(root.clamp[1], 0); H.eq(root.clamp[2], 0)
+end)
+
 H.test("compact preset: nothing above or below the map, the buttons at its side", function()
     local side = FreshSide()
     ns.Settings.ApplyPreset(ns.db, "compact")

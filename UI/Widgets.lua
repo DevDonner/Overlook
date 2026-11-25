@@ -99,6 +99,89 @@ function W.Slider(parent, label, minV, maxV, step, width, fmt, get, set, tip)
     return holder
 end
 
+-- A pick-one row: the label, then a radio button per choice, side by side. choices: a list of
+-- { value, text }, or a function returning one (the row can change with other settings).
+-- get() -> the chosen value (none ticked when it matches no choice); set(value).
+local LABEL_W, GAP = 110, 14
+
+local function Radio(parent)
+    local ok, r = pcall(CreateFrame, "CheckButton", nil, parent, "UIRadioButtonTemplate")
+    if not ok or not r then
+        r = CreateFrame("CheckButton", nil, parent)
+        r:SetNormalTexture("Interface\\Buttons\\UI-RadioButton")
+        r:SetCheckedTexture("Interface\\Buttons\\UI-RadioButton")
+        local n, c = r:GetNormalTexture(), r:GetCheckedTexture()
+        if n then n:SetTexCoord(0, 0.25, 0, 1) end
+        if c then c:SetTexCoord(0.25, 0.5, 0, 1) end
+    end
+    r:SetSize(16, 16)
+    if r.text then r.text:SetText("") end
+    if r.Text then r.Text:SetText("") end
+    r.label = r:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    r.label:SetPoint("LEFT", r, "RIGHT", 3, 0)
+    return r
+end
+
+function W.Choice(parent, label, choices, get, set, tip)
+    local holder = CreateFrame("Frame", nil, parent)
+    holder:SetSize(420, 22)
+    holder.labelText = label
+    holder.label = holder:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    holder.label:SetPoint("LEFT", holder, "LEFT", 4, 0)
+    holder.label:SetText(label)
+    holder.radios = {}
+    Tooltip(holder, tip)
+    holder:EnableMouse(tip ~= nil)
+
+    function holder.Refresh()
+        local list = type(choices) == "function" and choices() or choices
+        local now = get()
+        local x = LABEL_W
+        for i, c in ipairs(list) do
+            local r = holder.radios[i]
+            if not r then
+                r = Radio(holder)
+                r:SetScript("OnClick", function(self)
+                    self:SetChecked(true)
+                    set(self.value)
+                end)
+                holder.radios[i] = r
+            end
+            r.value = c[1]
+            r.label:SetText(c[2])
+            r:ClearAllPoints()
+            r:SetPoint("LEFT", holder, "LEFT", x, 0)
+            r:SetChecked(now == c[1])
+            r:Show()
+            local w = r.label:GetStringWidth()
+            x = x + 16 + 3 + (type(w) == "number" and w or 70) + GAP
+        end
+        for i = #list + 1, #holder.radios do holder.radios[i]:Hide() end
+    end
+    return holder
+end
+
+-- A fold: a clickable "+ text" / "- text" line that shows or hides the settings under it.
+-- onToggle(open) is called after a click.
+function W.Fold(parent, text, onToggle)
+    local b = CreateFrame("Button", nil, parent)
+    b:SetSize(200, 20)
+    b.label = b:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    b.label:SetPoint("LEFT", b, "LEFT", 4, 0)
+    b.open = false
+    local function Paint() b.label:SetText((b.open and "- " or "+ ") .. text) end
+    b:SetScript("OnClick", function()
+        b.open = not b.open
+        Paint()
+        onToggle(b.open)
+    end)
+    b:SetScript("OnEnter", function() b.label:SetTextColor(1, 1, 1) end)
+    b:SetScript("OnLeave", function() b.label:SetTextColor(1, 0.82, 0) end)
+    Paint()
+    function b.Refresh() Paint() end
+    return b
+end
+
 function W.Button(parent, text, width, onClick, tip)
     local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
     b:SetSize(width, 22)

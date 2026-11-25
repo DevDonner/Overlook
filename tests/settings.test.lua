@@ -128,3 +128,21 @@ H.test("presets: an unknown name changes nothing; a mix is no preset", function(
     db.bottomBar = false
     H.eq(Settings.CurrentPreset(db), nil)
 end)
+
+H.test("bar places: above or below, on the map, or off, over each bar's two settings", function()
+    local db = Settings.Load(nil)
+    H.eq(Settings.BarPlace(db, "top"), "outside")
+    Settings.SetBarPlace(db, "top", "inside")
+    H.eq(db.topBar, true); H.eq(db.topBarInside, true)
+    H.eq(Settings.BarPlace(db, "top"), "inside")
+    Settings.SetBarPlace(db, "bottom", "off")
+    H.eq(db.bottomBar, false); H.eq(Settings.BarPlace(db, "bottom"), "off")
+    Settings.SetBarPlace(db, "bottom", "outside")
+    H.eq(db.bottomBar, true); H.eq(db.bottomBarInside, false)
+end)
+
+H.test("button column: on the map by default; only inside or outside", function()
+    H.eq(Settings.Load(nil).buttonColumn, "inside")
+    H.eq(Settings.Load({ buttonColumn = "outside" }).buttonColumn, "outside")
+    H.eq(Settings.Load({ buttonColumn = "floating" }).buttonColumn, "inside")
+end)
