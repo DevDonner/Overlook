@@ -393,7 +393,6 @@ BUILDERS[4] = { "Layout", function(p)
         Options.Refresh()
     end
     local function Set(key) return function(v) ns.db[key] = v; Apply() end end
-    local function Is(key, value) return function() return ns.db[key] == value end end
     local function Round() return ns.Host and ns.Host.IsRound() or ns.db.round == true end
     -- Whether any of our buttons sit in the side column now.
     local function ColumnUsed()
