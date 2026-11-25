@@ -2,8 +2,10 @@
 
 ## 1.1.1
 
-- Fixed: zooming out in a city with floors showed a big white box around the player with Leatrix Plus's square minimap. The game's own hybrid minimap was being copied onto the far map; it's left alone now.
-- Fixed: zooming out could show white squares around the player. Other addons' route lines on the minimap (RareScanner's, to a rare) were copied onto the far map as solid squares. Only real pictures are copied now; lines and plain colour fills never are.
+Fixes a white box on the zoomed-out map, new in 1.1.0. Please update.
+
+- Fixed: zooming out in a city with floors (the Trade Quarter, for one) showed a big white box centred on the player, the same size at every zoom, when Leatrix Plus's square minimap was on. The game's own minimap frame for those cities was copied onto the far map like another addon's drawing. It's left alone now.
+- Fixed: other addons' route lines on the minimap (RareScanner's route to a rare) were copied onto the far map as solid white squares. Only real pictures are copied now; lines and plain colour fills never are.
 
 ## 1.1.0
 
