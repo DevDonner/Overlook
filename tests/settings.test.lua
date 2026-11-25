@@ -77,3 +77,54 @@ H.test("v3's bright quest-area defaults move to the new ones; a chosen value sta
     db = Settings.Load({ version = 3, questAreaFill = 0.4 })
     H.eq(db.questAreaFill, 0.4)
 end)
+
+----------------------------------------------------------------------------------------------------
+-- Layout and living with other addons
+
+H.test("defaults: buttons on the bars, every takeover can be switched off but starts on", function()
+    local db = Settings.Load(nil)
+    H.eq(db.buttonSpot, "bars"); H.eq(db.buttonSide, "left")
+    H.eq(db.hostOthers, true); H.eq(db.claimShape, true)
+    H.eq(db.keepOthersVisible, true); H.eq(db.captureOthers, true)
+    H.eq(db.replaceOthers, true); H.eq(db.collectButtons, true)
+end)
+
+H.test("choices: a word that isn't one of the choices goes back to the default", function()
+    local db = Settings.Load({ buttonSpot = "floating", buttonSide = 3 })
+    H.eq(db.buttonSpot, "bars"); H.eq(db.buttonSide, "left")
+    db = Settings.Load({ buttonSpot = "none", buttonSide = "right" })
+    H.eq(db.buttonSpot, "none"); H.eq(db.buttonSide, "right")
+end)
+
+H.test("switched-off takeovers stay off after a reload", function()
+    local db = Settings.Load({ hostOthers = false, claimShape = false, keepOthersVisible = false,
+        captureOthers = false, collectButtons = false, replaceOthers = false })
+    H.eq(db.hostOthers, false); H.eq(db.claimShape, false); H.eq(db.keepOthersVisible, false)
+    H.eq(db.captureOthers, false); H.eq(db.collectButtons, false); H.eq(db.replaceOthers, false)
+end)
+
+H.test("presets: compact puts the name over the map and the buttons at its side", function()
+    local db = Settings.Load(nil)
+    H.eq(Settings.CurrentPreset(db), "full", "the defaults are the full layout")
+    H.eq(Settings.ApplyPreset(db, "compact"), true)
+    H.eq(db.topBar, true); H.eq(db.topBarInside, true); H.eq(db.bottomBar, false); H.eq(db.buttonSpot, "side")
+    H.eq(Settings.CurrentPreset(db), "compact")
+    H.eq(db.size, 300, "the size is the player's own")
+end)
+
+H.test("presets: map only turns off every bar and button", function()
+    local db = Settings.Load(nil)
+    Settings.ApplyPreset(db, "maponly")
+    H.eq(db.topBar, false); H.eq(db.bottomBar, false); H.eq(db.buttonSpot, "none")
+    H.eq(Settings.CurrentPreset(db), "maponly")
+    Settings.ApplyPreset(db, "full")
+    H.eq(db.topBar, true); H.eq(db.bottomBar, true); H.eq(db.buttonSpot, "bars")
+end)
+
+H.test("presets: an unknown name changes nothing; a mix is no preset", function()
+    local db = Settings.Load(nil)
+    H.eq(Settings.ApplyPreset(db, "tiny"), false)
+    H.eq(Settings.CurrentPreset(db), "full")
+    db.bottomBar = false
+    H.eq(Settings.CurrentPreset(db), nil)
+end)

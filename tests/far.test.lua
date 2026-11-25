@@ -98,6 +98,7 @@ local function Fresh()
     _G.CreateFrame = function() local f = NewObj(); made[#made + 1] = f; return f end
     H.loadAddonFile("Core/Geometry.lua", ns)
     H.loadAddonFile("Core/Settings.lua", ns)
+    H.loadAddonFile("Core/Host.lua", ns)
     H.loadAddonFile("Core/Zoom.lua", ns)
     H.loadAddonFile("Core/MapArt.lua", ns)
     H.loadAddonFile("Core/CaveMath.lua", ns)
@@ -137,6 +138,39 @@ H.test("far mode hides the native minimap and shows the far view", function()
     GoFar()
     H.eq(Minimap.alpha, 0)
     H.eq(view.shown, true)
+end)
+
+H.test("handing back gives the Minimap its own alpha again (a host may keep it faded)", function()
+    Minimap.alpha = 0.6
+    GoFar()
+    H.eq(Minimap.alpha, 0)
+    HandBack()
+    H.eq(Minimap.alpha, 0.6)
+end)
+
+H.test("other addons' things are told when far mode starts and ends", function()
+    local calls = {}
+    ns.Others = {
+        SetFar = function(on) calls[#calls + 1] = on and "far" or "near" end,
+        SetLayout = function(inst) if inst == nil then calls[#calls + 1] = "nolayout" end end,
+    }
+    GoFar()
+    H.eq(calls[1], "far")
+    HandBack()
+    H.eq(calls[#calls - 1], "nolayout"); H.eq(calls[#calls], "near")
+    ns.Others = nil
+end)
+
+H.test("hosted: the far view is laid out for the host's map size, not ours", function()
+    local half
+    ns.Mirror = { SetView = function(_, _, h) half = h end, SetLayout = noop, ClearHover = noop,
+        UpdateHover = noop, MarkAllDirty = noop }
+    GoFar()
+    H.eq(half, 100, "our own 200 px map")
+    ns.Host.owner, ns.Host.size = "EllesmereUI", 140
+    Frame()
+    H.eq(half, 70, "the host's 140 px map")
+    ns.Host.owner, ns.Mirror = nil, nil
 end)
 
 H.test("zooming back in hands back: native map shown, far view stays on top as a cover", function()

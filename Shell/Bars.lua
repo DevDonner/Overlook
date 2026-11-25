@@ -7,6 +7,10 @@
 --     zone name    |  (empty)        |  calendar, addons, minimap buttons
 --     coordinates  |  zoom distance  |  clock
 -- (the zoom distance only while zoomed out, and with its setting on).
+--
+-- Our buttons (calendar, addons, the minimap-button panel's arrow) can instead go in a slim column
+-- inside the map's left or right edge (outside the circle on the round map), so the bars can be
+-- turned off and the map keeps all the height it's given. Bars.ButtonSpots says where each goes.
 local _, ns = ...
 
 local T = ns.BarText
@@ -21,12 +25,13 @@ local TICK = 0.2 -- seconds between coordinate / clock updates
 
 local GAP = 3 -- px between the circle and the grid, and between the grid's rows
 
-local root, top, bottom
+local root, top, bottom, side
 local namePill, buttonPill, coordPill, clockPill, zoomPill -- the round map's boxes
 local zoneText, coordText, zoomText, clockText
 local calendarButton, addonsButton, minimapButtons
 local ICON = 12        -- px, the top bar's buttons
 local GREY, GOLD, INVITE = { 0.75, 0.77, 0.8 }, { 1, 0.82, 0 }, { 1, 0.5, 0.15 }
+local SIDE_W, SIDE_STEP = ICON + 8, ICON + 6 -- px: the side column's width, one button's room in it
 local headerHidden = false
 
 local function Strip(level)
@@ -47,7 +52,35 @@ local function Text(parent, justify)
     return t
 end
 
-local function Round() return ns.db.round == true end
+local function Round() return ns.Host.IsRound() end
+
+-- Where each of our buttons goes: { calendar = spot, addons = spot, collect = spot }, a spot being
+-- "top" / "bottom" (a bar), "pill" (the round map's button box), "side" (the column) or nil (not
+-- shown). A bar that's off hands its buttons to the column, so turning bars off never loses them.
+-- Pure.
+function Bars.ButtonSpots(db, round)
+    local out = {}
+    if db.buttonSpot == "none" then return out end
+    local mine = db.barButtons ~= false
+    local collect = db.collectButtons ~= false
+    if db.buttonSpot == "side" then
+        if mine then out.calendar, out.addons = "side", "side" end
+        if collect then out.collect = "side" end
+    elseif round then
+        if mine then
+            local s = db.topBar and "pill" or "side"
+            out.calendar, out.addons = s, s
+        end
+        if collect then out.collect = (db.topBar or db.bottomBar) and "pill" or "side" end
+    else
+        if mine then
+            local s = db.topBar and "top" or "side"
+            out.calendar, out.addons = s, s
+        end
+        if collect then out.collect = db.bottomBar and "bottom" or "side" end
+    end
+    return out
+end
 
 local function TextWidth(t)
     local w = t.GetStringWidth and t:GetStringWidth()
@@ -141,9 +174,15 @@ local function GameButtons()
 end
 
 local buttonsHidden = false
+
+-- Whether the game's calendar / tracking / compartment buttons are hidden: only while ours stand
+-- in for them somewhere (on a bar or in the side column). Pure.
+function Bars.HideGameButtons(db, spots)
+    return db.hideGameButtons == true and (spots.calendar ~= nil or spots.addons ~= nil)
+end
+
 local function SyncButtons()
-    -- Only while our top bar is there to replace them (with its own calendar and addon buttons).
-    local want = ns.db.hideGameButtons == true and ns.db.topBar == true
+    local want = Bars.HideGameButtons(ns.db, Bars.ButtonSpots(ns.db, Round()))
     if want == buttonsHidden then return end
     buttonsHidden = want
     for _, f in ipairs(GameButtons()) do
@@ -285,18 +324,61 @@ local function BuildButtons()
     if ns.Buttons then ns.Buttons.Build(minimapButtons) end
 end
 
--- Square map: the buttons on the strips, the text in them.
-local function ArrangeSquare(show)
-    calendarButton:SetParent(top)
-    addonsButton:SetParent(top)
-    minimapButtons:SetParent(bottom)
-    calendarButton:ClearAllPoints()
-    calendarButton:SetPoint("LEFT", top, "LEFT", PAD - 2, 0)
-    addonsButton:ClearAllPoints()
-    addonsButton:SetPoint("RIGHT", top, "RIGHT", -(PAD - 2), 0)
-    minimapButtons:ClearAllPoints()
-    minimapButtons:SetPoint("LEFT", bottom, "LEFT", PAD - 3, 0)
+-- The side column: a slim strip inside the map's left or right edge (below the top bar when that
+-- sits over the map), or just outside the circle on the round map. The buttons stack down it.
+local function PlaceSide(n)
+    side:ClearAllPoints()
+    side:SetSize(SIDE_W, 4 + n * SIDE_STEP)
+    local left = ns.db.buttonSide ~= "right"
+    if Round() then
+        if left then
+            side:SetPoint("TOPRIGHT", root, "TOPLEFT", -GAP, 0)
+        else
+            side:SetPoint("TOPLEFT", root, "TOPRIGHT", GAP, 0)
+        end
+        return
+    end
+    local down = 0
+    if ns.db.topBar and ns.db.topBarInside then down = ns.db.barFont + 2 * PAD - 2 - 1 end
+    local edge = left and "LEFT" or "RIGHT"
+    side:SetPoint("TOP" .. edge, root, "TOP" .. edge, 0, -down)
+end
 
+-- Every button to its spot (Bars.ButtonSpots); a button with no spot, or that can't work here
+-- (no calendar in this client), is hidden. Returns how many sit in the side column and in the
+-- round map's box.
+local function ArrangeButtons(spots)
+    local hosts = { top = top, bottom = bottom, side = side, pill = buttonPill }
+    calendarButton:SetShown(spots.calendar ~= nil and (_G.GameTimeFrame ~= nil or _G.ToggleCalendar ~= nil))
+    addonsButton:SetShown(spots.addons ~= nil and _G.AddonCompartmentFrame ~= nil)
+    minimapButtons.spot = spots.collect
+    -- The panel's arrow shows only while it has buttons to show (Buttons.Layout decides).
+    if ns.Buttons then ns.Buttons.Apply() end
+    if not spots.collect then minimapButtons:Hide() end
+
+    local nSide, xPill = 0, 3
+    for _, e in ipairs({ { calendarButton, spots.calendar }, { addonsButton, spots.addons },
+        { minimapButtons, spots.collect } }) do
+        local b, spot = e[1], e[2]
+        if spot then b:SetParent(hosts[spot]) end
+        b:ClearAllPoints()
+        if b:IsShown() and spot == "side" then
+            b:SetPoint("TOP", side, "TOP", 0, -(4 + nSide * SIDE_STEP) + 1)
+            nSide = nSide + 1
+        elseif b:IsShown() and spot == "pill" then
+            b:SetPoint("LEFT", buttonPill, "LEFT", xPill, 0)
+            xPill = xPill + ICON + 5
+        end
+    end
+    if spots.calendar == "top" then calendarButton:SetPoint("LEFT", top, "LEFT", PAD - 2, 0) end
+    if spots.addons == "top" then addonsButton:SetPoint("RIGHT", top, "RIGHT", -(PAD - 2), 0) end
+    if spots.collect == "bottom" then minimapButtons:SetPoint("LEFT", bottom, "LEFT", PAD - 3, 0) end
+    buttonPill:SetWidth(xPill + 2)
+    return nSide, (xPill - 3) / (ICON + 5)
+end
+
+-- Square map: the text in the strips, clear of the buttons on them.
+local function ArrangeSquareText(spots)
     zoneText:SetParent(top)
     coordText:SetParent(bottom)
     clockText:SetParent(bottom)
@@ -305,22 +387,22 @@ local function ArrangeSquare(show)
     zoomText:SetPoint("CENTER", bottom, "CENTER", 0, 0)
     clockText:ClearAllPoints()
     clockText:SetPoint("RIGHT", bottom, "RIGHT", -PAD, 0)
-    -- The zone name stays centred: the same room on both sides, for the widest side.
-    local inset = show and (ICON + 8) or 0
     coordText:ClearAllPoints()
-    if minimapButtons:IsShown() then
+    if spots.collect == "bottom" and minimapButtons:IsShown() then
         coordText:SetPoint("LEFT", minimapButtons, "RIGHT", 3, 0)
     else
         coordText:SetPoint("LEFT", bottom, "LEFT", PAD, 0)
     end
+    -- The zone name stays centred: the same room on both sides, for the widest side; and clear of
+    -- the side column when the bar sits over the map's top edge above it.
+    local inset = (spots.calendar == "top" or spots.addons == "top") and (ICON + 8) or 0
     zoneText:ClearAllPoints()
     zoneText:SetPoint("LEFT", top, "LEFT", PAD + inset, 0)
     zoneText:SetPoint("RIGHT", top, "RIGHT", -(PAD + inset), 0)
 end
 
--- Round map: the text in its own boxes, the buttons side by side in theirs (left to right:
--- calendar, addons, minimap buttons). Returns how many buttons show.
-local function ArrangeRound()
+-- Round map: the text in its own boxes.
+local function ArrangeRoundText()
     zoneText:SetParent(namePill)
     zoneText:ClearAllPoints()
     zoneText:SetPoint("LEFT", namePill, "LEFT", PAD, 0)
@@ -334,35 +416,19 @@ local function ArrangeRound()
     zoomText:SetParent(zoomPill)
     zoomText:ClearAllPoints()
     zoomText:SetPoint("CENTER", zoomPill, "CENTER", 0, 0)
-
-    local n, x = 0, 3
-    for _, b in ipairs({ calendarButton, addonsButton, minimapButtons }) do
-        b:SetParent(buttonPill)
-        b:ClearAllPoints()
-        if b:IsShown() then
-            b:SetPoint("LEFT", buttonPill, "LEFT", x, 0)
-            x = x + ICON + 5
-            n = n + 1
-        end
-    end
-    buttonPill:SetWidth(x + 2)
-    return n
 end
 
 local function SyncBarButtons()
-    local show = ns.db.barButtons ~= false
-    calendarButton:SetShown(show and (_G.GameTimeFrame ~= nil or _G.ToggleCalendar ~= nil))
-    addonsButton:SetShown(show and _G.AddonCompartmentFrame ~= nil)
-    if ns.Buttons then ns.Buttons.Apply() end
+    local spots = Bars.ButtonSpots(ns.db, Round())
+    local nSide, nPill = ArrangeButtons(spots)
+    side:SetShown(nSide > 0)
+    if nSide > 0 then PlaceSide(nSide) end
     if Round() then
-        -- On the round map the minimap-buttons button goes with the others, not with the coordinates.
-        if not ns.db.topBar then
-            calendarButton:SetShown(false)
-            addonsButton:SetShown(false)
-        end
-        buttonPill:SetShown(ArrangeRound() > 0)
+        buttonPill:SetShown(nPill > 0)
+        ArrangeRoundText()
     else
-        ArrangeSquare(show)
+        buttonPill:SetShown(false)
+        ArrangeSquareText(spots)
     end
     calendarButton.color = PendingInvites() > 0 and INVITE or GREY
     if not calendarButton:IsMouseOver() then Paint(calendarButton, calendarButton.color) end
@@ -387,7 +453,7 @@ end
 
 -- The round map's grid under the circle (see the top of the file). Returns its height.
 local function PlaceRound(height)
-    local size = ns.db.size or 200
+    local size = ns.Host.Size()
     local row1 = ns.db.topBar or buttonPill:IsShown()
     namePill:SetShown(ns.db.topBar == true)
     coordPill:SetShown(ns.db.bottomBar and ns.db.barCoords and true or false)
@@ -437,7 +503,7 @@ function Bars.Apply()
     for _, t in ipairs({ zoneText, coordText, zoomText, clockText }) do
         t:SetFont(FONT, ns.db.barFont, "")
     end
-    for _, bar in ipairs({ top, bottom, namePill, buttonPill, coordPill, clockPill, zoomPill }) do
+    for _, bar in ipairs({ top, bottom, side, namePill, buttonPill, coordPill, clockPill, zoomPill }) do
         bar:SetBackdropColor(BG[1], BG[2], BG[3], ns.db.barAlpha)
         bar:SetBackdropBorderColor(0, 0, 0, math.max(ns.db.barAlpha, 0.5))
     end
@@ -449,7 +515,10 @@ function Bars.Apply()
         bottom:SetShown(false)
         SyncBarButtons()
         local down = PlaceRound(height)
-        root:SetClampRectInsets(0, 0, 0, -down)
+        -- The side column sits outside the circle: kept on screen too.
+        local out = side:IsShown() and -(SIDE_W + GAP) or 0
+        local left = ns.db.buttonSide ~= "right"
+        root:SetClampRectInsets(left and out or 0, left and 0 or -out, 0, -down)
     else
         for _, pill in ipairs({ namePill, buttonPill, coordPill, clockPill, zoomPill }) do pill:SetShown(false) end
         Place(top, "TOP", ns.db.topBarInside, height)
@@ -500,6 +569,9 @@ function Bars.Build(rootFrame, level)
     zoomPill = Strip(level)
     zoomPill:EnableMouse(false)
     for _, pill in ipairs({ namePill, buttonPill, coordPill, clockPill, zoomPill }) do pill:Hide() end
+    side = Strip(level)
+    side:EnableMouse(false) -- only its buttons take clicks; the map shows through around them
+    side:Hide()
     BuildButtons()
 
     local elapsed = 0

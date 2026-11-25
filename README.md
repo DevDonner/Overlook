@@ -28,13 +28,15 @@ The full design, with decisions, risks and the test plan, is in [docs/design.md]
 - Caves drawn on the far map, every level stacked; Alt + wheel peels them off one by one
 - Drag to pan, with a Recenter button; a panned map stays put while you move
 - Zooms out when you mount and comes back when you dismount (adjustable)
-- Zone name bar above the map and a bottom bar with coordinates, zoom distance and a clock
+- Zone name bar above the map (or over its top edge) and a bottom bar with coordinates, zoom distance and a clock
+- Compact layouts: buttons in a slim column at the map's side, or nothing but the map, so it fills the height it's given
 - Square or round, movable (Alt + drag) and resizable from its corner, with a lock
 - Questie's icon switches in our own settings window, plus player arrow size and route line width
 - Settings profiles, with export and import strings for sharing
 - Settings window, minimap button and addon compartment entry
 - Pings drawn on the far map
-- Other addons' minimap buttons gathered into a panel on the bottom bar; calendar and addon buttons on the top bar
+- Other addons' minimap buttons gathered into a panel; calendar and addon buttons on the top bar or in the side column
+- Plays nicely with other minimap addons: fits inside EllesmereUI's minimap instead of taking it over, keeps other addons' buttons and text showing when zoomed out, copies their drawings onto the far map, and every takeover has its own switch
 - Optional rotating minimap at normal zoom, on the round map only (off by default; the far map stays north-up)
 
 Planned: Edit Mode support.
@@ -79,7 +81,8 @@ Install from CurseForge (the CurseForge app, or download the zip into `_forever_
 | `/overlook icons` | List icon groups; e.g. `/overlook icons rarescanner size 0.6` |
 | `/overlook reset` | Move the map back to a visible spot at the default size |
 | `/overlook gameoptions coord` | The game's own options whose label has that text, their values and CVars |
-| `/overlook buttons` | The minimap buttons gathered into the bottom bar's panel |
+| `/overlook buttons` | The minimap buttons gathered into the panel, or why collecting is off |
+| `/overlook others` | What other addons have on the minimap and how the far map treats it (zoom out first) |
 | `/overlook overrides` | What the bars switched off in other addons and the game (and what it was before) |
 | `/overlook areas` | Whether the far view can draw quest areas here, and how many zones it is drawing |
 | `/overlook caves` | Which cave the far view would draw here, its levels and the one shown, for checking in game |

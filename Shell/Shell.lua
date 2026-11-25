@@ -10,6 +10,12 @@
 --    makes Blizzard's own calls to them fail.
 --  * A plain click on the Minimap pings (MinimapMixin:OnClick, on every mouse-up). Alt+drag uses
 --    our own catcher frame, which takes the mouse only while Alt is held, so moving never pings.
+--
+-- Hosted (Core/Host.lua): another addon owns the Minimap (EllesmereUI, or one that takes it back
+-- whenever we parent it). Then the Minimap is left exactly as that addon keeps it (parent, size,
+-- place, mask, rotation, its buttons) and our root follows it instead: the far view, bars and the
+-- rest lie over the host's map. Moving and resizing are the host's then, so the grip and Alt+drag
+-- are off.
 local _, ns = ...
 
 local Shell = {}
@@ -25,6 +31,8 @@ local LEVEL_VIEW, LEVEL_BORDER, LEVEL_CATCHER = 3000, 3010, 3020
 local root, catcher, border, ring
 local nativeSize
 local applyQueued = false
+local hostFought = false -- an unknown addon took the Minimap back after we parented it
+local foreignShape       -- the last GetMinimapShape another addon set, to give back
 
 local function UIScaleRatio(frame)
     return frame:GetEffectiveScale() / UIParent:GetEffectiveScale()
@@ -50,11 +58,92 @@ local function HideArt(region)
     if region.EnableMouse then region:EnableMouse(false) end
 end
 
-local function ApplyNow()
+-- Who hosts the map now (Host.Decide); says so in chat when that changes.
+local function RefreshHost()
+    local owner = ns.Host.Decide(ns.db.hostOthers, ns.Host.Known(), hostFought)
+    if owner == ns.Host.owner then return end
+    ns.Host.owner = owner
+    if owner then
+        ns.Printf("%s has the minimap: Overlook's far zoom now works inside its map. /overlook > Other addons to change this.", owner)
+    end
+end
+
+-- The host's shape, from the GetMinimapShape it answers.
+local function HostShape()
+    local fn = _G.GetMinimapShape
+    if type(fn) ~= "function" or fn == Shell.MinimapShape then fn = foreignShape end
+    if type(fn) ~= "function" then return "SQUARE" end
+    local ok, shape = pcall(fn)
+    return ok and shape or "SQUARE"
+end
+
+-- Whether we answer GetMinimapShape (see Build). Pure.
+function Shell.WantShape(claimShape, hosted)
+    return claimShape ~= false and not hosted
+end
+
+local function SyncShapeAnswer()
+    local cur = _G.GetMinimapShape
+    if cur ~= Shell.MinimapShape and cur ~= nil then foreignShape = cur end
+    if Shell.WantShape(ns.db.claimShape, ns.Host.owner ~= nil) then
+        if cur ~= Shell.MinimapShape then _G.GetMinimapShape = Shell.MinimapShape end
+    elseif cur == Shell.MinimapShape then
+        _G.GetMinimapShape = foreignShape -- theirs again (nil if there never was one)
+    end
+end
+
+-- Hosted: our root lies over the host's map. A host that crops the map to a rectangle (EllesmereUI)
+-- marks the cropped part with the Minimap's hit-rect insets; the root leaves that part out.
+local function FollowHost()
+    local ms, rs = Minimap:GetEffectiveScale(), root:GetEffectiveScale()
+    local k = (ms and rs and rs > 0) and ms / rs or 1
+    local _, _, cropTop, cropBottom = Minimap:GetHitRectInsets()
+    root:ClearAllPoints()
+    root:SetPoint("TOPLEFT", Minimap, "TOPLEFT", 0, -(cropTop or 0) * k)
+    root:SetPoint("BOTTOMRIGHT", Minimap, "BOTTOMRIGHT", 0, (cropBottom or 0) * k)
+    root:SetFrameStrata(Minimap:GetFrameStrata() or "LOW")
+    ns.Host.size = Minimap:GetWidth() * k
+    ns.Host.round = HostShape() == "ROUND"
+    border:SetBackdropBorderColor(0, 0, 0, 0) -- the host draws its own edge
+    ring:Hide()
+end
+
+local ApplyNow
+
+local function ApplyHosted()
+    FollowHost()
+    border:SetFrameLevel(LEVEL_BORDER)
+    catcher:SetFrameLevel(LEVEL_CATCHER)
+    catcher:EnableMouse(false)
+    catcher:EnableMouseWheel(false)
+    if ns.Far then ns.Far.OnShellApplied() end
+    if ns.Bars then ns.Bars.Apply() end
+end
+
+ApplyNow = function()
     applyQueued = false
+    RefreshHost()
+    SyncShapeAnswer()
+    if ns.Host.owner then
+        ApplyHosted()
+        return
+    end
+    root:SetFrameStrata("LOW")
     PlaceRoot()
 
-    if Minimap:GetParent() ~= root then Minimap:SetParent(root) end
+    if Minimap:GetParent() ~= root then
+        Minimap:SetParent(root)
+        -- Another addon's hook put it straight back: that addon owns the frame, so we move in.
+        if Minimap:GetParent() ~= root and not hostFought then
+            hostFought = true
+            RefreshHost()
+            if ns.Host.owner then
+                SyncShapeAnswer()
+                ApplyHosted()
+                return
+            end
+        end
+    end
     Minimap:ClearAllPoints()
     Minimap:SetPoint("CENTER", root, "CENTER")
     Minimap:SetScale(ns.db.size / nativeSize)
@@ -183,26 +272,12 @@ local function HookBlizzardLayout()
     end
 end
 
--- LibDBIcon parents addon buttons to the Minimap, which goes to alpha 0 in far mode. Move any
--- still sitting there into our root (their anchors to the Minimap still hold). Buttons another
--- addon has already collected (e.g. MinimapButtonButton) aren't on the Minimap, so they're left alone.
-local function AdoptButtons()
-    local ok, lib = pcall(LibStub, "LibDBIcon-1.0", true)
-    if not (ok and lib and type(lib.objects) == "table") then return end
-    for _, button in pairs(lib.objects) do
-        if button.GetParent and button:GetParent() == Minimap then
-            local strata = button:GetFrameStrata()
-            button:SetParent(root)
-            button:SetFrameStrata(strata)
-        end
-    end
-end
-
 -- The Alt+drag catcher takes the mouse only while Alt is really held. Events can be missed (a key
--- released while the game is unfocused), so the grip's driver also calls this every frame.
+-- released while the game is unfocused), so the grip's driver also calls this every frame. Off
+-- while hosted: the host moves its map.
 function Shell.SyncCatcher()
     if not catcher or root.moving then return end
-    local want = IsAltKeyDown()
+    local want = IsAltKeyDown() and ns.Host.owner == nil
     if catcher:IsMouseEnabled() ~= want then
         catcher:EnableMouse(want)
         catcher:EnableMouseWheel(want)
@@ -220,22 +295,50 @@ function Shell.Build()
     if ns.Grip then ns.Grip.Build(root, LEVEL_CATCHER + 10) end
     if ns.Bars then ns.Bars.Build(root, LEVEL_BORDER + 1) end -- below the catcher: Alt+drag works on them
     HookBlizzardLayout()
-    AdoptButtons()
-    C_Timer.NewTicker(2, AdoptButtons) -- addons can create buttons after login
 
     -- The cluster's now-empty area would otherwise still swallow clicks meant for the world.
     if MinimapCluster then MinimapCluster:EnableMouse(false) end
 
-    -- LibDBIcon, HereBeDragons (Questie's pins) and similar libraries ask this global where the
+    -- LibDBIcon, HereBeDragons (Questie's pins) and similar libraries ask GetMinimapShape where the
     -- map's edge is. The map is ours, so the answer is too: other minimap addons (EnhanceQoL's and
     -- Leatrix Plus's square minimap) set it to SQUARE, which put Questie's icons in the round map's
-    -- empty corners. Taken back if one of them sets it again later.
-    _G.GetMinimapShape = Shell.MinimapShape
-    C_Timer.NewTicker(2, function()
-        if _G.GetMinimapShape ~= Shell.MinimapShape then _G.GetMinimapShape = Shell.MinimapShape end
-    end)
+    -- empty corners. Taken back if one of them sets it again later. Not while hosted (the host's
+    -- answer is right for its map), nor with claimShape off; theirs is given back then.
+    foreignShape = _G.GetMinimapShape
+    C_Timer.NewTicker(2, Shell.Watch)
+    if Minimap.HookScript then
+        Minimap:HookScript("OnSizeChanged", function() if ns.Host.owner then Shell.Apply() end end)
+    end
 
     ApplyNow()
+end
+
+-- Every 2 s: the shape answer, and whether the map's host changed (an addon loaded late, took the
+-- Minimap back, or resized its map).
+function Shell.Watch()
+    if not root then return end
+    SyncShapeAnswer()
+    local parent = Minimap:GetParent()
+    if not ns.Host.owner and parent ~= root and parent ~= MinimapCluster and not hostFought
+        and ns.db.hostOthers ~= false then
+        hostFought = true
+    end
+    local was, wasSize = ns.Host.owner, ns.Host.size
+    RefreshHost()
+    if ns.Host.owner ~= was then
+        Shell.Apply()
+    elseif ns.Host.owner then
+        local ms, rs = Minimap:GetEffectiveScale(), root:GetEffectiveScale()
+        local size = Minimap:GetWidth() * ((ms and rs and rs > 0) and ms / rs or 1)
+        if math.abs(size - (wasSize or 0)) > 0.5 then Shell.Apply() end
+    end
+end
+
+-- Hosting switched on or off in the settings.
+function Shell.SetHostOthers(on)
+    ns.db.hostOthers = on and true or false
+    if not on then hostFought = false end
+    Shell.Apply()
 end
 
 -- What GetMinimapShape answers while Overlook has the minimap.
@@ -258,6 +361,7 @@ function Shell.WantRotation(rotate, round)
 end
 
 function Shell.SyncRotation()
+    if ns.Host.owner then return end -- the host's setting
     local want = Shell.WantRotation(ns.db.rotate, ns.db.round)
     if RotationNow() ~= want then pcall(SetCVar, "rotateMinimap", want and "1" or "0") end
 end
@@ -306,7 +410,7 @@ events:SetScript("OnEvent", function(_, event, arg1)
         if applyQueued then ApplyNow() end
     else -- CVAR_UPDATE (rotateMinimap resets the mask), EDIT_MODE_LAYOUTS_UPDATED
         -- On the round map the game's setting is the choice; on the square it's put back off.
-        if event == "CVAR_UPDATE" and ns.db.round then ns.db.rotate = RotationNow() end
+        if event == "CVAR_UPDATE" and ns.db.round and not ns.Host.owner then ns.db.rotate = RotationNow() end
         Shell.Apply()
     end
 end)

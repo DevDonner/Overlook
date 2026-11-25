@@ -8,10 +8,12 @@
 -- buttons on the minimap whose names say they're minimap buttons have no data object, so those
 -- are moved into the panel themselves.
 --
--- While MinimapButtonButton is loaded it owns the buttons and this stays out of the way. Turning
--- collecting off puts them back after a /reload.
+-- Stays out of the way (and gives back anything it took) while MinimapButtonButton is loaded,
+-- while another addon hosts the map (Core/Host.lua: EllesmereUI has its own button row), while
+-- our buttons are set to "none", or with collecting switched off. Giving back is immediate: the
+-- originals are shown again where their addons put them, no /reload needed.
 --
--- Settings: collectButtons (on/off), buttonsPerRow.
+-- Settings: collectButtons (on/off), buttonsPerRow, buttonSpot.
 local _, ns = ...
 
 local Buttons = {}
@@ -57,11 +59,24 @@ function Buttons.IconOf(obj)
     return obj.icon, c, obj.iconR or 1, obj.iconG or 1, obj.iconB or 1
 end
 
-local function Active()
-    if ns.db.collectButtons == false or not ns.db.bottomBar then return false end
+-- Why collecting is off, or nil when it's on. Pure.
+function Buttons.Blocked(db, hosted, mbbLoaded)
+    if db.collectButtons == false then return "off" end
+    if db.buttonSpot == "none" then return "no buttons" end
+    if hosted then return "hosted" end
+    if mbbLoaded then return "MinimapButtonButton" end
+    return nil
+end
+
+local function MBBLoaded()
     local loaded = _G.C_AddOns and _G.C_AddOns.IsAddOnLoaded
-    if loaded and loaded("MinimapButtonButton") then return false end
-    return true
+    return loaded and loaded("MinimapButtonButton") and true or false
+end
+
+local function Hosted() return ns.Host ~= nil and ns.Host.owner ~= nil end
+
+local function Active()
+    return Buttons.Blocked(ns.db, Hosted(), MBBLoaded()) == nil
 end
 Buttons.Active = Active
 
@@ -136,7 +151,8 @@ local function Proxy(name, orig, obj)
         if o.OnLeave then pcall(o.OnLeave, self) end
         GameTooltip:Hide()
     end)
-    b.entry = { frame = b, name = name, orig = orig, obj = obj }
+    b.entry = { frame = b, name = name, orig = orig, obj = obj,
+        kept = { show = rawget(orig, "Show"), setShown = rawget(orig, "SetShown") } }
     -- The original stays hidden: LibDBIcon and its addon show it again from time to time.
     orig:Hide()
     orig.Show = Noop
@@ -158,7 +174,19 @@ end
 local function Move(button)
     local o = {
         setPoint = button.SetPoint, clearAllPoints = button.ClearAllPoints, setParent = button.SetParent,
+        -- Where it was, to put it back.
+        parent = button:GetParent(), strata = button:GetFrameStrata(), level = button:GetFrameLevel(),
+        points = {},
+        -- Our no-op setters are fields on the button; what was there before (usually nothing: the
+        -- methods come from the frame type) goes back.
+        fields = {},
     }
+    for _, k in ipairs({ "SetPoint", "ClearAllPoints", "SetParent", "SetFrameStrata", "SetFrameLevel" }) do
+        o.fields[k] = { rawget(button, k) }
+    end
+    for i = 1, (button.GetNumPoints and button:GetNumPoints() or 0) do
+        o.points[i] = { button:GetPoint(i) }
+    end
     o.setParent(button, panel)
     button.SetPoint, button.ClearAllPoints, button.SetParent = Noop, Noop, Noop
     if button.RegisterForDrag then pcall(button.RegisterForDrag, button) end
@@ -174,6 +202,38 @@ local function Move(button)
     button.SetFrameStrata, button.SetFrameLevel = Noop, Noop
     if button.HookScript then button:HookScript("OnClick", CloseAfterClick) end
     return { frame = button, name = button:GetName(), moved = o }
+end
+
+-- Gives one button back: the original shows again where its addon had it; ours goes.
+local function Release(e)
+    if e.obj then
+        local orig = e.orig
+        rawset(orig, "Show", e.kept.show)
+        rawset(orig, "SetShown", e.kept.setShown)
+        if not (orig.db and orig.db.hide) then orig:Show() end
+        e.frame:Hide()
+    elseif e.moved then
+        local b, o = e.frame, e.moved
+        for k, v in pairs(o.fields) do rawset(b, k, v[1]) end
+        if b.SetFixedFrameStrata then pcall(b.SetFixedFrameStrata, b, false) end
+        if b.SetFixedFrameLevel then pcall(b.SetFixedFrameLevel, b, false) end
+        b:SetParent(o.parent)
+        b:SetFrameStrata(o.strata)
+        b:SetFrameLevel(o.level)
+        b:ClearAllPoints()
+        for _, pt in ipairs(o.points) do b:SetPoint(unpack(pt)) end
+    end
+end
+
+-- Gives every button back and forgets them, so collecting can start over later.
+function Buttons.ReleaseAll()
+    for i = #entries, 1, -1 do
+        local ok, err = pcall(Release, entries[i])
+        if not ok and ns.Print then ns.Print("couldn't give a minimap button back: " .. tostring(err)) end
+        entries[i] = nil
+    end
+    for k in pairs(byKey) do byKey[k] = nil end
+    if panel then panel:Hide() end
 end
 
 local function Add(key, e)
@@ -249,15 +309,23 @@ local function Scan()
 end
 Buttons.Scan = Scan
 
--- Just above the bottom bar, from its left end (over the map, next to the button that opened it).
-local function PlacePanel()
-    local bar = trigger:GetParent()
-    panel:ClearAllPoints()
-    if ns.db and ns.db.round then
-        panel:SetPoint("BOTTOMRIGHT", bar, "TOPRIGHT", 0, 2)
-    else
-        panel:SetPoint("BOTTOMLEFT", bar, "TOPLEFT", 0, 2)
+-- Where the panel opens, next to the button that opened it. Pure: spot is where that button sits
+-- (Bars.ButtonSpots), side the column's side. Returns point, relativePoint, x, y.
+function Buttons.PanelAnchor(spot, side)
+    if spot == "side" then
+        if side == "right" then return "TOPRIGHT", "TOPLEFT", -2, 0 end
+        return "TOPLEFT", "TOPRIGHT", 2, 0
+    elseif spot == "pill" then
+        return "BOTTOMRIGHT", "TOPRIGHT", 0, 2
     end
+    return "BOTTOMLEFT", "TOPLEFT", 0, 2 -- the bottom bar: just above it, from its left end
+end
+
+local function PlacePanel()
+    local host = trigger:GetParent()
+    local point, rel, x, y = Buttons.PanelAnchor(trigger.spot, ns.db and ns.db.buttonSide)
+    panel:ClearAllPoints()
+    panel:SetPoint(point, host, rel, x, y)
 end
 
 function Buttons.Toggle()
@@ -304,6 +372,7 @@ function Buttons.Apply()
     if not trigger then return end
     if not Active() then
         trigger:Hide()
+        if #entries > 0 then Buttons.ReleaseAll() end
         if panel then panel:Hide() end
         return
     end
@@ -318,11 +387,17 @@ function Buttons.Count()
     return n
 end
 
+local WHY = {
+    off = "switched off in the settings",
+    ["no buttons"] = "our buttons are set to none",
+    hosted = "another addon hosts the map and keeps its own buttons",
+    MinimapButtonButton = "MinimapButtonButton is loaded and handles them",
+}
+
 ns.RegisterCommand("buttons", "list the minimap buttons in the button panel", function()
-    if not Active() then
-        local loaded = _G.C_AddOns and _G.C_AddOns.IsAddOnLoaded
-        ns.Printf("collecting is off%s", loaded and loaded("MinimapButtonButton")
-            and " (MinimapButtonButton is loaded and handles them)" or "")
+    local why = Buttons.Blocked(ns.db, Hosted(), MBBLoaded())
+    if why then
+        ns.Printf("collecting is off: %s", WHY[why] or why)
         return
     end
     for _, e in ipairs(entries) do

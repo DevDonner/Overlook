@@ -127,9 +127,9 @@ function Areas.Strips(r, e)
 end
 
 -- How far short of the rim the round map's areas may stop: finer on a bigger map.
-local function RimError() return math.max(4, ns.db.size / 2 / 24) end
+local function RimError() return math.max(4, ns.Host.Size() / 2 / 24) end
 
-local function IsRound() return ns.db.round == true end
+local function IsRound() return ns.Host.IsRound() end
 
 -- The sets in use: the square map's one, or the round map's strips (placed for the map's size).
 local function ActiveSets()
@@ -138,7 +138,7 @@ local function ActiveSets()
         return { sets[0] }
     end
     local out = {}
-    for i, row in ipairs(Areas.Strips(ns.db.size / 2, RimError())) do
+    for i, row in ipairs(Areas.Strips(ns.Host.Size() / 2, RimError())) do
         local set = sets[i]
         if not set then
             local clip = CreateFrame("Frame", nil, root)

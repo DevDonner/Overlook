@@ -110,6 +110,7 @@ H.test("drawing: both maps place pins, hover shows the levels, off hides them", 
     ns.Geometry = H.loadAddonFile("Core/Geometry.lua", {}).Geometry
     ns.IsSecret = function() return false end
     ns.db = { dungeonEntrances = true }
+    H.loadAddonFile("Core/Host.lua", ns)
     H.loadAddonFile("Pins/Entrances.lua", ns)
     local E = ns.Entrances
     E.BuildNative()

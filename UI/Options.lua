@@ -10,7 +10,7 @@ ns.Options = Options
 
 local NAME = "OverlookOptions"
 local ICON = ns.LOGO
-local WIDTH, HEIGHT = 460, 580
+local WIDTH, HEIGHT = 540, 580
 local CONTENT_WIDTH = WIDTH - 50
 
 local QUESTIE_LABELS = {
@@ -324,15 +324,39 @@ BUILDERS[3] = { "Questie", function(p)
     p:DynamicList(Q.Townsfolk, "Questie's town list isn't available (is Questie loaded?).")
 end }
 
-BUILDERS[4] = { "Bars", function(p)
+BUILDERS[4] = { "Layout", function(p)
     local function Apply() if ns.Bars then ns.Bars.Apply() end end
+    local S = ns.Settings
+
+    p:Header("Quick layouts")
+    p:Note("Full: bars above and below. Compact: the zone name over the map, buttons in a column at its side, no bottom bar, so the map fills the height. Map only: no bars, no buttons.")
+    p.y = p.y - 14 -- (the note takes two lines)
+    local y = p.y
+    local prev
+    for _, e in ipairs({ { "full", "Full" }, { "compact", "Compact" }, { "maponly", "Map only" } }) do
+        local b = W.Button(p.content, e[2], 100, function()
+            S.ApplyPreset(ns.db, e[1])
+            Apply()
+            Options.Refresh()
+        end)
+        if prev then b:SetPoint("LEFT", prev, "RIGHT", 6, 0) else b:SetPoint("TOPLEFT", p.content, "TOPLEFT", 4, y) end
+        prev = b
+    end
+    p.y = y - 30
+    local current = W.Note(p.content, "")
+    p:Place(current, 4, 18)
+    p.onRefresh[#p.onRefresh + 1] = function()
+        local names = { full = "Full", compact = "Compact", maponly = "Map only" }
+        local now = S.CurrentPreset(ns.db)
+        current:SetText(now and ("Now: " .. names[now]) or "Now: your own mix")
+    end
+
     p:Header("Top bar")
-    p:Check("Show the zone name above the map", "topBar", "Click it to open the world map.", Apply)
-    local topInside = p:Check("Over the map instead of above it (square map)", "topBarInside", nil, Apply)
+    p:Check("Show the zone name", "topBar", "Click it to open the world map.", Apply)
+    local topInside = p:Check("Over the map's top edge instead of above it (square map)", "topBarInside",
+        "Takes no room above the map.", Apply)
     p:Check("Add the zone after the subzone", "topBarZone", nil, Apply)
     p:Check("Colour by PvP status", "topBarPvP", "Green friendly, red hostile, orange contested, blue sanctuary.", Apply)
-    p:Check("Hide the game's own zone header", "hideZoneHeader",
-        "The zone name the game shows above the minimap, while the top bar is on.", Apply)
 
     p:Header("Bottom bar")
     p:Check("Show the bottom bar", "bottomBar", nil, Apply)
@@ -353,27 +377,74 @@ BUILDERS[4] = { "Bars", function(p)
     p:Check("24-hour clock", "clock24", nil, Apply)
     p:Check("Realm time", "clockServer", "The realm's time instead of your computer's.", Apply)
 
-    p:Header("Other clocks and coordinates")
-    p:Check("Turn off what the bars replace", "replaceOthers",
-        "While our bars show a clock, coordinates or the zone, the same from the game (its clock and zone header), EllesmereUI's minimap and EnhanceQoL's minimap stats is switched off in their own settings. Untick (or turn our bar off) to get them back. /overlook overrides lists what was switched off.",
-        Apply)
-
-    p:Check("Calendar and addon buttons on the top bar", "barButtons",
-        "Small buttons at the ends of the top bar for the game's calendar and addon compartment.", Apply)
-    p:Check("Gather minimap buttons into a panel", "collectButtons",
-        "Other addons' minimap buttons go into a panel opened by the round button left of the coordinates. While MinimapButtonButton is enabled it handles them instead. Turning this off puts them back after a /reload.",
+    p:Header("Buttons")
+    local function Spot(value, label, tip)
+        p:Check(label, { function() return ns.db.buttonSpot == value end,
+            function() ns.db.buttonSpot = value; Apply(); Options.Refresh() end }, tip)
+    end
+    Spot("bars", "On the bars", "The calendar and addons buttons on the top bar, the minimap-buttons arrow on the bottom bar. A bar that's off puts its buttons in the side column.")
+    Spot("side", "In a column at the map's side", "A slim column inside the map's edge (beside the round map), so the bars can go.")
+    Spot("none", "No buttons", "None of ours; other addons' minimap buttons are left where they are.")
+    p:Check("Column on the right", { function() return ns.db.buttonSide == "right" end,
+        function(on) ns.db.buttonSide = on and "right" or "left"; Apply() end })
+    p:Check("Calendar and addons buttons", "barButtons",
+        "Our buttons for the game's calendar and addon compartment.", Apply)
+    p:Check("Gather other addons' minimap buttons into a panel", "collectButtons",
+        "Other addons' minimap buttons go into a panel opened by our arrow button. Off: they're given back straight away. Never while MinimapButtonButton is loaded or another addon hosts the map (Addons tab).",
         Apply)
     p:Slider("Buttons per row", "buttonsPerRow", 1, function(v) return tostring(v) end, nil, Apply)
-    p:Check("Hide the game's buttons above the map", "hideGameButtons",
-        "The calendar, the tracking button (magnifier) and the addon compartment (the number), while the top bar is on.",
-        Apply)
 
     p:Header("Style")
     p:Slider("Text size", "barFont", 1, function(v) return v .. " px" end, nil, Apply)
-    p:Slider("Background opacity", "barAlpha", 0.05, Percent, nil, Apply)
+    p:Slider("Background opacity", "barAlpha", 0.05, Percent, "0% leaves just the text over the map.", Apply)
 end }
 
-BUILDERS[5] = { "Behaviour", function(p)
+BUILDERS[5] = { "Addons", function(p)
+    local function Apply() if ns.Bars then ns.Bars.Apply() end end
+    local function Others() if ns.Others then ns.Others.Refresh() end end
+
+    p:Header("Sharing the minimap")
+    local status = W.Note(p.content, "")
+    status:SetWidth(CONTENT_WIDTH - 10)
+    p:Place(status, 4, 32)
+    p.onRefresh[#p.onRefresh + 1] = function()
+        local H = ns.Host
+        local known = H and H.Known()
+        if H and H.owner then
+            status:SetText("|cff55ff55" .. H.owner .. " hosts the map.|r Its size, place, border, buttons and zone text are its own; Overlook adds the far zoom inside it.")
+        elseif known then
+            status:SetText(known .. " is loaded, but Overlook has the map (hosting is off below).")
+        else
+            status:SetText("No other minimap addon is in charge of the map: it's Overlook's.")
+        end
+    end
+    p:Check("Fit inside another minimap addon's map", { function() return ns.db.hostOthers ~= false end,
+        function(on) ns.Shell.SetHostOthers(on); Options.Refresh() end },
+        "With EllesmereUI's minimap (or another addon that keeps the minimap for itself), Overlook leaves the map to it and works inside it. Off: Overlook takes the map over.")
+    p:Check("Tell other addons the map's shape", { function() return ns.db.claimShape ~= false end,
+        function(on) ns.db.claimShape = on; ns.Shell.Apply() end },
+        "Answers GetMinimapShape for our map, so pins near the edge sit right on the square map. Off: whatever another addon answers stands. Never while another addon hosts the map.")
+
+    p:Header("Their text and buttons")
+    p:Check("Turn off what our bars replace", "replaceOthers",
+        "While our bars show a clock, coordinates or the zone, the same from the game, EllesmereUI's minimap and EnhanceQoL's minimap stats is switched off in their own settings. Off (or our bar off): theirs come back. /overlook overrides lists what was switched off.",
+        Apply)
+    p:Check("Hide the game's own zone header", "hideZoneHeader",
+        "The zone name the game shows above the minimap, while our top bar is on.", Apply)
+    p:Check("Hide the game's buttons above the map", "hideGameButtons",
+        "The calendar, the tracking button (magnifier) and the addon compartment (the number), while our own calendar and addons buttons are showing.",
+        Apply)
+
+    p:Header("On the far map")
+    p:Check("Keep their buttons, text and borders showing", "keepOthersVisible",
+        "Other addons' things on the minimap (EllesmereUI's zone text and buttons, minimap buttons) stay over the far map instead of disappearing when you zoom out.",
+        Others)
+    p:Check("Copy their drawings onto the far map", "captureOthers",
+        "Pictures other addons draw straight onto the minimap (route dots, item and rare finders) are copied to their place on the far map. Each addon gets a group in the Icons tab to hide or resize. /overlook others shows what was found.",
+        Others)
+end }
+
+BUILDERS[6] = { "Behaviour", function(p)
     p:Header("Mouse")
     p:Note("Wheel zooms; drag pans; Alt+drag moves the map; Alt+wheel changes cave levels.")
     p:Check("Middle-click recenters", "recenterMiddle")
@@ -396,7 +467,7 @@ BUILDERS[5] = { "Behaviour", function(p)
         "Capped at the furthest zoom on the Map tab.")
 end }
 
-BUILDERS[6] = { "Profiles", function(p)
+BUILDERS[7] = { "Profiles", function(p)
     local P = ns.Profiles
     local message = W.Note(p.content, "")
 

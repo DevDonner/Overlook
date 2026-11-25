@@ -12,6 +12,7 @@
 
 Core\Init.lua
 Core\Settings.lua
+Core\Host.lua
 Core\Geometry.lua
 Core\Zoom.lua
 Core\IconPrefs.lua
@@ -40,6 +41,7 @@ Far\Areas.lua
 Far\Mount.lua
 Far\Pings.lua
 Pins\Mirror.lua
+Pins\Others.lua
 Pins\Routes.lua
 Pins\Party.lua
 Pins\Entrances.lua

@@ -47,6 +47,7 @@ local DRAG_START_PX = 4
 -- cover, opaque for COVER_HOLD, then fades out over COVER_FADE.
 local COVER_HOLD, COVER_FADE = 0.15, 0.25
 local coverStart                 -- GetTime() when the cover began; nil when there's none
+local nativeAlpha                -- the Minimap's alpha when far mode began (a host may fade it)
 
 local function Cursor()
     local x, y = GetCursorPosition()
@@ -60,7 +61,7 @@ end
 local ALIGNED_PX = 2
 local function IsPanned()
     if not anchorN or not playerN then return false end
-    local ppy = ns.db.size / 2 / (radius or nativeMax)
+    local ppy = ns.Host.Size() / 2 / (radius or nativeMax)
     local dN, dW = anchorN - playerN, anchorW - playerW
     return (dN * dN + dW * dW) * ppy * ppy > ALIGNED_PX * ALIGNED_PX
 end
@@ -253,7 +254,7 @@ local function OnUpdate()
         return
     end
 
-    local ppy = ns.db.size / 2 / radius
+    local ppy = ns.Host.Size() / 2 / radius
 
     if drag then
         if not IsMouseButtonDown("LeftButton") then
@@ -287,7 +288,7 @@ local function OnUpdate()
     if ns.Areas then ns.Areas.Update(GetTime(), cN, cW, radius, radius ~= target) end
     if ns.Pings then ns.Pings.Update(GetTime()) end
     -- Before SetLayout, so a zoom (or the first frame in far mode) places icons for this view.
-    if ns.Mirror then ns.Mirror.SetView(cN, cW, ns.db.size / 2, zoomed) end
+    if ns.Mirror then ns.Mirror.SetView(cN, cW, ns.Host.Size() / 2, zoomed) end
     if zoomed then
         layoutDirty = false
         RelayoutTiles(ppy)
@@ -299,6 +300,7 @@ local function OnUpdate()
         if ns.Caves then ns.Caves.SetLayout(instance, originN, originW, ppy) end
         if ns.Areas then ns.Areas.SetLayout(instance, originN, originW, ppy) end
         if ns.Pings then ns.Pings.SetLayout(instance, originN, originW, ppy) end
+        if ns.Others then ns.Others.SetLayout(instance, originN, originW, ppy, Zoom.Shrink(radius, nativeMax)) end
     end
     local a0, a1, b0, b1 = G.VisibleTiles(cN, cW, radius)
     if zoomed or tilesPending or a0 ~= c0 or a1 ~= c1 or b0 ~= r0 or b1 ~= r1 then
@@ -383,7 +385,10 @@ function Far.Enter(fine, zoomOut)
     instance, tileSet, originN, originW = inst, set, n, w
     radius, target, leaving = nativeMax, nativeMax, false
     layoutDirty, lastFacing = true, nil
+    nativeAlpha = Minimap:GetAlpha()
+    if not nativeAlpha or nativeAlpha <= 0 then nativeAlpha = 1 end
     Minimap:SetAlpha(0)
+    if ns.Others then ns.Others.SetFar(true) end
     view:Show()
     if zoomOut ~= false then Far.Step(-1, fine) end
     return true
@@ -428,7 +433,11 @@ function Far.Leave(immediate)
     if ns.Caves then ns.Caves.SetLayout(nil) end
     if ns.Areas then ns.Areas.SetLayout(nil) end
     if ns.Pings then ns.Pings.SetLayout(nil) end
-    Minimap:SetAlpha(1)
+    if ns.Others then
+        ns.Others.SetLayout(nil)
+        ns.Others.SetFar(false)
+    end
+    Minimap:SetAlpha(nativeAlpha or 1)
     RefreshNative()
     if immediate then
         EndCover()
@@ -478,7 +487,7 @@ local function Ping()
     if not (cN and radius) then return end
     local cx, cy = Cursor()
     local vx, vy = view:GetCenter()
-    local x, y = Zoom.PingOffset(cx - vx, cy - vy, ns.db.size / 2 / radius, cN, cW, playerN, playerW,
+    local x, y = Zoom.PingOffset(cx - vx, cy - vy, ns.Host.Size() / 2 / radius, cN, cW, playerN, playerW,
         ns.Shell.nativeSize or Minimap:GetWidth(), nativeMax)
     if x then
         pcall(Minimap.PingLocation, Minimap, x, y)
@@ -514,7 +523,7 @@ local function PlaceRecenter()
     local root = recenter:GetParent()
     local up = ns.Bars and ns.Bars.InsideBottomHeight() or 0
     recenter:ClearAllPoints()
-    if ns.db.round then
+    if IsRound() then
         recenter:SetPoint("BOTTOM", root, "BOTTOM", 0, RECENTER_INSET + 4)
     else
         recenter:SetPoint("BOTTOMRIGHT", root, "BOTTOMRIGHT", -RECENTER_INSET, RECENTER_INSET + up)
@@ -647,7 +656,7 @@ local masks = {}                                       -- [frame] = mask texture
 local registered = setmetatable({}, { __mode = "k" })  -- [texture] = its frame
 local masked = setmetatable({}, { __mode = "k" })      -- [texture] = true while masked
 
-local function IsRound() return ns.db.round == true end
+local function IsRound() return ns.Host.IsRound() end
 
 local function MaskFor(frame)
     local m = masks[frame]
@@ -700,7 +709,10 @@ end
 -- The player arrow: the native arrow's size at this map size, times the arrow size setting.
 function Far.ApplyArrowSize()
     if not arrow then return end
-    local s = ARROW_SIZE * ns.db.size / max(ns.Shell.nativeSize or 1, 1) * (ns.db.arrowScale or 1)
+    -- The native arrow is ARROW_SIZE in the Minimap's own units: our size over the Minimap's width
+    -- (the width it was built at, as we only ever scale it; the host's, which may resize it).
+    local base = ns.Host.owner and Minimap:GetWidth() or ns.Shell.nativeSize
+    local s = ARROW_SIZE * ns.Host.Size() / max(base or 1, 1) * (ns.db.arrowScale or 1)
     arrow:SetSize(s, s)
 end
 
@@ -750,6 +762,9 @@ function Far.Build(root, level)
     -- Dungeon and raid entrances: with the icons, below the party dots.
     if ns.Entrances then ns.Entrances.Build(canvas, view, level + 3) end
     if ns.FarArt then ns.FarArt.Build(canvas, view, level + 6) end
+    -- Other addons' drawings on the minimap, copied here, with the icons; their furniture is kept
+    -- above the view (Pins/Others.lua).
+    if ns.Others then ns.Others.Build(canvas, view, level + 2) end
     if ns.Caves then ns.Caves.Build(canvas, view, level + 6) end
     view:SetScript("OnMouseDown", function(_, button)
         if button == "LeftButton" and CursorInside() then

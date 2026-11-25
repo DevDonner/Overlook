@@ -1,5 +1,16 @@
 # Overlook
 
+## Unreleased
+
+Plays nicely with other minimap addons, and the map can have all the room it's given.
+
+- Compact layouts. Our buttons (calendar, addons, the minimap-buttons panel) can sit in a slim column inside the map's left or right edge instead of on the bars, so the bars can go and the map keeps its full height. A bar that's switched off hands its buttons to that column instead of losing them. Quick layouts in the settings: Full, Compact (zone name over the map, buttons at its side, no bottom bar) and Map only (no bars, no buttons).
+- EllesmereUI's minimap (or any addon that keeps the minimap for itself): Overlook no longer fights it for the map. It fits inside: the other addon keeps the map's size, place, shape, border, buttons and zone text, and Overlook adds the far zoom to its map. Can be switched off.
+- Nothing is taken over that can't be given back. Each takeover has its own switch on the new Addons tab: gathering other addons' minimap buttons (now given back the moment it's switched off, no /reload), switching off other clocks, coordinates and zone text, hiding the game's zone header and buttons, and answering other addons' questions about the map's shape.
+- Other addons' buttons, text and borders on the minimap stay showing when you zoom out, instead of disappearing with the normal minimap.
+- Other addons that draw straight onto the minimap without HereBeDragons (route dots, item and rare finders) are copied onto the far map at the right places. Each addon gets an icon group on the Icons tab to hide or resize. `/overlook others` shows what was found.
+- The settings window is wider, with a Layout tab (was Bars) and an Addons tab.
+
 ## 1.0.1
 
 - Undercity draws on the far map. The game counts Undercity as outdoors, so before this fix the far map showed the Tirisfal surface there.

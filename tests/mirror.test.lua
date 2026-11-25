@@ -366,3 +366,27 @@ H.test("a file id returned as text is not a path; Questie's data is used", funct
 end)
 
 for k, v in pairs(saved) do _G[k] = v end
+
+H.test("pins: the mirror knows its own pins, so other addons' frames can be told apart", function()
+    local icon = NewIcon("available")
+    lib:AddMinimapIconWorld("Questie", icon, 0, -100, -8900)
+    H.eq(Mirror.IsPin(icon), true)
+    H.eq(Mirror.IsPin(NewIcon("available")), false)
+end)
+
+H.test("groups: other addons' drawings are listed with the pins' groups, with their counts", function()
+    ns.Others = { Counts = function() return { ["drawn:factoruide_guide"] = 4 } end, RefreshPrefs = noop }
+    Mirror.AddCategory("drawn:factoruide_guide", "Factoruide_Guide (drawn on the map)")
+    local found
+    for _, g in ipairs(Mirror.Groups()) do
+        if g.key == "drawn:factoruide_guide" then found = g end
+    end
+    H.truthy(found, "listed")
+    H.eq(found.count, 4)
+    H.eq(found.label, "Factoruide_Guide (drawn on the map)")
+    local refreshed = false
+    ns.Others.RefreshPrefs = function() refreshed = true end
+    Mirror.RefreshPrefs()
+    H.eq(refreshed, true, "a size change in the Icons tab reaches the drawings")
+    ns.Others = nil
+end)

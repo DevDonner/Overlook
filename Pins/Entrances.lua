@@ -105,7 +105,7 @@ local function DrawNative()
             local facing = Rotating() and GetPlayerFacing() or nil
             if ns.IsSecret(facing) then facing = nil end
             local size = Size() / math.max(Minimap:GetScale(), 0.01)
-            local round = ns.db.round == true
+            local round = ns.Host.IsRound()
             for _, place in ipairs(Places()) do
                 if place.inst == inst then
                     local x, y = EM.NativeOffset(place.n, place.w, pN, pW, half, r, facing, round,
@@ -229,7 +229,8 @@ end
 -- The normal minimap's pins: a layer on the game's Minimap, redrawn a few times a second.
 function Entrances.BuildNative()
     if nativeLayer then return end
-    nativeLayer = CreateFrame("Frame", nil, Minimap)
+    -- Named Overlook...: Pins/Others.lua leaves our own frames on the Minimap alone.
+    nativeLayer = CreateFrame("Frame", "OverlookNativeEntrances", Minimap)
     nativeLayer:SetAllPoints(Minimap)
     nativeLayer:SetFrameLevel(Minimap:GetFrameLevel() + 5)
     nativeLayer:SetScript("OnUpdate", function(_, dt)

@@ -61,6 +61,7 @@ local function Fresh()
         GetInfo = function(i) return i == 1 and { isHeader = true } or { questID = 200 + i } end }
     ns = { RegisterCommand = noop, IsSecret = function() return false end }
     H.loadAddonFile("Core/Settings.lua", ns)
+    H.loadAddonFile("Core/Host.lua", ns)
     H.loadAddonFile("Core/Geometry.lua", ns)
     H.loadAddonFile("Core/MapArt.lua", ns)
     ns.db = ns.Settings.Load(nil)

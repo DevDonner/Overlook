@@ -1,8 +1,9 @@
 -- Per-category icon preferences for the far map: show/hide, size, shrink-with-zoom.
 -- Pure Lua, so the offline tests cover it.
 --
--- Categories ("keys") are lower-case: "questie:<type>" for each Questie icon type, and the owning
--- addon's folder name for everything else ("rarescanner", "tomtom", "other").
+-- Categories ("keys") are lower-case: "questie:<type>" for each Questie icon type, the owning
+-- addon's folder name for everything else ("rarescanner", "tomtom", "other"), and
+-- "drawn:<addon>" for pictures another addon drew straight onto the minimap (Pins/Others.lua).
 local _, ns = ...
 
 local IconPrefs = {}
@@ -23,8 +24,16 @@ function IconPrefs.IsQuestie(key)
     return key:sub(1, 8) == "questie:"
 end
 
+function IconPrefs.DrawnKey(addon)
+    return "drawn:" .. string.lower(tostring(addon or "other"))
+end
+
+function IconPrefs.IsDrawn(key)
+    return key:sub(1, 6) == "drawn:"
+end
+
 -- Defaults: Questie's icons don't shrink as you zoom out, other addons' icons (RareScanner's are
--- large) do. Sizes per group, where they differ from 1 (scale, shrink).
+-- large) do. Drawings copied off the minimap don't either: they're small (route dots) already. Sizes per group, where they differ from 1 (scale, shrink).
 IconPrefs.DEFAULTS = {
     ["questie:monster"] = { 1.15 },
     ["questie:object"] = { 1.15 },
@@ -34,7 +43,7 @@ IconPrefs.DEFAULTS = {
 
 function IconPrefs.Defaults(key)
     local d = IconPrefs.DEFAULTS[key]
-    local shrink = not IconPrefs.IsQuestie(key)
+    local shrink = not IconPrefs.IsQuestie(key) and not IconPrefs.IsDrawn(key)
     if d and d[2] ~= nil then shrink = d[2] end
     return false, d and d[1] or 1, shrink
 end

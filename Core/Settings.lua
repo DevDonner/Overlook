@@ -48,9 +48,19 @@ Settings.DEFAULTS = {
     hideZoneHeader = true, -- the game's zone name above the minimap, while the top bar shows
     hideGameButtons = true, -- the game's calendar, tracking and addon-compartment buttons above it
     round = false,        -- round map instead of square
-    barButtons = true,    -- our calendar and addon buttons on the top bar
+    barButtons = true,    -- our calendar and addon buttons
     collectButtons = true, -- other addons' minimap buttons gathered into a panel (Shell/Buttons.lua)
     buttonsPerRow = 6,
+    -- Where our buttons (calendar, addons, the minimap-button panel's arrow) go: "bars" (on the
+    -- top and bottom bars; a bar that's off puts its buttons in the side column), "side" (a slim
+    -- column inside the map's left or right edge, so the bars can go), or "none".
+    buttonSpot = "bars",
+    buttonSide = "left",
+    -- Living with other addons (Core/Host.lua, Pins/Others.lua).
+    hostOthers = true,     -- another addon owns the minimap frame (EllesmereUI): fit inside its map
+    claimShape = true,     -- answer GetMinimapShape for the map, so pins sit right on the square
+    keepOthersVisible = true, -- other addons' buttons, text and borders on the map stay over the far map
+    captureOthers = true,  -- other addons' drawings on the minimap copied onto the far map
     -- Mouse and mounting.
     recenterMiddle = true, -- middle-click recenters
     recenterDouble = true, -- double-click on the far map recenters
@@ -76,6 +86,42 @@ Settings.RANGES = {
     mountRadius = { 300, Settings.FAR_MAX, true },
     buttonsPerRow = { 2, 12, true },
 }
+
+-- Settings that take one of a few words. Load puts anything else back to the default.
+Settings.CHOICES = {
+    buttonSpot = { bars = true, side = true, none = true },
+    buttonSide = { left = true, right = true },
+}
+
+-- Layouts the settings window offers as one click. Each sets only the keys it lists.
+--  full:    the bars above and below the map, the buttons on them (the defaults).
+--  compact: the zone name over the map's top edge, no bottom bar, the buttons in a column
+--           inside the map's edge: the map fills all the height it's given.
+--  maponly: nothing but the map: no bars, no buttons (other addons' buttons are left alone).
+Settings.PRESETS = {
+    full = { topBar = true, topBarInside = false, bottomBar = true, bottomBarInside = false, buttonSpot = "bars" },
+    compact = { topBar = true, topBarInside = true, bottomBar = false, buttonSpot = "side" },
+    maponly = { topBar = false, bottomBar = false, buttonSpot = "none" },
+}
+
+-- Applies a preset to the settings. Returns false for an unknown name.
+function Settings.ApplyPreset(db, name)
+    local preset = Settings.PRESETS[name]
+    if not preset then return false end
+    for k, v in pairs(preset) do db[k] = v end
+    return true
+end
+
+-- Which preset the settings match now, or nil.
+function Settings.CurrentPreset(db)
+    for _, name in ipairs({ "full", "compact", "maponly" }) do
+        local match = true
+        for k, v in pairs(Settings.PRESETS[name]) do
+            if db[k] ~= v then match = false end
+        end
+        if match then return name end
+    end
+end
 
 -- Clamps a value for a numeric setting; anything that isn't a number gets the default.
 function Settings.Clamp(key, n)
@@ -104,6 +150,9 @@ function Settings.Load(saved)
         if db[k] == nil then db[k] = v end
     end
     for k in pairs(Settings.RANGES) do db[k] = Settings.Clamp(k, db[k]) end
+    for k, allowed in pairs(Settings.CHOICES) do
+        if not allowed[db[k]] then db[k] = Settings.DEFAULTS[k] end
+    end
     -- Per-category icon preferences (IconPrefs). Not in DEFAULTS: a table default would be shared.
     if type(db.icons) ~= "table" then db.icons = {} end
     -- welcomeSeen (UI/Welcome.lua) is kept as it is: account-wide, not in DEFAULTS, so profiles

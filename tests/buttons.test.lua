@@ -137,3 +137,115 @@ H.test("panel: a hand-made button with a locked layer is still raised over the p
     H.eq(lfg.fixed, true, "and locked again")
     for k in pairs(G) do _G[k] = kept[k] end
 end)
+
+----------------------------------------------------------------------------------------------------
+-- Collecting can be switched off, and gives everything back straight away
+
+H.test("blocked: why collecting is off, in order", function()
+    H.eq(B.Blocked({ collectButtons = true, buttonSpot = "bars" }, false, false), nil)
+    H.eq(B.Blocked({ collectButtons = true, buttonSpot = "side" }, false, false), nil, "no bottom bar needed")
+    H.eq(B.Blocked({ collectButtons = false, buttonSpot = "bars" }, false, false), "off")
+    H.eq(B.Blocked({ collectButtons = true, buttonSpot = "none" }, false, false), "no buttons")
+    H.eq(B.Blocked({ collectButtons = true, buttonSpot = "bars" }, true, false), "hosted")
+    H.eq(B.Blocked({ collectButtons = true, buttonSpot = "bars" }, false, true), "MinimapButtonButton")
+end)
+
+H.test("panel: opens beside the side column, above the bottom bar, or over the round box", function()
+    local p, r, x = B.PanelAnchor("side", "left")
+    H.eq(p, "TOPLEFT"); H.eq(r, "TOPRIGHT"); H.truthy(x > 0)
+    p, r, x = B.PanelAnchor("side", "right")
+    H.eq(p, "TOPRIGHT"); H.eq(r, "TOPLEFT"); H.truthy(x < 0)
+    p, r = B.PanelAnchor("bottom")
+    H.eq(p, "BOTTOMLEFT"); H.eq(r, "TOPLEFT")
+    p, r = B.PanelAnchor("pill")
+    H.eq(p, "BOTTOMRIGHT"); H.eq(r, "TOPRIGHT")
+end)
+
+-- A world with one LibDBIcon button and one hand-made button on the Minimap.
+local function World(dbOver)
+    local kept = {}
+    local origA = Obj(); origA.dataObject = { icon = "a", label = "Alpha" }; origA.db = {}
+    local lib = {
+        GetButtonList = function() return { "A" } end,
+        GetMinimapButton = function() return origA end,
+    }
+    local minimap = Obj()
+    local hand = Obj()
+    hand.parent, hand.strata, hand.level = minimap, "MEDIUM", 8
+    hand.pts = { { "TOPLEFT", minimap, "TOPLEFT", 5, -5 } }
+    hand.GetName = function() return "HandMinimapButton" end
+    hand.IsObjectType = function() return true end
+    hand.GetParent = function(self) return self.parent end
+    hand.SetParent = function(self, p) self.parent = p end
+    hand.GetFrameStrata = function(self) return self.strata end
+    hand.GetFrameLevel = function(self) return self.level end
+    hand.SetFrameStrata = function(self, v) self.strata = v end
+    hand.SetFrameLevel = function(self, v) self.level = v end
+    hand.GetNumPoints = function(self) return #self.pts end
+    hand.GetPoint = function(self, i) return unpack(self.pts[i]) end
+    hand.ClearAllPoints = function(self) self.pts = {} end
+    hand.SetPoint = function(self, ...) self.pts[#self.pts + 1] = { ... } end
+    minimap.GetChildren = function() return hand end
+    local G = {
+        CreateFrame = function() return Obj() end, LibStub = function() return lib end,
+        C_Timer = { NewTicker = function() end }, UISpecialFrames = {}, UIParent = Obj(),
+        Minimap = minimap, GameTooltip = Obj(),
+    }
+    for k, v in pairs(G) do kept[k], _G[k] = _G[k], v end
+    local db = { bottomBar = true, buttonsPerRow = 6, collectButtons = true, buttonSpot = "bars" }
+    for k, v in pairs(dbOver or {}) do db[k] = v end
+    local ns = { RegisterCommand = function() end, db = db, Shell = {}, Host = {}, Print = function() end }
+    local M = H.loadAddonFile("Shell/Buttons.lua", ns).Buttons
+    local function Restore() for k in pairs(G) do _G[k] = kept[k] end end
+    return M, ns, origA, hand, minimap, Restore
+end
+
+H.test("give back: switching collecting off shows the originals where their addons put them", function()
+    local M, ns, origA, hand, minimap, Restore = World()
+    M.Build(Obj())
+    H.eq(M.Count(), 2)
+    H.eq(origA.shown, false, "collected: hidden")
+    H.truthy(hand.parent ~= minimap, "moved into the panel")
+    ns.db.collectButtons = false
+    M.Apply()
+    H.eq(M.Count(), 0, "nothing collected any more")
+    H.eq(origA.shown, true, "the LibDBIcon button is back")
+    origA:Hide(); origA:Show()
+    H.eq(origA.shown, true, "and its own Show works again")
+    H.eq(hand.parent, minimap, "the hand-made one is back on the minimap")
+    H.eq(hand.strata, "MEDIUM"); H.eq(hand.level, 8)
+    H.eq(#hand.pts, 1); H.eq(hand.pts[1][4], 5, "at its old spot")
+    hand:SetPoint("CENTER")
+    H.eq(#hand.pts, 2, "its addon can place it again")
+    Restore()
+end)
+
+H.test("give back: a button its addon had hidden stays hidden", function()
+    local M, ns, origA, _, _, Restore = World()
+    M.Build(Obj())
+    origA.db.hide = true
+    ns.db.collectButtons = false
+    M.Apply()
+    H.eq(origA.shown, false)
+    Restore()
+end)
+
+H.test("hosted: nothing is collected, so the host's own button row keeps its buttons", function()
+    local M, ns, origA, hand, minimap, Restore = World()
+    ns.Host.owner = "EllesmereUI"
+    M.Build(Obj())
+    H.eq(M.Count(), 0)
+    H.eq(origA.shown, true); H.eq(hand.parent, minimap)
+    Restore()
+end)
+
+H.test("collecting starts again after being given back", function()
+    local M, ns, origA, _, _, Restore = World({ buttonSpot = "none" })
+    M.Build(Obj())
+    H.eq(M.Count(), 0, "no buttons of ours: nothing taken")
+    ns.db.buttonSpot = "side"
+    M.Apply()
+    H.eq(M.Count(), 2)
+    H.eq(origA.shown, false)
+    Restore()
+end)

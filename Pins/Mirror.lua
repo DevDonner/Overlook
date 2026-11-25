@@ -166,6 +166,8 @@ local function ResolveTexture(region, icon)
     return nil, id
 end
 
+Mirror.ResolveTexture = ResolveTexture -- Pins/Others.lua copies other addons' drawings with it
+
 -- Records what an icon's textures are set to, so we never have to read a loose file back.
 local function RecordTexture(region, tex)
     region.overlookTexture = tex
@@ -671,13 +673,30 @@ events:SetScript("OnEvent", function()
     if layers[1] then Mirror.RefreshSources() end
 end)
 
--- Re-reads preferences for every proxy and redraws (after /overlook icons changes them).
+-- Whether a frame is a HereBeDragons pin we mirror (Pins/Others.lua leaves those alone).
+function Mirror.IsPin(frame)
+    for _, src in ipairs(sources) do
+        local reg = src.lib.minimapPins
+        if type(reg) == "table" and reg[frame] then return true end
+    end
+    return false
+end
+
+-- Another module's icon group (Pins/Others.lua's drawings), so /overlook icons and the Icons tab
+-- know it.
+function Mirror.AddCategory(key, label)
+    categories[key] = label
+end
+
 -- Icon groups for the settings window: every Questie type plus every addon seen so far, with
 -- how many icons each has now. Sorted: Questie first, then addons by name.
 function Mirror.Groups()
     local counts = {}
     for _, p in pairs(proxies) do
         if p.key then counts[p.key] = (counts[p.key] or 0) + 1 end
+    end
+    if ns.Others then
+        for key, n in pairs(ns.Others.Counts()) do counts[key] = (counts[key] or 0) + n end
     end
     local seen, list = {}, {}
     local function add(key, label)
@@ -696,11 +715,13 @@ function Mirror.Groups()
     return list
 end
 
+-- Re-reads preferences for every proxy and redraws (after /overlook icons changes them).
 function Mirror.RefreshPrefs()
     for _, p in pairs(proxies) do
         if p.key then ApplyPrefs(p) end
         Place(p)
     end
+    if ns.Others then ns.Others.RefreshPrefs() end
     if hovered and not hovered.drawn then Mirror.ClearHover() end
 end
 

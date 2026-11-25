@@ -82,7 +82,8 @@ local function OnUpdate()
     end
 
     ns.Shell.SyncCatcher()
-    local want = not ns.db.locked and root:IsMouseOver() and not InCombatLockdown()
+    -- Not while another addon hosts the map: it sizes its map itself.
+    local want = not ns.db.locked and not ns.Host.owner and root:IsMouseOver() and not InCombatLockdown()
     if want and not grip:IsShown() then
         PlaceGrip() -- the map may have moved since last time
         grip:Show()
