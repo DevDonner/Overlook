@@ -1,8 +1,10 @@
 # Overlook
 
-## Unreleased
+## 1.1.0
 
 Plays nicely with other minimap addons, and the map can have all the room it's given.
+
+Heads-up: if you had the top bar switched off, the calendar and addons buttons now move into a small column at the map's side instead of disappearing. Settings > Layout > Buttons: Off brings back the old look.
 
 - Compact layouts. Our buttons (calendar, addons, the minimap-buttons panel) can sit in a slim column at the map's left or right edge, on the map or outside it against the edge, instead of on the bars, so the bars can go and the map keeps its full height. A bar that's switched off hands its buttons to that column instead of losing them. Quick layouts in the settings: Full, Compact (zone name over the map, buttons at its side, no bottom bar) and Map only (no bars, no buttons).
 - EllesmereUI's minimap (or any addon that keeps the minimap for itself): Overlook no longer fights it for the map. It fits inside: the other addon keeps the map's size, place, shape, border, buttons and zone text, and Overlook adds the far zoom to its map. Can be switched off.

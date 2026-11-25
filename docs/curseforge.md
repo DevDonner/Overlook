@@ -33,7 +33,9 @@ No Questie means no icons to show, so Questie is a required dependency.
 - **Pan** by dragging; **Recenter**, middle-click or double-click to come back.
 - **Mount zoom**: zooms out when you mount, back when you dismount.
 - **Zone name, coordinates, zoom distance and a clock**, with calendar and addon buttons: bars on the square map, a tidy grid under the round one.
-- **Button panel**: other addons' minimap buttons gathered behind one button.
+- **Compact layouts**: the zone name on the map and the buttons in a slim column at its left or right edge (on the map or outside it), or nothing but the map, so it fills all the height you give it.
+- **Button panel**: other addons' minimap buttons gathered behind one button (optional, and handed back the moment you switch it off).
+- **Works with other minimap addons**: with EllesmereUI's minimap, Overlook adds its far zoom inside Ellesmere's map instead of replacing it, keeping Ellesmere's frame, buttons and zone name. Other addons' buttons and text stay showing when you zoom out, and markers they draw on the minimap are copied onto the far map. Every takeover has its own switch.
 - **Square or round**, movable (Alt + drag), resizable from the corner, lockable. Optional rotation on the round map.
 - **Profiles** with export and import strings.
 

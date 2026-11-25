@@ -34,10 +34,11 @@ Welcome.SECTIONS = {
         { "Hover a dungeon icon", "its name and level range" },
         { "Right-click", "ping" },
         { "Alt + wheel in a cave", "peel off levels one at a time" },
-        { "Chevron, bottom left", "other addons' minimap buttons" },
+        { "Chevron button", "other addons' minimap buttons (on the bottom bar or in the side column)" },
     } },
     { "Settings", {
         { "/overlook or /ol", "open the settings (also the minimap button or the addon compartment)" },
+        { "Layout tab", "Full, Compact or Map only; where the zone name and buttons go" },
         { "Instructions", "this window again, on the settings' Map tab" },
     } },
 }
