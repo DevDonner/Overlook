@@ -61,6 +61,7 @@ local function Acquire(layer)
     local t = table.remove(layer.pool)
     if not t then
         t = layer.frame:CreateTexture(nil, "ARTWORK")
+        t.overlookPart = "icon"
         if ns.Far and ns.Far.Shape then ns.Far.Shape(t) end
         if t.SetSnapToPixelGrid then
             t:SetSnapToPixelGrid(false)

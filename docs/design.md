@@ -225,6 +225,15 @@ Each continent has its own coordinates: a 64 x 64 grid of 533-yard tiles centred
 - **Pan.** A drag can go anywhere over the world's land (`World.Bounds`), not just within reach of the player.
 - **No limit** (`worldZoom`). The furthest zoom becomes `World.Reach()`: the world's larger side (about 32,000 yd), so the whole world shows from anywhere on it. That's every tile loaded (about 1,700), drawn a few pixels wide, plus every icon. Off by default.
 
+## Self-test in the game (Nov 25, 2026)
+
+The offline tests only know the world they're given, and other addons are too many to fake: 1.1.0's white box came from Leatrix Plus changing the game's hybrid minimap, which no test knew about. `/overlook selftest` (`Far/SelfTest.lua`) checks the real client with whatever is installed:
+
+- Every texture the far map makes carries `overlookPart` (tile, icon, copy, route, entrance, party, ping, map art, cave, quest area, arrow, background); copies also carry `overlookFrom` (whose drawing) and tiles `overlookInst` (which continent). Anything in the view without one is someone else's.
+- It zooms through a few levels (`SelfTest.Steps`: past the native map, a zone, the setting, and the whole world with "no limit"), waits for the tiles, and lists everything shown in the view at each.
+- `SelfTest.Check` (pure, tested offline with both 1.1.0 white boxes replayed) applies rules that hold whatever is loaded: no plain colour box except our own background, cave cover, pings, routes and quest areas; nothing big (wider and taller than 12% of the view) on the player but the map itself; nothing big keeping its size while the zoom doubles; tiles the size the zoom says; with "no limit" at its furthest, tiles from every continent. Foreign things in the view and slow tile loads are notes.
+- The report goes in `OverlookDB.selftest`: the problems and notes, a summary per zoom (count and sizes per part, frame rate, load time), what `Others` kept or copied from the Minimap's children (by name), and the loaded addons. The game writes it to `WTF/Account/<account>/SavedVariables/Overlook.lua` (or `OverlookDev.lua`) on /reload, where it can be read without screenshots.
+
 ## Risks and open questions
 
 | Risk | Impact | Mitigation |

@@ -29,10 +29,12 @@ local function Dot(i)
     if not d then
         d = {}
         d.border = layer:CreateTexture(nil, "ARTWORK", nil, 0)
+        d.border.overlookPart = "party"
         d.border:SetSize(DOT_SIZE + 2, DOT_SIZE + 2)
         d.border:SetTexture(DOT_TEXTURE)
         d.border:SetVertexColor(0, 0, 0, 0.9)
         d.fill = layer:CreateTexture(nil, "ARTWORK", nil, 1)
+        d.fill.overlookPart = "party"
         d.fill:SetSize(DOT_SIZE, DOT_SIZE)
         d.fill:SetTexture(DOT_TEXTURE)
         if ns.Far and ns.Far.Shape then

@@ -250,6 +250,7 @@ local function UpdateTiles(n, w, ppy)
             end
             local t = AcquireTexture()
             t:SetTexture(fid)
+            t.overlookPart, t.overlookInst = "tile", layers[floor(key / LAYER_KEYS)].inst -- (self-test)
             PlaceTile(t, key, ppy)
             active[key] = t
             added = added + 1
@@ -422,6 +423,11 @@ end
 function Far.IsPanned()
     return mode == "far" and IsPanned()
 end
+
+-- For the self-test (Far/SelfTest.lua): the view frame, and whether tiles are still loading.
+function Far.View() return view end
+function Far.Loading() return tilesPending end
+function Far.LastLoad() return lastLoad end
 
 -- The far view's radius in yards (centre to edge), or nil in near mode.
 function Far.Radius()
@@ -813,6 +819,7 @@ function Far.Build(root, level)
     local bg = view:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints(view)
     bg:SetColorTexture(0.06, 0.07, 0.09, 1)
+    bg.overlookPart = "background"
     Far.Shape(bg)
 
     canvas = CreateFrame("Frame", nil, view)
@@ -860,6 +867,7 @@ function Far.Build(root, level)
     arrowFrame:SetAllPoints(view)
     arrowFrame:SetFrameLevel(level + 5)
     arrow = arrowFrame:CreateTexture(nil, "OVERLAY")
+    arrow.overlookPart = "arrow"
     arrow:SetPoint("CENTER", view, "CENTER")
     if arrow:SetTexture(ARROW_TEXTURE) == false then
         arrow:SetColorTexture(1, 0.82, 0, 1) -- fallback so the player is still marked

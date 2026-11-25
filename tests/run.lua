@@ -29,6 +29,7 @@ local FILES = {
     "tests/buttons.test.lua",
     "tests/host.test.lua",
     "tests/others.test.lua",
+    "tests/selftest.test.lua",
     "tests/options.test.lua",
     "tests/welcome.test.lua",
     "tests/devtoc.test.lua",

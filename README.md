@@ -90,6 +90,7 @@ Install from CurseForge (the CurseForge app, or download the zip into `_forever_
 | `/overlook underground` | What map the far view would draw here (underground cities, dungeons), for checking in game |
 | `/overlook questie` | Check the Questie parts the far map uses (also run once after login; quiet when all is well) |
 | `/overlook far`, `/overlook pins`, `/overlook routes` | State, for bug reports |
+| `/overlook selftest` | Zooms the far map through a few levels and checks what's drawn on it with your addons; the report is saved on /reload |
 
 ## Development
 

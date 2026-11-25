@@ -142,6 +142,7 @@ local function ActiveSets()
         local set = sets[i]
         if not set then
             local clip = CreateFrame("Frame", nil, root)
+            clip.overlookPart = "quest area" -- (the self-test: everything under it is quest areas)
             -- The widgets' parent: a plain frame in the strip, like the canvas in the view.
             local holder = CreateFrame("Frame", nil, clip)
             holder:SetSize(1, 1)

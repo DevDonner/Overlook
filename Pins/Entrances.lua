@@ -152,6 +152,7 @@ local function DrawFar()
                 local p = farPins[n]
                 if not p then
                     p = { tex = farLayer:CreateTexture(nil, "ARTWORK") }
+                    p.tex.overlookPart = "entrance"
                     if ns.Far and ns.Far.Shape then ns.Far.Shape(p.tex) end
                     farPins[n] = p
                 end
