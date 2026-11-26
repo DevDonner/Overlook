@@ -26,6 +26,10 @@ local NEW_TILES_PER_FRAME, MAX_TILES_PER_FRAME, LOAD_FRAMES = 16, 64, 12
 local ARROW_SIZE = 32            -- px at native minimap scale
 local ARROW_TEXTURE = "Interface\\Minimap\\MinimapArrow"
 
+-- The open sea in the game's tiles shows as grey 3/255, so the background is the same: where the
+-- tiles stop doesn't show. (/overlook bg in the dev build tries other values live.)
+local BG = 3 / 255
+local background
 local view, canvas, arrowFrame, arrow
 local mode = "near"
 local radius, target, tweenFrom, tweenStart, leaving
@@ -426,6 +430,7 @@ end
 
 -- For the self-test (Far/SelfTest.lua): the view frame, and whether tiles are still loading.
 function Far.View() return view end
+function Far.SetBackground(r, g, b) if background then background:SetColorTexture(r, g, b, 1) end end
 function Far.Loading() return tilesPending end
 function Far.LastLoad() return lastLoad end
 
@@ -818,7 +823,8 @@ function Far.Build(root, level)
 
     local bg = view:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints(view)
-    bg:SetColorTexture(0, 0, 0, 1) -- black, like the empty sea at the edge of the tiles
+    bg:SetColorTexture(BG, BG, BG, 1) -- the open sea at the edge of the tiles
+    background = bg
     bg.overlookPart = "background"
     Far.Shape(bg)
 

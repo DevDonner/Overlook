@@ -4,7 +4,7 @@
 
 - One world: the far map now pans across the sea from one continent to the other. Kalimdor sits west of the Eastern Kingdoms, as on the world map, and its quest icons, Questie routes and dungeon entrances show there too.
 - No limit (Settings > Map): zoom out until both continents show whole. Every map tile is loaded at the furthest zoom, so it's heavy on memory and the first zoom-out takes a moment.
-- The far map's background is now black, so the edge of the map data no longer shows as a navy outline.
+- The far map's background is now the grey of the open sea in the tiles, so the edge of the map data no longer shows as a navy outline.
 
 ## 1.1.1
 

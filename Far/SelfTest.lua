@@ -332,3 +332,11 @@ end
 
 ns.RegisterCommand("selftest", "zoom the far map through a few levels and check what's drawn (report saved on /reload)",
     function() SelfTest.Run() end)
+
+-- Try the far map's background colour live, to match the tiles' sea: /overlook bg 3 3 3 (0-255).
+ns.RegisterCommand("bg", "dev: set the far map's background colour, 0-255 (/overlook bg 3 3 3)", function(arg)
+    local r, g, b = tostring(arg or ""):match("^%s*(%d+)%s+(%d+)%s+(%d+)")
+    if not r then print("Overlook Dev: /overlook bg <r> <g> <b>, each 0-255"); return end
+    if ns.Far and ns.Far.SetBackground then ns.Far.SetBackground(r / 255, g / 255, b / 255) end
+    print(("Overlook Dev: far map background %d %d %d"):format(r, g, b))
+end)
