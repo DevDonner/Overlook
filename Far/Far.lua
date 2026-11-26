@@ -818,7 +818,7 @@ function Far.Build(root, level)
 
     local bg = view:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints(view)
-    bg:SetColorTexture(0.012, 0.027, 0.039, 1) -- the dark sea of the edge tiles, so where they stop doesn't show
+    bg:SetColorTexture(0, 0, 0, 1) -- black, like the empty sea at the edge of the tiles
     bg.overlookPart = "background"
     Far.Shape(bg)
 
