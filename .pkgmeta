@@ -22,4 +22,5 @@ ignore:
   - sc_inputs
   - CHANGELOG.md
   - OverlookDev.toc
-  - Far/SelfTest.lua   # dev build only (OverlookDev.toc)
+  # dev build only (OverlookDev.toc):
+  - Far/SelfTest.lua

@@ -24,7 +24,7 @@ end)
 H.test("the dev-only tools are left out of the CurseForge zip", function()
     local ignored = {}
     for line in io.lines(".pkgmeta") do
-        local f = line:gsub("\r$", ""):match("^%s+%-%s+(%S+)")
+        local f = line:gsub("\r$", ""):match("^%s+%-%s+(%S+)%s*$") -- the whole line: the packager takes a trailing comment as part of the name
         if f then ignored[f] = true end
     end
     for f in pairs(DEV_ONLY) do
