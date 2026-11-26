@@ -1,6 +1,8 @@
 # Overlook
 
-## Unreleased
+## 1.2.0
+
+One world: zoom out across both continents.
 
 - One world: the far map now pans across the sea from one continent to the other. Kalimdor sits west of the Eastern Kingdoms, as on the world map, and its quest icons, Questie routes and dungeon entrances show there too.
 - No limit (Settings > Map): zoom out until both continents show whole. Every map tile is loaded at the furthest zoom, so it's heavy on memory and the first zoom-out takes a moment.
