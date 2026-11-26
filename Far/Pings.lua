@@ -29,6 +29,7 @@ local LOCAL_GRACE = 1   -- seconds
 
 local function Round(parent, size, r, g, b)
     local t = parent:CreateTexture(nil, "OVERLAY")
+    t.overlookPart = "ping"
     t:SetColorTexture(r, g, b, 1)
     t:SetSize(size, size)
     if t.SetMask then pcall(t.SetMask, t, MASK) end

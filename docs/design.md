@@ -214,6 +214,26 @@ Feedback from an EllesmereUI player: Overlook took over the buttons, added its o
 - **Every takeover switchable, and reversible live.** Gathering buttons gives them back immediately when switched off (originals' `Show`, parent, strata, level and points restored). Overrides already restored their settings; `GetMinimapShape` goes back to the last answer another addon set (`claimShape`).
 - **Limits:** furniture/drawing sorting is a heuristic. A frame the size of the whole map that holds both drawings and a border gets its drawings copied, but its border isn't kept showing in far mode. Drawings get no tooltips on the far map. Things an addon only draws within the native radius stay within it (it never placed the rest). Not yet checked in game.
 
+## One world (Nov 25, 2026)
+
+Each continent has its own coordinates: a 64 x 64 grid of 533-yard tiles centred on 0. `Core/World.lua` puts them side by side so the far map can pan from one to the other and show both:
+
+- **Placement.** West to east as on the world map (`World.ORDER`: Kalimdor, then the Eastern Kingdoms). Each continent's main land is the span of columns and rows with at least 4 tiles (Kalimdor's lone islet in its grid's corner doesn't count). The next continent's west coast sits `World.SEA` = 6 tiles (3,200 yd) east of the previous one's east coast, with their middles level. Worked out from the tile data, so a new tile file places itself.
+- **Shift.** `World.Shift(home, other)` gives the yards to add to a point on `other` to place it in `home`'s coordinates (on 1.60.1: Kalimdor is 17,067 yd west and 4,267 yd south of the Eastern Kingdoms' frame). The far map stays in the player's continent's coordinates; everything from the other continent is shifted on the way in.
+- **Tiles.** One tile layer per continent (`layers` in Far.lua), keyed `layer * 4096 + tile key`. Each layer works out its own visible range in its own coordinates, and is skipped when the view misses its grid, so with the normal limit the other continent costs nothing until you pan to it.
+- **Pins.** The mirror (Questie and the HereBeDragons registry), Questie routes and dungeon entrances shift icons from the other continent. Quest areas, party dots, pings and other addons' copied drawings stay on the player's continent.
+- **Pan.** A drag can go anywhere over the world's land (`World.Bounds`), not just within reach of the player.
+- **No limit** (`worldZoom`). The furthest zoom becomes `World.Reach()`: the world's larger side (about 32,000 yd), so the whole world shows from anywhere on it. That's every tile loaded (about 1,700), drawn a few pixels wide, plus every icon. Off by default.
+
+## Self-test in the game (Nov 25, 2026)
+
+The offline tests only know the world they're given, and other addons are too many to fake: 1.1.0's white box came from Leatrix Plus changing the game's hybrid minimap, which no test knew about. `/overlook selftest` (`Far/SelfTest.lua`, in OverlookDev.toc only and left out of the CurseForge zip) checks the real client with whatever is installed:
+
+- Every texture the far map makes carries `overlookPart` (tile, icon, copy, route, entrance, party, ping, map art, cave, quest area, arrow, background); copies also carry `overlookFrom` (whose drawing) and tiles `overlookInst` (which continent). Anything in the view without one is someone else's.
+- It zooms through a few levels (`SelfTest.Steps`: past the native map, a zone, the setting, and the whole world with "no limit"), waits for the tiles, and lists everything shown in the view at each.
+- `SelfTest.Check` (pure, tested offline with both 1.1.0 white boxes replayed) applies rules that hold whatever is loaded: no plain colour box except our own background, cave cover, pings, routes and quest areas; nothing big (wider and taller than 12% of the view) on the player but the map itself; nothing big keeping its size while the zoom doubles; tiles the size the zoom says; with "no limit" at its furthest, tiles from every continent. Foreign things in the view and slow tile loads are notes.
+- The report goes in `OverlookDB.selftest`: the problems and notes, a summary per zoom (count and sizes per part, frame rate, load time), what `Others` kept or copied from the Minimap's children (by name), and the loaded addons. The game writes it to `WTF/Account/<account>/SavedVariables/OverlookDev.lua` on /reload, where it can be read without screenshots.
+
 ## Risks and open questions
 
 | Risk | Impact | Mitigation |

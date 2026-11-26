@@ -228,6 +228,22 @@ H.test("pins on another continent are not drawn", function()
     H.eq(Proxy(icon).drawn, false)
 end)
 
+H.test("pins on the other continent are drawn where it sits in the world", function()
+    ns.World = { Shift = function(home, other)
+        if home == 0 and other == 1 then return 0, 20000 end -- 20,000 yd west
+    end }
+    local icon = NewIcon("available")
+    lib:AddMinimapIconWorld("Questie", icon, 1, -132, -8949)
+    local far = NewIcon("available")
+    lib:AddMinimapIconWorld("Questie", far, 530, -132, -8949)
+    Drain()
+    Mirror.SetLayout(0, -8949, -132, 0.5)
+    H.eq(Proxy(icon).drawn, true)
+    H.near(Proxy(icon).x, -10000, 1e-6, "20,000 yd west at 0.5 px per yard")
+    H.eq(Proxy(far).drawn, false, "a continent outside the world isn't drawn")
+    ns.World = nil
+end)
+
 H.test("FakeHide hides the proxy and FakeShow brings it back (#22)", function()
     local icon = NewIcon("available")
     lib:AddMinimapIconWorld("Questie", icon, 0, -132, -8949)

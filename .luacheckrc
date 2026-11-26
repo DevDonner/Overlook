@@ -23,7 +23,8 @@ read_globals = {
     "InCombatLockdown", "IsInRaid", "Minimap", "UIParent",
     "UnitName", "UnitPosition", "UnitLevel", "issecretvalue", "UnitClass", "UnitIsUnit", "UnitIsConnected",
     "hooksecurefunc", "IsAltKeyDown", "IsMouseButtonDown", "IsControlKeyDown", "MinimapCluster",
-    "UISpecialFrames", "HideUIPanel", "IsIndoors", "IsShiftKeyDown", "CreateVector2D", "UnitExists",
+    "UISpecialFrames", "HideUIPanel", "GetFramerate", "UpdateAddOnMemoryUsage", "GetAddOnMemoryUsage",
+    "GetBuildInfo", "GetRealZoneText", "GetSubZoneText", "IsIndoors", "IsShiftKeyDown", "CreateVector2D", "UnitExists",
     "GetCVar", "SetCVar", "GetNumTrackingTypes", "GetTrackingInfo", "SetTracking",
     "IsMounted", "GetMinimapZoneText", "GetZoneText", "GetZonePVPInfo", "ToggleWorldMap", "date", "GetGameTime", "RAID_CLASS_COLORS",
     -- Other addons

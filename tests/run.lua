@@ -5,6 +5,7 @@ local H = require("harness")
 
 local FILES = {
     "tests/geometry.test.lua",
+    "tests/world.test.lua",
     "tests/tiles.test.lua",
     "tests/pinsources.test.lua",
     "tests/settings.test.lua",
@@ -28,6 +29,7 @@ local FILES = {
     "tests/buttons.test.lua",
     "tests/host.test.lua",
     "tests/others.test.lua",
+    "tests/selftest.test.lua",
     "tests/options.test.lua",
     "tests/welcome.test.lua",
     "tests/devtoc.test.lua",

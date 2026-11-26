@@ -363,6 +363,7 @@ local function Scan()
             if ns.Mirror and ns.Mirror.AddCategory then ns.Mirror.AddCategory(key, categories[key]) end
         end
         copies[src] = { src = src, tex = tex, key = key }
+        tex.overlookPart, tex.overlookFrom = "copy", owner -- (self-test)
     end
 
     -- A frame's pictures that are drawings (all of them for a drawing frame; in a container, only
@@ -501,6 +502,29 @@ end
 -- Icon-group sizes changed (Icons tab).
 function Others.RefreshPrefs()
     for _, c in pairs(copies) do Place(c) end
+end
+
+-- For the self-test: how each of the Minimap's children is treated now, and what was copied.
+-- Returns { kept = { names }, copied = { { owner, frame, file, w, h } } }.
+function Others.Report()
+    local kept, copied = {}, {}
+    local function Name(f)
+        local ok, n = pcall(f.GetName, f)
+        if ok and n then return n end
+        local okP, p = pcall(f.GetParent, f)
+        local pn = okP and p and p.GetName and p:GetName()
+        return "(unnamed" .. (pn and (", in " .. pn) or "") .. ")"
+    end
+    for frame in pairs(lifted) do kept[#kept + 1] = Name(frame) end
+    for src, c in pairs(copies) do
+        local okP, parent = pcall(src.GetParent, src)
+        local file = src.GetTextureFilePath and src:GetTextureFilePath() or src:GetTexture()
+        local w, h = src:GetSize()
+        copied[#copied + 1] = { owner = categories[c.key] or c.key, frame = okP and parent and Name(parent) or "?",
+            file = tostring(file), w = w, h = h }
+    end
+    table.sort(kept)
+    return { kept = kept, copied = copied }
 end
 
 -- [key] = how many copies each group has now.

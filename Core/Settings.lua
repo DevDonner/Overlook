@@ -14,6 +14,7 @@ Settings.DEFAULTS = {
     size = 300,           -- px, square
     locked = false,       -- hides the resize grip; Alt+drag still moves it
     maxFarZoom = 3000,    -- yd radius; setting goes up to 6,400
+    worldZoom = false,    -- no limit: zoom out until the whole world shows (every tile loaded)
     rotate = false,       -- the game's rotating minimap, at normal zoom (Shell.SetRotate)
     clustering = false,
     smoothZoom = true,    -- tween far-zoom steps

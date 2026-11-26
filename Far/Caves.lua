@@ -47,6 +47,7 @@ local function Draw()
             local tex = textures[n]
             if not tex then
                 tex = canvas:CreateTexture(nil, "ARTWORK", nil, 2) -- above the cover
+                tex.overlookPart = "cave"
                 if ns.Far and ns.Far.Shape then ns.Far.Shape(tex) end
                 if tex.SetSnapToPixelGrid then
                     tex:SetSnapToPixelGrid(false)
@@ -164,6 +165,7 @@ function Caves.Build(canvasFrame, viewFrame, level)
     cover = canvas:CreateTexture(nil, "ARTWORK", nil, 1)
     cover:SetAllPoints(view)
     cover:SetColorTexture(0, 0, 0, 1)
+    cover.overlookPart = "cave cover"
     cover:Hide()
     if ns.Far and ns.Far.Shape then ns.Far.Shape(cover) end
     local top = CreateFrame("Frame", nil, view)

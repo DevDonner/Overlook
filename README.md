@@ -18,7 +18,8 @@ The full design, with decisions, risks and the test plan, is in [docs/design.md]
 
 ## Features
 
-- Zoom past the native limit, out to about one zone (default 3,000 yards, up to 6,400), smoothly or in steps
+- Zoom past the native limit, out to about one zone (default 3,000 yards, up to 6,400), smoothly or in steps; or with "No limit", out to both continents whole
+- One world: drag across the sea to the other continent, with its quests, routes and dungeon entrances
 - Questie icons at every zoom (kill swords, turn-ins, available quests, townsfolk...) with Questie's own tooltips and clicks
 - Questie's NPC patrol routes on the far map
 - Other addons' map icons too (RareScanner, TomTom): per-group show, size and shrink-with-zoom
@@ -89,6 +90,7 @@ Install from CurseForge (the CurseForge app, or download the zip into `_forever_
 | `/overlook underground` | What map the far view would draw here (underground cities, dungeons), for checking in game |
 | `/overlook questie` | Check the Questie parts the far map uses (also run once after login; quiet when all is well) |
 | `/overlook far`, `/overlook pins`, `/overlook routes` | State, for bug reports |
+| `/overlook selftest` | (Dev build only) Zooms the far map through a few levels and checks what's drawn on it with your addons; the report is saved on /reload |
 
 ## Development
 
