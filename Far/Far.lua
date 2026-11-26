@@ -26,9 +26,9 @@ local NEW_TILES_PER_FRAME, MAX_TILES_PER_FRAME, LOAD_FRAMES = 16, 64, 12
 local ARROW_SIZE = 32            -- px at native minimap scale
 local ARROW_TEXTURE = "Interface\\Minimap\\MinimapArrow"
 
--- The open sea in the game's tiles shows as grey 3/255, so the background is the same: where the
+-- Matched by eye in the game (/overlook bg) to the open sea in the tiles, so where the
 -- tiles stop doesn't show. (/overlook bg in the dev build tries other values live.)
-local BG = 3 / 255
+local BG = 5 / 255
 local background
 local view, canvas, arrowFrame, arrow
 local mode = "near"
