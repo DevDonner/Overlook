@@ -5,6 +5,23 @@
 
 **Zoom your minimap out, keep every Questie icon on it, and plan your next move without ever opening the world map.**
 
+## What's new
+
+**1.2: One world**
+
+- **Pan across the sea.** Drag the zoomed-out map past the coast and keep going: Kalimdor sits west of the Eastern Kingdoms, as on the world map, with its quest icons, Questie routes and dungeon entrances.
+- **No limit zoom.** Tick *No limit* in Settings > Map and zoom out until both continents show whole. It loads every map tile at the furthest zoom, so it's heavy on memory and the first zoom-out takes a moment.
+- **Cleaner edges.** The far map's background now matches the dark sea in the map tiles, so the edge of the map no longer shows as a box.
+
+**1.1: Plays nicely with other addons**
+
+- **EllesmereUI**: Overlook adds its far zoom inside Ellesmere's minimap instead of replacing it.
+- **Simpler settings**: plain choices instead of a wall of toggles, with the rarely needed ones under *Advanced*.
+- **Button column inside or outside the map**, on its left or right edge.
+- Fixed the white boxes some players saw when zooming out with Leatrix Plus or RareScanner.
+
+Full history in the Changelog tab.
+
 ## Why I made it
 
 I wanted a minimap that could zoom out seamlessly while still working with Questie and all of its quest icons, no matter where I panned. Now I can zoom out, find the next area with quest objectives, and plan my route, then either zoom back in or leave the map zoomed out while I cover the distance.
