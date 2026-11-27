@@ -6,6 +6,9 @@
 ## Dependencies: Questie
 ## OptionalDeps: TomTom
 ## X-License: MIT
+## X-Curse-Project-ID: 1826936
+## X-WoWI-ID: 0
+## X-Wago-ID: 0
 ## SavedVariables: OverlookDB
 ## IconTexture: Interface\AddOns\Overlook\Media\Logo.tga
 ## AddonCompartmentFunc: Overlook_OnAddonCompartmentClick

@@ -1,9 +1,10 @@
 name: Release
 
-# A version tag (v1.0.0, v1.0.1-beta, ...) runs the tests and attaches the zip to a GitHub release.
-# CurseForge builds and publishes its own copy from the same tag (its automatic packaging, set on the
-# project), so this workflow deliberately has no CurseForge key: with one, every version would be
-# uploaded twice.
+# A version tag (v1.0.0, v1.0.1-beta, ...) runs the tests, then the BigWigs packager builds the zip,
+# attaches it to a GitHub release and uploads it to CurseForge, WoWInterface and Wago.
+# Each site is skipped until both its repo secret and its project ID in Overlook.toc are set
+# (an ID of 0 means "not set"). Once CF_API_KEY is added, remove the CurseForge webhook on this
+# repo, or every version reaches CurseForge twice. See docs/RELEASING.md.
 on:
   push:
     tags:
@@ -16,6 +17,9 @@ jobs:
       contents: write
     env:
       GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+      CF_API_TOKEN: ${{ secrets.CF_API_KEY }}
+      WOWI_API_TOKEN: ${{ secrets.WOWI_API_TOKEN }}
+      WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
     steps:
       - uses: actions/checkout@v5
         with:
